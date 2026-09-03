@@ -1,0 +1,157 @@
+{
+  "config": {
+    "abort": {
+      "single_instance_allowed": "PLN Prepaid Monitor sudah terpasang. Untuk menambah sumber energi baru, buka integrasi yang sudah ada lalu tekan 'Tambah Sumber Energi'."
+    },
+    "error": {
+      "name_required": "Nama sumber tidak boleh kosong.",
+      "name_duplicate": "Sudah ada sumber energi dengan nama itu. Pakai nama lain supaya tidak tertukar.",
+      "no_measurement_entity": "Isi minimal salah satu: sensor Energi (kWh) atau sensor Daya (W). Tanpa salah satunya tidak ada yang bisa dihitung.",
+      "own_entity_selected": "Sensor itu buatan integrasi ini sendiri. Pilih sensor asli dari perangkat Anda.",
+      "state_not_numeric": "Sensor yang dipilih tidak berisi angka. Pilih sensor lain.",
+      "unit_not_convertible": "Satuan sensor itu tidak cocok untuk peran tersebut. Periksa lagi pilihan Anda."
+    },
+    "step": {
+      "user": {
+        "title": "Selamat datang di PLN Prepaid Monitor",
+        "description": "Integrasi ini memantau pemakaian listrik, menghitung biayanya, memperkirakan kapan token PLN Anda habis, dan mengingatkan Anda sebelum itu terjadi.\n\n**Penting**: integrasi ini hanya membaca. Ia tidak pernah bisa memutus atau menyalakan listrik Anda, walaupun MCB pintar Anda punya kemampuan itu.\n\nLangkah berikutnya adalah menambahkan sumber energi pertama - misalnya MCB rumah atau MCB toko Anda.",
+        "data": {
+          "add_source_now": "Tambahkan sumber energi pertama sekarang"
+        },
+        "data_description": {
+          "add_source_now": "Hilangkan centang kalau Anda ingin mengatur sumbernya nanti. Anda tetap bisa menambahkannya kapan saja dari halaman integrasi."
+        }
+      },
+      "pick_device": {
+        "title": "Pilih perangkat sumber",
+        "description": "Kalau Anda memilih perangkat di sini, isian di langkah berikutnya akan ditebak otomatis dari sensor milik perangkat itu. Anda tetap bisa mengubah semuanya. Boleh juga dikosongkan dan memilih sensornya satu per satu.",
+        "data": {
+          "device_id": "Perangkat (opsional)",
+          "show_all_sensors": "Tampilkan semua sensor tanpa penyaringan"
+        },
+        "data_description": {
+          "device_id": "Daftar ini hanya berisi perangkat yang punya sensor energi atau daya, misalnya MCB pintar, colokan pintar, atau inverter.",
+          "show_all_sensors": "Centang ini kalau sensor yang Anda cari tidak muncul di langkah berikutnya. Biasanya itu terjadi karena sensor tersebut tidak memberi tahu Home Assistant jenis pengukurannya."
+        }
+      },
+      "map_entities": {
+        "title": "Petakan sensor",
+        "description": "Beri tahu sistem sensor mana yang mewakili apa. Hanya sensor pembacaan yang ditampilkan - tombol, relay, dan pengaturan perangkat sengaja tidak pernah muncul di sini supaya tidak mungkin salah pilih.\n\nMinimal isi salah satu dari Energi atau Daya.",
+        "data": {
+          "name": "Nama sumber energi",
+          "energy_entity_id": "Sensor energi (kWh)",
+          "power_entity_id": "Sensor daya (W)",
+          "voltage_entity_id": "Sensor tegangan (V)",
+          "current_entity_id": "Sensor arus (A)",
+          "frequency_entity_id": "Sensor frekuensi (Hz)",
+          "availability_entity_id": "Sensor status koneksi (opsional)",
+          "unavailable_grace_minutes": "Masa tenggang sebelum dianggap mati (menit)",
+          "enabled": "Aktifkan sumber ini"
+        },
+        "data_description": {
+          "name": "Nama yang akan Anda lihat di dashboard, misalnya 'MCB Rumah' atau 'MCB Toko'. Beri nama yang jelas kalau Anda punya lebih dari satu meteran.",
+          "energy_entity_id": "Angka kWh yang terus bertambah - seperti angka odometer di motor, tidak pernah berkurang. Di aplikasi Smart Life angka ini biasanya disebut 'total forward energy'. Ini yang paling penting: kalau sensor ini ada, sistem memakainya sebagai patokan utama.",
+          "power_entity_id": "Daya yang sedang dipakai detik ini, dalam Watt. Angkanya naik-turun terus. Berguna untuk tampilan beban langsung. Kalau sensor kWh di atas tidak ada, sistem akan memakai sensor ini untuk memperkirakan kWh - hasilnya perkiraan, kurang akurat.",
+          "voltage_entity_id": "Tegangan listrik yang terukur, biasanya sekitar 220 V. Hanya untuk ditampilkan, tidak dipakai menghitung biaya.",
+          "current_entity_id": "Arus listrik yang mengalir, dalam Ampere. Hanya untuk ditampilkan.",
+          "frequency_entity_id": "Frekuensi jaringan listrik, biasanya sekitar 50 Hz. Tidak semua meteran punya sensor ini - boleh dikosongkan.",
+          "availability_entity_id": "Kalau perangkat Anda punya sensor khusus yang memberi tahu sedang terhubung atau tidak, pilih di sini. Kalau dikosongkan, sistem menyimpulkannya sendiri dari sensor energi atau daya di atas.",
+          "unavailable_grace_minutes": "Berapa lama sumber boleh menghilang sebelum ditandai benar-benar mati. Gangguan singkat (WiFi atau Zigbee putus beberapa detik) itu normal, jadi nilai kecil seperti 5 menit sudah cukup. Selama masa tenggang ini, nilai terakhir tetap ditahan supaya tidak salah terbaca sebagai 'tidak ada beban'.",
+          "enabled": "Hilangkan centang untuk menonaktifkan sementara sumber ini tanpa menghapus pengaturannya."
+        }
+      },
+      "review": {
+        "title": "Cek dulu sebelum disimpan",
+        "description": "Berikut hasil pembacaan sistem terhadap sensor yang Anda pilih. Periksa sebentar, terutama baris yang bertanda ⚠️.\n\n{summary}"
+      }
+    }
+  },
+  "config_subentries": {
+    "energy_source": {
+      "abort": {
+        "reconfigure_successful": "Pengaturan sumber energi berhasil disimpan."
+      },
+      "entry_type": "Sumber energi",
+      "error": {
+        "name_required": "Nama sumber tidak boleh kosong.",
+        "name_duplicate": "Sudah ada sumber energi dengan nama itu. Pakai nama lain supaya tidak tertukar.",
+        "no_measurement_entity": "Isi minimal salah satu: sensor Energi (kWh) atau sensor Daya (W). Tanpa salah satunya tidak ada yang bisa dihitung.",
+        "own_entity_selected": "Sensor itu buatan integrasi ini sendiri. Pilih sensor asli dari perangkat Anda.",
+        "state_not_numeric": "Sensor yang dipilih tidak berisi angka. Pilih sensor lain.",
+        "unit_not_convertible": "Satuan sensor itu tidak cocok untuk peran tersebut. Periksa lagi pilihan Anda."
+      },
+      "initiate_flow": {
+        "reconfigure": "Ubah sumber energi",
+        "user": "Tambah sumber energi"
+      },
+      "step": {
+        "pick_device": {
+          "title": "Pilih perangkat sumber",
+          "description": "Kalau Anda memilih perangkat di sini, isian di langkah berikutnya akan ditebak otomatis dari sensor milik perangkat itu. Anda tetap bisa mengubah semuanya. Boleh juga dikosongkan dan memilih sensornya satu per satu.",
+          "data": {
+            "device_id": "Perangkat (opsional)",
+            "show_all_sensors": "Tampilkan semua sensor tanpa penyaringan"
+          },
+          "data_description": {
+            "device_id": "Daftar ini hanya berisi perangkat yang punya sensor energi atau daya, misalnya MCB pintar, colokan pintar, atau inverter.",
+            "show_all_sensors": "Centang ini kalau sensor yang Anda cari tidak muncul di langkah berikutnya. Biasanya itu terjadi karena sensor tersebut tidak memberi tahu Home Assistant jenis pengukurannya."
+          }
+        },
+        "map_entities": {
+          "title": "Petakan sensor",
+          "description": "Beri tahu sistem sensor mana yang mewakili apa. Hanya sensor pembacaan yang ditampilkan - tombol, relay, dan pengaturan perangkat sengaja tidak pernah muncul di sini supaya tidak mungkin salah pilih.\n\nMinimal isi salah satu dari Energi atau Daya.",
+          "data": {
+            "name": "Nama sumber energi",
+            "energy_entity_id": "Sensor energi (kWh)",
+            "power_entity_id": "Sensor daya (W)",
+            "voltage_entity_id": "Sensor tegangan (V)",
+            "current_entity_id": "Sensor arus (A)",
+            "frequency_entity_id": "Sensor frekuensi (Hz)",
+            "availability_entity_id": "Sensor status koneksi (opsional)",
+            "unavailable_grace_minutes": "Masa tenggang sebelum dianggap mati (menit)",
+            "enabled": "Aktifkan sumber ini"
+          },
+          "data_description": {
+            "name": "Nama yang akan Anda lihat di dashboard, misalnya 'MCB Rumah' atau 'MCB Toko'. Beri nama yang jelas kalau Anda punya lebih dari satu meteran.",
+            "energy_entity_id": "Angka kWh yang terus bertambah - seperti angka odometer di motor, tidak pernah berkurang. Di aplikasi Smart Life angka ini biasanya disebut 'total forward energy'. Ini yang paling penting: kalau sensor ini ada, sistem memakainya sebagai patokan utama.",
+            "power_entity_id": "Daya yang sedang dipakai detik ini, dalam Watt. Angkanya naik-turun terus. Berguna untuk tampilan beban langsung. Kalau sensor kWh di atas tidak ada, sistem akan memakai sensor ini untuk memperkirakan kWh - hasilnya perkiraan, kurang akurat.",
+            "voltage_entity_id": "Tegangan listrik yang terukur, biasanya sekitar 220 V. Hanya untuk ditampilkan, tidak dipakai menghitung biaya.",
+            "current_entity_id": "Arus listrik yang mengalir, dalam Ampere. Hanya untuk ditampilkan.",
+            "frequency_entity_id": "Frekuensi jaringan listrik, biasanya sekitar 50 Hz. Tidak semua meteran punya sensor ini - boleh dikosongkan.",
+            "availability_entity_id": "Kalau perangkat Anda punya sensor khusus yang memberi tahu sedang terhubung atau tidak, pilih di sini. Kalau dikosongkan, sistem menyimpulkannya sendiri dari sensor energi atau daya di atas.",
+            "unavailable_grace_minutes": "Berapa lama sumber boleh menghilang sebelum ditandai benar-benar mati. Gangguan singkat (WiFi atau Zigbee putus beberapa detik) itu normal, jadi nilai kecil seperti 5 menit sudah cukup. Selama masa tenggang ini, nilai terakhir tetap ditahan supaya tidak salah terbaca sebagai 'tidak ada beban'.",
+            "enabled": "Hilangkan centang untuk menonaktifkan sementara sumber ini tanpa menghapus pengaturannya."
+          }
+        },
+        "review": {
+          "title": "Cek dulu sebelum disimpan",
+          "description": "Berikut hasil pembacaan sistem terhadap sensor yang Anda pilih. Periksa sebentar, terutama baris yang bertanda ⚠️.\n\n{summary}"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "available": {
+        "name": "Status koneksi"
+      }
+    },
+    "sensor": {
+      "energy": {
+        "name": "Energi"
+      },
+      "power": {
+        "name": "Daya"
+      },
+      "voltage": {
+        "name": "Tegangan"
+      },
+      "current": {
+        "name": "Arus"
+      },
+      "frequency": {
+        "name": "Frekuensi"
+      }
+    }
+  }
+}

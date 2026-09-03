@@ -1,0 +1,157 @@
+{
+  "config": {
+    "abort": {
+      "single_instance_allowed": "PLN Prepaid Monitor is already set up. To add another energy source, open the existing integration and press 'Add energy source'."
+    },
+    "error": {
+      "name_required": "The source name cannot be empty.",
+      "name_duplicate": "An energy source with that name already exists. Use a different name to avoid confusion.",
+      "no_measurement_entity": "Fill in at least one of: Energy (kWh) sensor or Power (W) sensor. Without either there is nothing to calculate.",
+      "own_entity_selected": "That sensor is created by this integration itself. Pick a real sensor from your device.",
+      "state_not_numeric": "The selected sensor does not report a number. Pick a different sensor.",
+      "unit_not_convertible": "That sensor's unit does not fit the selected role. Please check your choice."
+    },
+    "step": {
+      "user": {
+        "title": "Welcome to PLN Prepaid Monitor",
+        "description": "This integration watches your electricity usage, works out what it costs, estimates when your prepaid PLN token will run out, and warns you before it does.\n\n**Important**: this integration only reads. It can never switch your electricity on or off, even though your smart breaker is capable of that.\n\nThe next step is adding your first energy source - for example your house or shop breaker.",
+        "data": {
+          "add_source_now": "Add the first energy source now"
+        },
+        "data_description": {
+          "add_source_now": "Untick this if you would rather set up sources later. You can add them at any time from the integration page."
+        }
+      },
+      "pick_device": {
+        "title": "Pick the source device",
+        "description": "If you pick a device here, the fields on the next step will be filled in automatically from that device's sensors. You can still change everything. You may also leave this empty and pick each sensor yourself.",
+        "data": {
+          "device_id": "Device (optional)",
+          "show_all_sensors": "Show all sensors without filtering"
+        },
+        "data_description": {
+          "device_id": "This list only contains devices that have an energy or power sensor, such as smart breakers, smart plugs, or inverters.",
+          "show_all_sensors": "Tick this if the sensor you are looking for does not appear on the next step. That usually happens when the sensor does not tell Home Assistant what kind of measurement it reports."
+        }
+      },
+      "map_entities": {
+        "title": "Map the sensors",
+        "description": "Tell the system which sensor represents what. Only reading sensors are shown - buttons, relays, and device settings deliberately never appear here, so they cannot be picked by mistake.\n\nFill in at least one of Energy or Power.",
+        "data": {
+          "name": "Energy source name",
+          "energy_entity_id": "Energy sensor (kWh)",
+          "power_entity_id": "Power sensor (W)",
+          "voltage_entity_id": "Voltage sensor (V)",
+          "current_entity_id": "Current sensor (A)",
+          "frequency_entity_id": "Frequency sensor (Hz)",
+          "availability_entity_id": "Connection status sensor (optional)",
+          "unavailable_grace_minutes": "Grace period before marking it offline (minutes)",
+          "enabled": "Enable this source"
+        },
+        "data_description": {
+          "name": "The name you will see on the dashboard, for example 'House breaker' or 'Shop breaker'. Give it a clear name if you have more than one meter.",
+          "energy_entity_id": "The kWh number that only ever goes up - like the odometer on a motorbike, it never decreases. In the Smart Life app this is usually called 'total forward energy'. This is the important one: when it is present, the system uses it as the primary basis for all calculations.",
+          "power_entity_id": "The power being drawn right now, in Watts. It moves up and down constantly. Useful for a live load display. If the kWh sensor above is missing, the system will estimate kWh from this instead - that is an estimate and less accurate.",
+          "voltage_entity_id": "The measured voltage, usually around 220 V. Display only; not used for cost calculations.",
+          "current_entity_id": "The current flowing, in Amperes. Display only.",
+          "frequency_entity_id": "Grid frequency, usually around 50 Hz. Not every meter has this - you may leave it empty.",
+          "availability_entity_id": "If your device has a dedicated sensor telling you whether it is connected, pick it here. If left empty, the system works it out from the energy or power sensor above.",
+          "unavailable_grace_minutes": "How long the source may disappear before it is marked genuinely offline. Short interruptions (WiFi or Zigbee dropping for a few seconds) are normal, so a small value such as 5 minutes is enough. During the grace period the last value is held, so it is not misread as 'no load'.",
+          "enabled": "Untick to temporarily disable this source without deleting its settings."
+        }
+      },
+      "review": {
+        "title": "Check before saving",
+        "description": "Here is what the system reads from the sensors you picked. Take a moment to check, especially the lines marked ⚠️.\n\n{summary}"
+      }
+    }
+  },
+  "config_subentries": {
+    "energy_source": {
+      "abort": {
+        "reconfigure_successful": "Energy source settings saved."
+      },
+      "entry_type": "Energy source",
+      "error": {
+        "name_required": "The source name cannot be empty.",
+        "name_duplicate": "An energy source with that name already exists. Use a different name to avoid confusion.",
+        "no_measurement_entity": "Fill in at least one of: Energy (kWh) sensor or Power (W) sensor. Without either there is nothing to calculate.",
+        "own_entity_selected": "That sensor is created by this integration itself. Pick a real sensor from your device.",
+        "state_not_numeric": "The selected sensor does not report a number. Pick a different sensor.",
+        "unit_not_convertible": "That sensor's unit does not fit the selected role. Please check your choice."
+      },
+      "initiate_flow": {
+        "reconfigure": "Reconfigure energy source",
+        "user": "Add energy source"
+      },
+      "step": {
+        "pick_device": {
+          "title": "Pick the source device",
+          "description": "If you pick a device here, the fields on the next step will be filled in automatically from that device's sensors. You can still change everything. You may also leave this empty and pick each sensor yourself.",
+          "data": {
+            "device_id": "Device (optional)",
+            "show_all_sensors": "Show all sensors without filtering"
+          },
+          "data_description": {
+            "device_id": "This list only contains devices that have an energy or power sensor, such as smart breakers, smart plugs, or inverters.",
+            "show_all_sensors": "Tick this if the sensor you are looking for does not appear on the next step. That usually happens when the sensor does not tell Home Assistant what kind of measurement it reports."
+          }
+        },
+        "map_entities": {
+          "title": "Map the sensors",
+          "description": "Tell the system which sensor represents what. Only reading sensors are shown - buttons, relays, and device settings deliberately never appear here, so they cannot be picked by mistake.\n\nFill in at least one of Energy or Power.",
+          "data": {
+            "name": "Energy source name",
+            "energy_entity_id": "Energy sensor (kWh)",
+            "power_entity_id": "Power sensor (W)",
+            "voltage_entity_id": "Voltage sensor (V)",
+            "current_entity_id": "Current sensor (A)",
+            "frequency_entity_id": "Frequency sensor (Hz)",
+            "availability_entity_id": "Connection status sensor (optional)",
+            "unavailable_grace_minutes": "Grace period before marking it offline (minutes)",
+            "enabled": "Enable this source"
+          },
+          "data_description": {
+            "name": "The name you will see on the dashboard, for example 'House breaker' or 'Shop breaker'. Give it a clear name if you have more than one meter.",
+            "energy_entity_id": "The kWh number that only ever goes up - like the odometer on a motorbike, it never decreases. In the Smart Life app this is usually called 'total forward energy'. This is the important one: when it is present, the system uses it as the primary basis for all calculations.",
+            "power_entity_id": "The power being drawn right now, in Watts. It moves up and down constantly. Useful for a live load display. If the kWh sensor above is missing, the system will estimate kWh from this instead - that is an estimate and less accurate.",
+            "voltage_entity_id": "The measured voltage, usually around 220 V. Display only; not used for cost calculations.",
+            "current_entity_id": "The current flowing, in Amperes. Display only.",
+            "frequency_entity_id": "Grid frequency, usually around 50 Hz. Not every meter has this - you may leave it empty.",
+            "availability_entity_id": "If your device has a dedicated sensor telling you whether it is connected, pick it here. If left empty, the system works it out from the energy or power sensor above.",
+            "unavailable_grace_minutes": "How long the source may disappear before it is marked genuinely offline. Short interruptions (WiFi or Zigbee dropping for a few seconds) are normal, so a small value such as 5 minutes is enough. During the grace period the last value is held, so it is not misread as 'no load'.",
+            "enabled": "Untick to temporarily disable this source without deleting its settings."
+          }
+        },
+        "review": {
+          "title": "Check before saving",
+          "description": "Here is what the system reads from the sensors you picked. Take a moment to check, especially the lines marked ⚠️.\n\n{summary}"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "available": {
+        "name": "Connection status"
+      }
+    },
+    "sensor": {
+      "energy": {
+        "name": "Energy"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "voltage": {
+        "name": "Voltage"
+      },
+      "current": {
+        "name": "Current"
+      },
+      "frequency": {
+        "name": "Frequency"
+      }
+    }
+  }
+}
