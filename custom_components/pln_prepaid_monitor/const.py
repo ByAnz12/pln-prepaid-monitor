@@ -23,6 +23,7 @@ ALLOWED_SOURCE_DOMAINS: Final = ("sensor",)
 ALLOWED_AVAILABILITY_DOMAINS: Final = ("binary_sensor", "sensor")
 
 SUBENTRY_TYPE_ENERGY_SOURCE: Final = "energy_source"
+SUBENTRY_TYPE_BILLING_GROUP: Final = "billing_group"
 
 # --- kunci konfigurasi Energy Source -----------------------------------------
 CONF_DEVICE_ID: Final = "device_id"
@@ -37,6 +38,20 @@ CONF_UNAVAILABLE_GRACE_MINUTES: Final = "unavailable_grace_minutes"
 CONF_ENABLED: Final = "enabled"
 
 DEFAULT_UNAVAILABLE_GRACE_MINUTES: Final = 5
+
+# --- kunci konfigurasi Billing Group -----------------------------------------
+CONF_SOURCE_IDS: Final = "source_ids"
+CONF_CYCLE_PERIODS: Final = "cycle_periods"
+CONF_DAY_START_TIME: Final = "day_start_time"
+CONF_WEEK_START_DAY: Final = "week_start_day"
+CONF_MONTH_START_DAY: Final = "month_start_day"
+CONF_YEAR_START_MONTH: Final = "year_start_month"
+
+DEFAULT_CYCLE_PERIODS: Final = ("hour", "day", "week", "month", "year")
+DEFAULT_DAY_START_TIME: Final = "00:00:00"
+DEFAULT_WEEK_START_DAY: Final = "monday"
+DEFAULT_MONTH_START_DAY: Final = 1
+DEFAULT_YEAR_START_MONTH: Final = "january"
 
 # --- peran kanal (channel) kanonik -------------------------------------------
 CHANNEL_ENERGY: Final = "energy"
@@ -79,3 +94,7 @@ ATTR_ACCUMULATOR_OFFSET: Final = "accumulator_offset"
 ATTR_CONSUMED_SINCE_START: Final = "consumed_since_start_kwh"
 ATTR_HOLDING_LAST_VALUE: Final = "holding_last_value"
 ATTR_UNAVAILABLE_SINCE: Final = "unavailable_since"
+ATTR_MEMBER_SOURCES: Final = "member_sources"
+ATTR_MEMBERS_UNAVAILABLE: Final = "members_unavailable"
+ATTR_CYCLE_START: Final = "cycle_start"
+ATTR_NEXT_CYCLE_START: Final = "next_cycle_start"

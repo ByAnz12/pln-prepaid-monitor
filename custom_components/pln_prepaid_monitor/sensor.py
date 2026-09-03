@@ -1,14 +1,21 @@
-"""Entity sensor kanonik per Energy Source (Milestone 1).
+"""Entity sensor untuk Energy Source dan Billing Group.
 
-Satu Energy Source menghasilkan sampai lima sensor, semuanya sudah dalam
-satuan seragam apa pun satuan aslinya di perangkat:
+Per **Energy Source** (sampai lima sensor, satuannya sudah diseragamkan apa pun
+satuan aslinya di perangkat):
 
-* energi (kWh)   - selalu dibuat selama ada sensor kWh atau sensor daya
+* energi (kWh) - selalu dibuat selama ada sensor kWh atau sensor daya
 * daya (W), tegangan (V), arus (A), frekuensi (Hz) - dibuat bila dipetakan
+
+Per **Billing Group**:
+
+* total energi gabungan (kWh) dan daya gabungan (W)
+* penghitung pemakaian per periode: jam ini, hari ini, minggu ini, bulan ini,
+  tahun ini - periode mana saja yang dibuat mengikuti pilihan user
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -26,12 +33,15 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_ACCUMULATOR_OFFSET,
     ATTR_ACCUMULATOR_ZERO_POINT,
     ATTR_CONSUMED_SINCE_START,
+    ATTR_CYCLE_START,
     ATTR_DIPS_DETECTED,
+    ATTR_NEXT_CYCLE_START,
     ATTR_LAST_RESET_AT,
     ATTR_LAST_RESET_FROM,
     ATTR_LAST_RESET_TO,
@@ -48,8 +58,9 @@ from .const import (
     CHANNEL_POWER,
     CHANNEL_VOLTAGE,
 )
-from .coordinator import PlnRuntimeData, SourceRuntime
-from .entity import PlnSourceEntity
+from .coordinator import BillingGroupRuntime, PlnRuntimeData, SourceRuntime
+from .engines.period import next_cycle_start
+from .entity import PlnBillingGroupEntity, PlnSourceEntity
 
 MEASUREMENT_CHANNELS: dict[str, dict[str, Any]] = {
     CHANNEL_POWER: {
@@ -94,6 +105,16 @@ async def async_setup_entry(
                 entities.append(PlnSourceMeasurementSensor(runtime, channel))
         if entities:
             async_add_entities(entities, config_subentry_id=subentry_id)
+
+    for subentry_id, group in runtime_data.billing_groups.items():
+        group_entities: list[SensorEntity] = [
+            PlnGroupEnergyTotalSensor(group),
+            PlnGroupPowerSensor(group),
+        ]
+        group_entities.extend(
+            PlnGroupPeriodEnergySensor(group, period) for period in group.periods
+        )
+        async_add_entities(group_entities, config_subentry_id=subentry_id)
 
 
 class PlnSourceEnergySensor(PlnSourceEntity, SensorEntity):
@@ -189,4 +210,96 @@ class PlnSourceMeasurementSensor(PlnSourceEntity, SensorEntity):
                 ATTR_UNIT_CONVERSION_FACTOR: runtime.factors.get(self._key),
             }
         )
+        return attributes
+
+
+class PlnGroupEnergyTotalSensor(PlnBillingGroupEntity, SensorEntity):
+    """Total energi gabungan satu Billing Group, dalam kWh."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor total energi grup."""
+        super().__init__(group, "energy_total")
+
+    @property
+    def native_value(self) -> float | None:
+        """Total kWh seluruh anggota grup."""
+        return self._group.total_kwh
+
+    @property
+    def available(self) -> bool:
+        """Tersedia begitu ada minimal satu anggota yang mengirim data."""
+        return self._group.total_kwh is not None
+
+
+class PlnGroupPowerSensor(PlnBillingGroupEntity, SensorEntity):
+    """Daya gabungan satu Billing Group, dalam Watt."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor daya grup."""
+        super().__init__(group, "power")
+
+    @property
+    def native_value(self) -> float | None:
+        """Jumlah daya seluruh anggota grup."""
+        return self._group.power_w
+
+    @property
+    def available(self) -> bool:
+        """Tersedia selama ada minimal satu anggota yang melaporkan daya."""
+        return self._group.power_w is not None
+
+
+class PlnGroupPeriodEnergySensor(PlnBillingGroupEntity, SensorEntity):
+    """Pemakaian pada periode berjalan: jam ini, hari ini, dan seterusnya."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_suggested_display_precision = 3
+
+    def __init__(self, group: BillingGroupRuntime, period: str) -> None:
+        """Siapkan penghitung untuk satu periode."""
+        super().__init__(group, f"energy_this_{period}")
+        self._period = period
+
+    @property
+    def native_value(self) -> float | None:
+        """Pemakaian sejak awal siklus berjalan."""
+        return self._group.period_value(self._period)
+
+    @property
+    def last_reset(self) -> datetime | None:
+        """Kapan penghitung ini terakhir dimulai dari nol.
+
+        Home Assistant memakai nilai ini untuk mengerti batas siklus pada sensor
+        ber-``state_class: total``, sehingga statistik jangka panjangnya benar.
+        """
+        return self._group.period_cycle_start(self._period)
+
+    @property
+    def available(self) -> bool:
+        """Tersedia begitu penghitungnya punya titik awal."""
+        return self.native_value is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Tambahkan kapan siklus ini dimulai dan kapan akan di-reset."""
+        attributes = super().extra_state_attributes
+        cycle_start_at = self._group.period_cycle_start(self._period)
+        attributes[ATTR_CYCLE_START] = (
+            cycle_start_at.isoformat() if cycle_start_at else None
+        )
+        attributes[ATTR_NEXT_CYCLE_START] = next_cycle_start(
+            self._period, dt_util.now(), self._group.cycle_config
+        ).isoformat()
         return attributes

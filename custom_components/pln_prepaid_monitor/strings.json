@@ -128,6 +128,59 @@
           "description": "Here is what the system reads from the sensors you picked. Take a moment to check, especially the lines marked ⚠️.\n\n{summary}"
         }
       }
+    },
+    "billing_group": {
+      "abort": {
+        "reconfigure_successful": "Billing group settings saved.",
+        "no_energy_sources": "There are no energy sources yet. Add at least one energy source first, then create a billing group."
+      },
+      "entry_type": "Billing group",
+      "error": {
+        "name_required": "The billing group name cannot be empty.",
+        "name_duplicate": "A billing group with that name already exists. Use a different name.",
+        "no_sources_selected": "Pick at least one energy source for this group.",
+        "no_periods_selected": "Pick at least one period. Without one, no usage counter is created."
+      },
+      "initiate_flow": {
+        "reconfigure": "Reconfigure billing group",
+        "user": "Add billing group"
+      },
+      "step": {
+        "members": {
+          "title": "New billing group",
+          "description": "A billing group is one 'electricity bill' - one or more energy sources whose usage is counted together.\n\nA common setup: one group called 'PLN House' holding the house breaker, and another called 'PLN Shop' holding the shop breaker. They are counted separately and each has its own token.\n\nIf one electricity bill of yours is measured by several meters at once, pick them all here - their usage is added up.",
+          "data": {
+            "name": "Billing group name",
+            "source_ids": "Energy sources to combine"
+          },
+          "data_description": {
+            "name": "The name you will see on the dashboard, for example 'PLN House' or 'PLN Shop'.",
+            "source_ids": "Tick every source that belongs to this electricity bill. If you only have one meter, tick just that one. If you tick a source already used by another group, you will get a warning on the last step."
+          }
+        },
+        "cycles": {
+          "title": "Counting periods",
+          "description": "Choose which usage counters you want to see, and when each counter starts again from zero.\n\nIf you have no particular reason to change them, leave the defaults - they are sensible for most people.",
+          "data": {
+            "cycle_periods": "Counters to create",
+            "day_start_time": "Time a new day starts",
+            "week_start_day": "Day a new week starts",
+            "month_start_day": "Day of month a new month starts",
+            "year_start_month": "Month a new year starts"
+          },
+          "data_description": {
+            "cycle_periods": "Each choice creates one sensor, for example 'usage today' or 'usage this month'. Untick the ones you do not need to keep your entity list tidy.",
+            "day_start_time": "What time the daily counter starts again from zero. Usually midnight (00:00). Change it if you want 'a day' to start at another time, such as when your shop opens.",
+            "week_start_day": "Which day the weekly counter starts again from zero.",
+            "month_start_day": "Which day of the month the monthly counter starts again from zero. Use 1 to follow the normal calendar. Capped at 28 so the day always exists in every month, February included.",
+            "year_start_month": "Which month the yearly counter starts again from zero. Use January to follow the normal calendar."
+          }
+        },
+        "review": {
+          "title": "Check before saving",
+          "description": "{summary}"
+        }
+      }
     }
   },
   "entity": {
@@ -151,6 +204,62 @@
       },
       "frequency": {
         "name": "Frequency"
+      },
+      "energy_total": {
+        "name": "Energy total"
+      },
+      "energy_this_hour": {
+        "name": "Energy this hour"
+      },
+      "energy_this_day": {
+        "name": "Energy this day"
+      },
+      "energy_this_week": {
+        "name": "Energy this week"
+      },
+      "energy_this_month": {
+        "name": "Energy this month"
+      },
+      "energy_this_year": {
+        "name": "Energy this year"
+      }
+    }
+  },
+  "selector": {
+    "cycle_period": {
+      "options": {
+        "hour": "This hour",
+        "day": "Today",
+        "week": "This week",
+        "month": "This month",
+        "year": "This year"
+      }
+    },
+    "week_start_day": {
+      "options": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    },
+    "year_start_month": {
+      "options": {
+        "january": "January",
+        "february": "February",
+        "march": "March",
+        "april": "April",
+        "may": "May",
+        "june": "June",
+        "july": "July",
+        "august": "August",
+        "september": "September",
+        "october": "October",
+        "november": "November",
+        "december": "December"
       }
     }
   }

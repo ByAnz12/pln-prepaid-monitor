@@ -9,6 +9,88 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-011 · Billing Group menerima beberapa sumber langsung; objek Aggregate ditunda
+
+**Tanggal**: 3 September 2026 · **Milestone 2** · **Menyimpang dari spec D.1**
+
+Spec mendefinisikan **Aggregate** sebagai objek tersendiri (punya nama, punya
+daftar anggota, bisa bersarang), lalu Billing Group mengikat **satu** measurement
+yang boleh berupa Source atau Aggregate.
+
+Yang diimplementasikan: **Billing Group langsung menerima satu atau beberapa
+Energy Source**. Kemampuannya sama - beberapa meteran bisa dijumlahkan jadi satu
+tagihan - tapi tanpa memperkenalkan satu konsep tambahan ke user.
+
+Alasannya:
+
+- Aggregate tidak menghasilkan entity apa pun (spec D.2 hanya mendaftar entity
+  per Billing Group), jadi bagi user ia tak terlihat kecuali sebagai pilihan
+  tambahan di form. Satu konsep abstrak lebih banyak, nol hal baru yang terlihat.
+- Nilai tambahnya baru terasa kalau **penjumlahan yang sama dipakai ulang di
+  beberapa Billing Group** atau perlu bersarang. Untuk susunan PLN_HOME /
+  PLN_TOKO milik user, keduanya tidak terjadi.
+- Menambahkannya nanti tidak butuh migrasi data: Billing Group tinggal menerima
+  id Aggregate berdampingan dengan id Source di field yang sama.
+
+**Kalau user memang ingin objek Aggregate bernama, ini bisa ditambahkan sebagai
+milestone kecil tersendiri** - bukan keputusan final.
+
+---
+
+## D-010 · Grup tidak membuat sensor tegangan, arus, dan frekuensi
+
+**Tanggal**: 3 September 2026 · **Milestone 2**
+
+Spec D.2 mendaftar `voltage`, `current`, dan `frequency` di tingkat Billing
+Group. Yang dibuat hanya **energi** dan **daya**.
+
+Alasannya fisika, bukan kemalasan: menjumlahkan atau merata-ratakan tegangan
+dari dua meteran yang berada di rangkaian berbeda tidak berarti apa-apa. Daya
+dan energi memang penjumlahan yang sah; tegangan bukan. Membuat sensor
+"tegangan gabungan" berarti mengarang angka yang kelihatan resmi padahal tidak
+mewakili apa pun.
+
+Untuk grup beranggota satu sumber - yaitu kasus PLN_HOME dan PLN_TOKO - sensor
+tegangan/arus/frekuensi milik sumber itu sendiri sudah ada dan bisa langsung
+dipakai di dashboard.
+
+---
+
+## D-009 · Total grup dihitung dari selisih anggota, bukan penjumlahan mentah
+
+**Tanggal**: 3 September 2026 · **Milestone 2**
+
+Total Billing Group tidak dihitung sebagai "jumlahkan angka semua anggota setiap
+saat", melainkan sebagai akumulasi **selisih** tiap anggota.
+
+Bedanya terasa persis saat konfigurasi berubah: kalau MCB TOKO (angka meteran
+15.114 kWh) dimasukkan ke grup yang sudah berjalan, penjumlahan mentah akan
+membuat total grup melonjak 15.114 kWh seketika - dan penghitung "pemakaian hari
+ini" ikut melonjak sebesar itu. Dengan menghitung selisih, riwayat lama anggota
+baru tidak pernah ikut terhitung; yang dihitung hanya pemakaian sejak ia
+bergabung.
+
+Hal yang sama melindungi kasus anggota yang mati lalu hidup lagi.
+
+---
+
+## D-008 · MCB TOKO tidak mengekspos token bawaannya ke Home Assistant
+
+**Tanggal**: 3 September 2026 · **Sumber**: keterangan langsung user
+
+Sisa token bawaan MCB TOKO **hanya terlihat di aplikasi Smart Life**, tidak ada
+entity-nya di Home Assistant.
+
+Konsekuensi: gagasan kanal pembanding read-only di Milestone 4 (menampilkan
+angka token bawaan perangkat berdampingan dengan hitungan kita) **dibatalkan** -
+tidak ada datanya untuk dibaca. Rancangan Token Engine tidak terpengaruh, karena
+memang sejak awal tidak bergantung padanya (lihat [D-005](#d-005--latar-belakang-sebenarnya-token-bawaan-tuya-di-mcb-toko-ter-reset-sendiri)).
+
+Perbandingan tetap bisa dilakukan user secara manual: buka Smart Life, bandingkan
+dengan sensor sisa token buatan kita nanti.
+
+---
+
 ## D-005 · Latar belakang sebenarnya: token bawaan Tuya di MCB TOKO ter-reset sendiri
 
 **Tanggal**: 3 September 2026 · **Sumber**: keterangan langsung user

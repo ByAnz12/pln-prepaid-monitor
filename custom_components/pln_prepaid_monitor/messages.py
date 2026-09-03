@@ -100,6 +100,19 @@ ISSUE_TEXTS: dict[str, dict[str, str]] = {
             "sebagai sumber akan membuat perhitungan berputar-putar - pilih "
             "sensor asli dari perangkat Anda."
         ),
+        "no_sources_selected": (
+            "Pilih minimal satu sumber energi untuk kelompok tagihan ini."
+        ),
+        "no_periods_selected": (
+            "Pilih minimal satu periode. Tanpa itu tidak ada penghitung pemakaian "
+            "yang dibuat."
+        ),
+        "source_used_by_other_group": (
+            "Sumber '{source}' juga dipakai oleh kelompok '{group}'. Pemakaiannya "
+            "akan terhitung di kedua kelompok. Ini boleh saja kalau memang "
+            "disengaja (misalnya untuk dua sudut pandang berbeda), tapi jangan "
+            "menjumlahkan angka kedua kelompok itu."
+        ),
     },
     LANG_EN: {
         "entity_not_found": (
@@ -160,6 +173,18 @@ ISSUE_TEXTS: dict[str, dict[str, str]] = {
             "as a source would make the calculation feed on itself - pick a real "
             "sensor from your device."
         ),
+        "no_sources_selected": (
+            "Pick at least one energy source for this billing group."
+        ),
+        "no_periods_selected": (
+            "Pick at least one period. Without one, no usage counter is created."
+        ),
+        "source_used_by_other_group": (
+            "Source '{source}' is also used by group '{group}'. Its usage will be "
+            "counted in both groups. That is fine if it is deliberate (for "
+            "example two different viewpoints), but do not add the two groups' "
+            "numbers together."
+        ),
     },
 }
 
@@ -176,6 +201,11 @@ REPORT_TEXTS: dict[str, dict[str, str]] = {
         "no_issues": "Tidak ada yang perlu diperhatikan.",
         "errors_header": "Harus diperbaiki dulu",
         "reading_now": "terbaca sekarang",
+        "members_header": "Sumber energi yang digabung",
+        "total_now": "Total gabungan saat ini",
+        "periods_header": "Penghitung yang akan dibuat",
+        "resets_at": "reset berikutnya",
+        "no_data_yet": "belum ada data",
     },
     LANG_EN: {
         "not_configured": "not used",
@@ -189,6 +219,28 @@ REPORT_TEXTS: dict[str, dict[str, str]] = {
         "no_issues": "Nothing needs your attention.",
         "errors_header": "Must be fixed first",
         "reading_now": "currently reads",
+        "members_header": "Energy sources combined",
+        "total_now": "Combined total right now",
+        "periods_header": "Counters that will be created",
+        "resets_at": "next reset",
+        "no_data_yet": "no data yet",
+    },
+}
+
+PERIOD_LABELS: dict[str, dict[str, str]] = {
+    LANG_ID: {
+        "hour": "Jam ini",
+        "day": "Hari ini",
+        "week": "Minggu ini",
+        "month": "Bulan ini",
+        "year": "Tahun ini",
+    },
+    LANG_EN: {
+        "hour": "This hour",
+        "day": "Today",
+        "week": "This week",
+        "month": "This month",
+        "year": "This year",
     },
 }
 

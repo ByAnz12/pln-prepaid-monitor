@@ -17,10 +17,17 @@ pytest_plugins = ["pytest_homeassistant_custom_component"]
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(
-    enable_custom_integrations: Any,
-) -> Generator[None]:
-    """Izinkan Home Assistant memuat custom_components dari repo ini."""
+def auto_enable_custom_integrations(request: pytest.FixtureRequest) -> Generator[None]:
+    """Izinkan Home Assistant memuat custom_components dari repo ini.
+
+    Urutannya penting: ``recorder_mock`` harus disiapkan sebelum ``hass``, karena
+    database recorder dibuat sebelum instance Home Assistant berjalan. Kalau
+    fixture ini langsung meminta ``enable_custom_integrations`` (yang menarik
+    ``hass``), test yang memakai recorder akan gagal sebelum sempat jalan.
+    """
+    if "recorder_mock" in request.fixturenames:
+        request.getfixturevalue("recorder_mock")
+    request.getfixturevalue("enable_custom_integrations")
     yield
 
 

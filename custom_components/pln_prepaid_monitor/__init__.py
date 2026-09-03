@@ -21,7 +21,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PlnConfigEntry) -> bool:
     """Siapkan entry: pulihkan state akumulator lalu jalankan semua source."""
     runtime_data = PlnRuntimeData(hass, entry)
     await runtime_data.async_load()
-    runtime_data.async_setup_sources()
+    runtime_data.async_setup_runtimes()
     entry.runtime_data = runtime_data
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

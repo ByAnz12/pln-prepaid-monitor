@@ -43,8 +43,14 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
     TextSelector,
+    TimeSelector,
 )
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ALLOWED_AVAILABILITY_DOMAINS,
@@ -56,12 +62,24 @@ from .const import (
     CHANNEL_POWER,
     CHANNEL_VOLTAGE,
     CONF_AVAILABILITY_ENTITY_ID,
+    CONF_CYCLE_PERIODS,
+    CONF_DAY_START_TIME,
     CONF_DEVICE_ID,
     CONF_ENABLED,
+    CONF_MONTH_START_DAY,
     CONF_SHOW_ALL_SENSORS,
+    CONF_SOURCE_IDS,
     CONF_UNAVAILABLE_GRACE_MINUTES,
+    CONF_WEEK_START_DAY,
+    CONF_YEAR_START_MONTH,
+    DEFAULT_CYCLE_PERIODS,
+    DEFAULT_DAY_START_TIME,
+    DEFAULT_MONTH_START_DAY,
     DEFAULT_UNAVAILABLE_GRACE_MINUTES,
+    DEFAULT_WEEK_START_DAY,
+    DEFAULT_YEAR_START_MONTH,
     DOMAIN,
+    SUBENTRY_TYPE_BILLING_GROUP,
     SUBENTRY_TYPE_ENERGY_SOURCE,
 )
 from .engines.normalization import (
@@ -73,7 +91,21 @@ from .engines.normalization import (
     SourceReport,
     inspect_source,
 )
-from .messages import REPORT_TEXTS, ROLE_LABELS, issue_text, pick_language
+from .engines.period import (
+    ALL_PERIODS,
+    MAX_MONTH_START_DAY,
+    MONTHS,
+    WEEKDAYS,
+    CycleConfig,
+    next_cycle_start,
+)
+from .messages import (
+    PERIOD_LABELS,
+    REPORT_TEXTS,
+    ROLE_LABELS,
+    issue_text,
+    pick_language,
+)
 
 CONF_ADD_SOURCE_NOW = "add_source_now"
 
@@ -283,6 +315,43 @@ def _format_report(hass: HomeAssistant, report: SourceReport) -> str:
     return "\n".join(lines)
 
 
+def _format_group_report(
+    hass: HomeAssistant,
+    group_input: dict[str, Any],
+    sources: dict[str, str],
+    warnings: list[Issue],
+) -> str:
+    """Rakit ringkasan Billing Group untuk halaman review."""
+    language = pick_language(hass.config.language)
+    texts = REPORT_TEXTS[language]
+    period_labels = PERIOD_LABELS[language]
+    lines: list[str] = [f"### {group_input.get(CONF_NAME, '')}", ""]
+
+    lines.append(f"**{texts['members_header']}**")
+    for source_id in group_input.get(CONF_SOURCE_IDS, []):
+        lines.append(f"- {sources.get(source_id, source_id)}")
+    lines.append("")
+
+    cycle_config = CycleConfig.from_dict(group_input)
+    now = dt_util.now()
+    lines.append(f"**{texts['periods_header']}**")
+    for period in group_input.get(CONF_CYCLE_PERIODS, []):
+        upcoming = next_cycle_start(period, now, cycle_config)
+        lines.append(
+            f"- {period_labels.get(period, period)} — {texts['resets_at']}: "
+            f"{upcoming.strftime('%d %b %Y %H:%M')}"
+        )
+    lines.append("")
+
+    for issue in warnings:
+        marker = SEVERITY_MARKERS.get(issue.severity, "")
+        lines.append(
+            f"{marker} {issue_text(language, issue.code, issue.placeholders)}"
+        )
+
+    return "\n".join(lines)
+
+
 class _SourceFlowMixin:
     """Langkah-langkah yang dipakai bersama oleh config flow dan subentry flow."""
 
@@ -437,7 +506,10 @@ class PlnPrepaidMonitorConfigFlow(_SourceFlowMixin, ConfigFlow, domain=DOMAIN):
         cls, config_entry: Any
     ) -> dict[str, type[ConfigSubentryFlow]]:
         """Jenis subentry yang bisa ditambahkan user dari halaman integrasi."""
-        return {SUBENTRY_TYPE_ENERGY_SOURCE: EnergySourceSubentryFlowHandler}
+        return {
+            SUBENTRY_TYPE_ENERGY_SOURCE: EnergySourceSubentryFlowHandler,
+            SUBENTRY_TYPE_BILLING_GROUP: BillingGroupSubentryFlowHandler,
+        }
 
 
 class EnergySourceSubentryFlowHandler(_SourceFlowMixin, ConfigSubentryFlow):
@@ -474,6 +546,238 @@ class EnergySourceSubentryFlowHandler(_SourceFlowMixin, ConfigSubentryFlow):
     async def _async_finish_source(self) -> SubentryFlowResult:
         """Simpan subentry baru atau perbarui yang lama."""
         data = self._source_data()
+        if self.source == SOURCE_RECONFIGURE:
+            return self.async_update_and_abort(
+                self._get_entry(),
+                self._get_reconfigure_subentry(),
+                title=data[CONF_NAME],
+                data=data,
+            )
+        return self.async_create_entry(title=data[CONF_NAME], data=data)
+
+
+def _billing_group_members_schema(
+    source_options: list[SelectOptionDict], defaults: dict[str, Any]
+) -> vol.Schema:
+    """Skema langkah 1 Billing Group: nama dan sumber mana saja yang digabung."""
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_NAME, description={"suggested_value": defaults.get(CONF_NAME)}
+            ): TextSelector(),
+            vol.Required(
+                CONF_SOURCE_IDS,
+                description={"suggested_value": defaults.get(CONF_SOURCE_IDS, [])},
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=source_options,
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                )
+            ),
+        }
+    )
+
+
+def _billing_group_cycles_schema(defaults: dict[str, Any]) -> vol.Schema:
+    """Skema langkah 2 Billing Group: periode dan di mana batasnya jatuh."""
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_CYCLE_PERIODS,
+                default=list(defaults.get(CONF_CYCLE_PERIODS, DEFAULT_CYCLE_PERIODS)),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=list(ALL_PERIODS),
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                    translation_key="cycle_period",
+                )
+            ),
+            vol.Required(
+                CONF_DAY_START_TIME,
+                default=defaults.get(CONF_DAY_START_TIME, DEFAULT_DAY_START_TIME),
+            ): TimeSelector(),
+            vol.Required(
+                CONF_WEEK_START_DAY,
+                default=defaults.get(CONF_WEEK_START_DAY, DEFAULT_WEEK_START_DAY),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=list(WEEKDAYS), translation_key="week_start_day"
+                )
+            ),
+            vol.Required(
+                CONF_MONTH_START_DAY,
+                default=defaults.get(CONF_MONTH_START_DAY, DEFAULT_MONTH_START_DAY),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=1, max=MAX_MONTH_START_DAY, step=1, mode=NumberSelectorMode.BOX
+                )
+            ),
+            vol.Required(
+                CONF_YEAR_START_MONTH,
+                default=defaults.get(CONF_YEAR_START_MONTH, DEFAULT_YEAR_START_MONTH),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=list(MONTHS), translation_key="year_start_month"
+                )
+            ),
+        }
+    )
+
+
+class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
+    """Flow untuk menambah dan mengedit satu Billing Group.
+
+    Billing Group adalah "satu tagihan listrik": satu atau beberapa sumber
+    energi yang pemakaiannya dihitung bersama-sama. Contoh khas untuk dua
+    meteran terpisah: satu grup untuk rumah, satu grup untuk toko.
+    """
+
+    _group_input: dict[str, Any]
+    _group_warnings: list[Issue]
+
+    def _energy_sources(self) -> dict[str, str]:
+        """Semua Energy Source yang ada, dipetakan id ke nama."""
+        return {
+            subentry_id: str(subentry.data.get(CONF_NAME, "")) or subentry.title
+            for subentry_id, subentry in self._get_entry().subentries.items()
+            if subentry.subentry_type == SUBENTRY_TYPE_ENERGY_SOURCE
+        }
+
+    def _skip_subentry_id(self) -> str | None:
+        """Subentry yang sedang diedit, supaya tidak dibandingkan dengan dirinya."""
+        if self.source == SOURCE_RECONFIGURE:
+            return self._reconfigure_subentry_id
+        return None
+
+    def _existing_group_names(self) -> set[str]:
+        """Nama Billing Group lain, untuk cek duplikat."""
+        skip_id = self._skip_subentry_id()
+        return {
+            str(subentry.data.get(CONF_NAME, "")).strip()
+            for subentry_id, subentry in self._get_entry().subentries.items()
+            if subentry.subentry_type == SUBENTRY_TYPE_BILLING_GROUP
+            and subentry_id != skip_id
+        }
+
+    def _overlap_warnings(self, source_ids: list[str]) -> list[Issue]:
+        """Peringatan lunak kalau sumber sudah dipakai grup lain (spec K.11)."""
+        skip_id = self._skip_subentry_id()
+        sources = self._energy_sources()
+        warnings: list[Issue] = []
+        for subentry_id, subentry in self._get_entry().subentries.items():
+            if subentry.subentry_type != SUBENTRY_TYPE_BILLING_GROUP:
+                continue
+            if subentry_id == skip_id:
+                continue
+            shared = set(subentry.data.get(CONF_SOURCE_IDS) or []) & set(source_ids)
+            for source_id in sorted(shared):
+                warnings.append(
+                    Issue(
+                        SEVERITY_WARNING,
+                        "source_used_by_other_group",
+                        {
+                            "source": sources.get(source_id, source_id),
+                            "group": str(subentry.data.get(CONF_NAME, ""))
+                            or subentry.title,
+                        },
+                    )
+                )
+        return warnings
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Tambah Billing Group baru."""
+        if not self._energy_sources():
+            return self.async_abort(reason="no_energy_sources")
+        self._group_input = {}
+        self._group_warnings = []
+        return await self.async_step_members()
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Edit Billing Group yang sudah ada."""
+        self._group_input = dict(self._get_reconfigure_subentry().data)
+        self._group_warnings = []
+        return await self.async_step_members()
+
+    async def async_step_members(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Langkah 1: nama grup dan sumber energi anggotanya."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            name = str(user_input.get(CONF_NAME, "")).strip()
+            source_ids = list(user_input.get(CONF_SOURCE_IDS) or [])
+            self._group_input.update({CONF_NAME: name, CONF_SOURCE_IDS: source_ids})
+
+            if not name:
+                errors["base"] = "name_required"
+            elif name in self._existing_group_names():
+                errors["base"] = "name_duplicate"
+            elif not source_ids:
+                errors["base"] = "no_sources_selected"
+            else:
+                self._group_warnings = self._overlap_warnings(source_ids)
+                return await self.async_step_cycles()
+
+        options = [
+            SelectOptionDict(value=source_id, label=name)
+            for source_id, name in self._energy_sources().items()
+        ]
+        return self.async_show_form(
+            step_id="members",
+            data_schema=_billing_group_members_schema(options, self._group_input),
+            errors=errors,
+        )
+
+    async def async_step_cycles(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Langkah 2: periode apa saja, dan di mana batas siklusnya jatuh."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            periods = list(user_input.get(CONF_CYCLE_PERIODS) or [])
+            if not periods:
+                errors["base"] = "no_periods_selected"
+            else:
+                self._group_input.update(user_input)
+                self._group_input[CONF_CYCLE_PERIODS] = periods
+                self._group_input[CONF_MONTH_START_DAY] = int(
+                    user_input.get(CONF_MONTH_START_DAY, DEFAULT_MONTH_START_DAY)
+                )
+                return await self.async_step_review()
+
+        return self.async_show_form(
+            step_id="cycles",
+            data_schema=_billing_group_cycles_schema(self._group_input),
+            errors=errors,
+        )
+
+    async def async_step_review(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Langkah 3: ringkasan sebelum disimpan."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="review",
+                data_schema=vol.Schema({}),
+                description_placeholders={
+                    "summary": _format_group_report(
+                        self.hass,
+                        self._group_input,
+                        self._energy_sources(),
+                        self._group_warnings,
+                    )
+                },
+            )
+
+        data = dict(self._group_input)
         if self.source == SOURCE_RECONFIGURE:
             return self.async_update_and_abort(
                 self._get_entry(),

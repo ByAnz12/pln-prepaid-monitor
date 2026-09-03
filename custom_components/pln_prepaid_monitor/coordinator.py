@@ -23,6 +23,7 @@ from homeassistant.const import (
 from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers.event import (
     async_call_later,
+    async_track_point_in_time,
     async_track_state_change_event,
     async_track_time_interval,
 )
@@ -37,14 +38,19 @@ from .const import (
     CHANNEL_POWER,
     CHANNEL_VOLTAGE,
     CONF_AVAILABILITY_ENTITY_ID,
+    CONF_CYCLE_PERIODS,
     CONF_ENABLED,
+    CONF_SOURCE_IDS,
     CONF_UNAVAILABLE_GRACE_MINUTES,
+    DEFAULT_CYCLE_PERIODS,
     DEFAULT_UNAVAILABLE_GRACE_MINUTES,
     SOURCE_OF_TRUTH_CUMULATIVE,
     SOURCE_OF_TRUTH_INTEGRATED,
     STORAGE_KEY,
     STORAGE_SAVE_DELAY_SECONDS,
     STORAGE_VERSION,
+    SUBENTRY_TYPE_BILLING_GROUP,
+    SUBENTRY_TYPE_ENERGY_SOURCE,
 )
 from .engines.accumulator import (
     AccumulatorEvent,
@@ -53,7 +59,14 @@ from .engines.accumulator import (
     PowerIntegrator,
     ResetSafeAccumulator,
 )
+from .engines.energy_calc import (
+    GroupTotal,
+    GroupTotalState,
+    PeriodCounter,
+    PeriodCounterState,
+)
 from .engines.normalization import CHANNEL_SPECS, conversion_factor
+from .engines.period import ALL_PERIODS, CycleConfig, next_cycle_start
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -430,6 +443,214 @@ class SourceRuntime:
         }
 
 
+class BillingGroupRuntime:
+    """Menggabungkan beberapa Energy Source dan menghitung pemakaian per periode."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        subentry_id: str,
+        config: dict[str, Any],
+        stored: dict[str, Any] | None,
+        sources: dict[str, SourceRuntime],
+        on_persist: Callable[[], None],
+    ) -> None:
+        """Siapkan runtime Billing Group dari konfigurasi dan state tersimpan."""
+        self.hass = hass
+        self.subentry_id = subentry_id
+        self.config = config
+        self.name: str = str(config.get(CONF_NAME, "")) or subentry_id
+        self._on_persist = on_persist
+
+        stored = stored or {}
+        self.source_ids: list[str] = list(config.get(CONF_SOURCE_IDS) or [])
+        # Sumber yang dinonaktifkan atau sudah dihapus tidak ikut - grup tetap
+        # berfungsi sebagian, sesuai spec K.6.
+        self.members: dict[str, SourceRuntime] = {
+            source_id: sources[source_id]
+            for source_id in self.source_ids
+            if source_id in sources
+        }
+
+        self.cycle_config = CycleConfig.from_dict(config)
+        self.periods: list[str] = [
+            period
+            for period in (config.get(CONF_CYCLE_PERIODS) or DEFAULT_CYCLE_PERIODS)
+            if period in ALL_PERIODS
+        ]
+
+        self.group_total = GroupTotal(GroupTotalState.from_dict(stored.get("total")))
+        stored_counters = stored.get("counters") or {}
+        self.counters: dict[str, PeriodCounter] = {
+            period: PeriodCounter(
+                period,
+                self.cycle_config,
+                PeriodCounterState.from_dict(stored_counters.get(period)),
+            )
+            for period in self.periods
+        }
+
+        self._member_unsubs: list[CALLBACK_TYPE] = []
+        self._timer_unsubs: dict[str, CALLBACK_TYPE] = {}
+        self._listeners: list[CALLBACK_TYPE] = []
+
+    # ------------------------------------------------------------------
+    # sifat yang dibaca entity
+    # ------------------------------------------------------------------
+
+    @property
+    def total_kwh(self) -> float | None:
+        """Total kWh gabungan seluruh anggota."""
+        return self.group_total.state.total
+
+    @property
+    def power_w(self) -> float | None:
+        """Daya gabungan saat ini, dalam Watt."""
+        values = [
+            runtime.values.get(CHANNEL_POWER)
+            for runtime in self.members.values()
+            if runtime.values.get(CHANNEL_POWER) is not None
+        ]
+        if not values:
+            return None
+        return sum(values)
+
+    @property
+    def member_names(self) -> list[str]:
+        """Nama semua anggota grup."""
+        return [runtime.name for runtime in self.members.values()]
+
+    @property
+    def unavailable_member_names(self) -> list[str]:
+        """Anggota yang sedang tidak terhubung.
+
+        Ditampilkan sebagai atribut, bukan disembunyikan: kalau satu meteran
+        mati, pemakaiannya memang tidak terhitung, dan user berhak tahu itu.
+        """
+        return [
+            runtime.name
+            for runtime in self.members.values()
+            if not runtime.available
+        ]
+
+    def period_value(self, period: str) -> float | None:
+        """Pemakaian pada periode tertentu, atau None bila belum ada data."""
+        counter = self.counters.get(period)
+        if counter is None:
+            return None
+        return counter.value(self.total_kwh)
+
+    def period_cycle_start(self, period: str) -> datetime | None:
+        """Awal siklus berjalan untuk periode tertentu."""
+        counter = self.counters.get(period)
+        if counter is None:
+            return None
+        return counter.cycle_start_at
+
+    # ------------------------------------------------------------------
+    # daur hidup
+    # ------------------------------------------------------------------
+
+    @callback
+    def async_add_listener(self, update_callback: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """Daftarkan entity yang ingin diberi tahu saat ada perubahan."""
+        self._listeners.append(update_callback)
+
+        @callback
+        def _remove() -> None:
+            if update_callback in self._listeners:
+                self._listeners.remove(update_callback)
+
+        return _remove
+
+    @callback
+    def _async_notify(self) -> None:
+        """Beri tahu semua entity bahwa ada nilai baru."""
+        for update_callback in list(self._listeners):
+            update_callback()
+
+    @callback
+    def async_start(self) -> None:
+        """Ikuti perubahan anggota dan pasang timer batas siklus."""
+        for runtime in self.members.values():
+            self._member_unsubs.append(
+                runtime.async_add_listener(self._handle_member_update)
+            )
+        self._refresh()
+        for period in self.periods:
+            self._schedule_boundary(period)
+
+    @callback
+    def async_stop(self) -> None:
+        """Lepas semua langganan dan timer."""
+        for unsub in self._member_unsubs:
+            unsub()
+        self._member_unsubs.clear()
+        for unsub in self._timer_unsubs.values():
+            unsub()
+        self._timer_unsubs.clear()
+        self._listeners.clear()
+
+    @callback
+    def _handle_member_update(self) -> None:
+        """Salah satu anggota melaporkan angka baru."""
+        self._refresh()
+        self._async_notify()
+        self._on_persist()
+
+    @callback
+    def _refresh(self) -> None:
+        """Hitung ulang total gabungan dan seluruh penghitung periode."""
+        now = dt_util.now()
+        total = self.group_total.update(
+            {
+                source_id: runtime.energy_kwh
+                for source_id, runtime in self.members.items()
+            }
+        )
+        for period, counter in self.counters.items():
+            if counter.sync(total, now):
+                _LOGGER.debug(
+                    "Siklus %s untuk '%s' berganti, penghitung dimulai dari nol",
+                    period,
+                    self.name,
+                )
+
+    @callback
+    def _schedule_boundary(self, period: str) -> None:
+        """Pasang timer tepat di batas siklus berikutnya."""
+        if (existing := self._timer_unsubs.pop(period, None)) is not None:
+            existing()
+
+        boundary = next_cycle_start(period, dt_util.now(), self.cycle_config)
+
+        @callback
+        def _boundary_reached(_now: datetime) -> None:
+            self._timer_unsubs.pop(period, None)
+            self._refresh()
+            self._async_notify()
+            self._on_persist()
+            self._schedule_boundary(period)
+
+        self._timer_unsubs[period] = async_track_point_in_time(
+            self.hass, _boundary_reached, boundary
+        )
+
+    # ------------------------------------------------------------------
+    # persistensi
+    # ------------------------------------------------------------------
+
+    def as_stored(self) -> dict[str, Any]:
+        """Snapshot yang disimpan ke .storage."""
+        return {
+            "total": self.group_total.state.as_dict(),
+            "counters": {
+                period: counter.state.as_dict()
+                for period, counter in self.counters.items()
+            },
+        }
+
+
 class PlnRuntimeData:
     """Wadah runtime untuk seluruh config entry."""
 
@@ -438,6 +659,7 @@ class PlnRuntimeData:
         self.hass = hass
         self.entry = entry
         self.sources: dict[str, SourceRuntime] = {}
+        self.billing_groups: dict[str, BillingGroupRuntime] = {}
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{STORAGE_KEY}.{entry.entry_id}"
         )
@@ -448,21 +670,39 @@ class PlnRuntimeData:
         self._stored = await self._store.async_load() or {}
 
     @callback
-    def async_setup_sources(self) -> None:
-        """Bangun runtime untuk setiap Energy Source yang aktif."""
-        sources = self._stored.get("sources", {})
+    def async_setup_runtimes(self) -> None:
+        """Bangun runtime untuk setiap Energy Source lalu setiap Billing Group."""
+        stored_sources = self._stored.get("sources", {})
         for subentry_id, subentry in self.entry.subentries.items():
+            if subentry.subentry_type != SUBENTRY_TYPE_ENERGY_SOURCE:
+                continue
             runtime = SourceRuntime(
                 self.hass,
                 subentry_id,
                 dict(subentry.data),
-                sources.get(subentry_id),
+                stored_sources.get(subentry_id),
                 self.async_schedule_save,
             )
             if not runtime.enabled:
                 continue
             self.sources[subentry_id] = runtime
             runtime.async_start()
+
+        # Billing Group dibangun setelahnya karena ia berlangganan ke source.
+        stored_groups = self._stored.get("billing_groups", {})
+        for subentry_id, subentry in self.entry.subentries.items():
+            if subentry.subentry_type != SUBENTRY_TYPE_BILLING_GROUP:
+                continue
+            group = BillingGroupRuntime(
+                self.hass,
+                subentry_id,
+                dict(subentry.data),
+                stored_groups.get(subentry_id),
+                self.sources,
+                self.async_schedule_save,
+            )
+            self.billing_groups[subentry_id] = group
+            group.async_start()
 
     @callback
     def async_schedule_save(self) -> None:
@@ -476,12 +716,19 @@ class PlnRuntimeData:
             "sources": {
                 subentry_id: runtime.as_stored()
                 for subentry_id, runtime in self.sources.items()
-            }
+            },
+            "billing_groups": {
+                subentry_id: group.as_stored()
+                for subentry_id, group in self.billing_groups.items()
+            },
         }
 
     async def async_shutdown(self) -> None:
         """Hentikan semua runtime dan tulis state terakhir tanpa ditunda."""
+        for group in self.billing_groups.values():
+            group.async_stop()
         for runtime in self.sources.values():
             runtime.async_stop()
         await self._store.async_save(self._data_to_save())
+        self.billing_groups.clear()
         self.sources.clear()

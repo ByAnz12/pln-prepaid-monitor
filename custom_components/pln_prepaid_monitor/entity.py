@@ -9,11 +9,13 @@ from homeassistant.helpers.entity import Entity
 
 from .const import (
     ATTR_HOLDING_LAST_VALUE,
+    ATTR_MEMBER_SOURCES,
+    ATTR_MEMBERS_UNAVAILABLE,
     ATTR_SOURCE_OF_TRUTH,
     ATTR_UNAVAILABLE_SINCE,
     DOMAIN,
 )
-from .coordinator import SourceRuntime
+from .coordinator import BillingGroupRuntime, SourceRuntime
 
 
 class PlnSourceEntity(Entity):
@@ -49,4 +51,37 @@ class PlnSourceEntity(Entity):
             ATTR_SOURCE_OF_TRUTH: self._runtime.source_of_truth,
             ATTR_HOLDING_LAST_VALUE: self._runtime.holding_last_value,
             ATTR_UNAVAILABLE_SINCE: self._runtime.unavailable_since,
+        }
+
+
+class PlnBillingGroupEntity(Entity):
+    """Entity yang mengikuti satu Billing Group."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+
+    def __init__(self, group: BillingGroupRuntime, key: str) -> None:
+        """Ikat entity ke runtime Billing Group."""
+        self._group = group
+        self._key = key
+        self._attr_unique_id = f"{group.subentry_id}_{key}"
+        self._attr_translation_key = key
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, group.subentry_id)},
+            name=group.name,
+            manufacturer="PLN Prepaid Monitor",
+            model="Billing Group",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Berlangganan perubahan dari runtime grup."""
+        await super().async_added_to_hass()
+        self.async_on_remove(self._group.async_add_listener(self.async_write_ha_state))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Atribut yang berlaku untuk semua entity satu Billing Group."""
+        return {
+            ATTR_MEMBER_SOURCES: self._group.member_names,
+            ATTR_MEMBERS_UNAVAILABLE: self._group.unavailable_member_names,
         }

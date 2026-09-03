@@ -128,6 +128,59 @@
           "description": "Berikut hasil pembacaan sistem terhadap sensor yang Anda pilih. Periksa sebentar, terutama baris yang bertanda ⚠️.\n\n{summary}"
         }
       }
+    },
+    "billing_group": {
+      "abort": {
+        "reconfigure_successful": "Pengaturan kelompok tagihan berhasil disimpan.",
+        "no_energy_sources": "Belum ada sumber energi. Tambahkan minimal satu sumber energi dulu, baru buat kelompok tagihan."
+      },
+      "entry_type": "Kelompok tagihan",
+      "error": {
+        "name_required": "Nama kelompok tagihan tidak boleh kosong.",
+        "name_duplicate": "Sudah ada kelompok tagihan dengan nama itu. Pakai nama lain.",
+        "no_sources_selected": "Pilih minimal satu sumber energi untuk kelompok ini.",
+        "no_periods_selected": "Pilih minimal satu periode. Tanpa itu tidak ada penghitung pemakaian yang dibuat."
+      },
+      "initiate_flow": {
+        "reconfigure": "Ubah kelompok tagihan",
+        "user": "Tambah kelompok tagihan"
+      },
+      "step": {
+        "members": {
+          "title": "Kelompok tagihan baru",
+          "description": "Kelompok tagihan adalah satu 'tagihan listrik' - satu atau beberapa sumber energi yang pemakaiannya dihitung bersama-sama.\n\nContoh yang umum: satu kelompok bernama 'PLN Rumah' berisi MCB rumah, dan satu lagi 'PLN Toko' berisi MCB toko. Keduanya dihitung terpisah, punya token sendiri-sendiri.\n\nKalau satu tagihan listrik Anda diukur oleh beberapa meteran sekaligus, pilih semuanya di sini - pemakaiannya akan dijumlahkan.",
+          "data": {
+            "name": "Nama kelompok tagihan",
+            "source_ids": "Sumber energi yang digabung"
+          },
+          "data_description": {
+            "name": "Nama yang akan Anda lihat di dashboard, misalnya 'PLN Rumah' atau 'PLN Toko'.",
+            "source_ids": "Centang semua sumber yang termasuk dalam tagihan listrik ini. Kalau hanya satu meteran, centang satu saja. Kalau Anda mencentang sumber yang sudah dipakai kelompok lain, sistem akan memberi peringatan di langkah terakhir."
+          }
+        },
+        "cycles": {
+          "title": "Periode perhitungan",
+          "description": "Pilih penghitung pemakaian mana saja yang ingin Anda lihat, dan kapan tiap penghitung dimulai dari nol lagi.\n\nKalau Anda tidak punya alasan khusus, biarkan saja apa adanya - pengaturan bawaan sudah masuk akal untuk kebanyakan orang.",
+          "data": {
+            "cycle_periods": "Penghitung yang dibuat",
+            "day_start_time": "Jam mulai hari baru",
+            "week_start_day": "Hari mulai minggu baru",
+            "month_start_day": "Tanggal mulai bulan baru",
+            "year_start_month": "Bulan mulai tahun baru"
+          },
+          "data_description": {
+            "cycle_periods": "Tiap pilihan menghasilkan satu sensor, misalnya 'pemakaian hari ini' atau 'pemakaian bulan ini'. Hilangkan centang yang tidak Anda perlukan supaya daftar entity tidak terlalu ramai.",
+            "day_start_time": "Jam berapa penghitung harian dimulai dari nol. Biasanya tengah malam (00:00). Ubah kalau Anda ingin 'satu hari' dihitung mulai jam lain, misalnya jam buka toko.",
+            "week_start_day": "Hari apa penghitung mingguan dimulai dari nol.",
+            "month_start_day": "Tanggal berapa penghitung bulanan dimulai dari nol. Isi 1 untuk mengikuti kalender biasa. Maksimal 28 supaya tanggalnya selalu ada di setiap bulan, termasuk Februari.",
+            "year_start_month": "Bulan apa penghitung tahunan dimulai dari nol. Isi Januari untuk mengikuti kalender biasa."
+          }
+        },
+        "review": {
+          "title": "Cek dulu sebelum disimpan",
+          "description": "{summary}"
+        }
+      }
     }
   },
   "entity": {
@@ -151,6 +204,62 @@
       },
       "frequency": {
         "name": "Frekuensi"
+      },
+      "energy_total": {
+        "name": "Total energi"
+      },
+      "energy_this_hour": {
+        "name": "Energi jam ini"
+      },
+      "energy_this_day": {
+        "name": "Energi hari ini"
+      },
+      "energy_this_week": {
+        "name": "Energi minggu ini"
+      },
+      "energy_this_month": {
+        "name": "Energi bulan ini"
+      },
+      "energy_this_year": {
+        "name": "Energi tahun ini"
+      }
+    }
+  },
+  "selector": {
+    "cycle_period": {
+      "options": {
+        "hour": "Jam ini",
+        "day": "Hari ini",
+        "week": "Minggu ini",
+        "month": "Bulan ini",
+        "year": "Tahun ini"
+      }
+    },
+    "week_start_day": {
+      "options": {
+        "monday": "Senin",
+        "tuesday": "Selasa",
+        "wednesday": "Rabu",
+        "thursday": "Kamis",
+        "friday": "Jumat",
+        "saturday": "Sabtu",
+        "sunday": "Minggu"
+      }
+    },
+    "year_start_month": {
+      "options": {
+        "january": "Januari",
+        "february": "Februari",
+        "march": "Maret",
+        "april": "April",
+        "may": "Mei",
+        "june": "Juni",
+        "july": "Juli",
+        "august": "Agustus",
+        "september": "September",
+        "october": "Oktober",
+        "november": "November",
+        "december": "Desember"
       }
     }
   }
