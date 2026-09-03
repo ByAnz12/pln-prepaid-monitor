@@ -324,16 +324,20 @@ class SourceRuntime:
 
     def _ingest_energy(self, entity_id: str, value_kwh: float) -> None:
         """Masukkan pembacaan kWh ke akumulator aman-reset."""
-        event = self.accumulator.update(value_kwh)
+        event = self.accumulator.update(value_kwh, dt_util.utcnow().isoformat())
         if event is AccumulatorEvent.RESET:
+            state = self.accumulator.state
             # Sengaja hanya log (bukan notifikasi Telegram) sesuai spec K.5,
             # supaya tidak jadi sumber spam pesan.
             _LOGGER.warning(
-                "Reset counter terdeteksi pada %s (sumber '%s'): nilai turun ke %s. "
-                "Siklus lama sudah ditutup, akumulasi dilanjutkan tanpa konsumsi negatif",
+                "Reset counter terdeteksi pada %s (sumber '%s'): nilai turun dari %s "
+                "ke %s kWh. Siklus lama sudah ditutup, akumulasi dilanjutkan tanpa "
+                "konsumsi negatif. Ini reset ke-%s sejak pemantauan dimulai",
                 entity_id,
                 self.name,
+                state.last_reset_from,
                 value_kwh,
+                state.resets_detected,
             )
         elif event is AccumulatorEvent.NEGATIVE_IGNORED:
             _LOGGER.warning(

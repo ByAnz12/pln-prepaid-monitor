@@ -14,6 +14,9 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.pln_prepaid_monitor.const import (
+    ATTR_LAST_RESET_AT,
+    ATTR_LAST_RESET_FROM,
+    ATTR_LAST_RESET_TO,
     ATTR_RESETS_DETECTED,
     ATTR_SOURCE_OF_TRUTH,
     ATTR_SOURCE_RAW_VALUE,
@@ -133,6 +136,11 @@ async def test_energy_never_drops_when_meter_resets(hass: HomeAssistant) -> None
     assert float(state.state) >= before
     assert float(state.state) == pytest.approx(15510.50)
     assert state.attributes[ATTR_RESETS_DETECTED] == 1
+
+    # Detail untuk diagnosis meteran yang diduga ter-reset sendiri.
+    assert state.attributes[ATTR_LAST_RESET_FROM] == pytest.approx(15510.00)
+    assert state.attributes[ATTR_LAST_RESET_TO] == pytest.approx(0.5)
+    assert state.attributes[ATTR_LAST_RESET_AT] is not None
 
 
 async def test_negative_reading_does_not_corrupt_total(hass: HomeAssistant) -> None:

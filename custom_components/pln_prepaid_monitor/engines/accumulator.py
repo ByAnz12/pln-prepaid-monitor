@@ -82,6 +82,15 @@ class AccumulatorState:
     dips_detected: int = 0
     negatives_ignored: int = 0
 
+    last_reset_at: str | None = None
+    """Kapan reset terakhir terdeteksi (ISO 8601, UTC)."""
+
+    last_reset_from: float | None = None
+    """Nilai terakhir sebelum reset - untuk diagnosis meteran yang bermasalah."""
+
+    last_reset_to: float | None = None
+    """Nilai pertama sesudah reset."""
+
     @property
     def consumed(self) -> float:
         """Total kWh yang dikonsumsi sejak akumulator dimulai."""
@@ -106,6 +115,9 @@ class AccumulatorState:
             "resets_detected": self.resets_detected,
             "dips_detected": self.dips_detected,
             "negatives_ignored": self.negatives_ignored,
+            "last_reset_at": self.last_reset_at,
+            "last_reset_from": self.last_reset_from,
+            "last_reset_to": self.last_reset_to,
         }
 
     @classmethod
@@ -114,6 +126,8 @@ class AccumulatorState:
         if not data:
             return cls()
         raw_prev = data.get("raw_prev")
+        reset_from = data.get("last_reset_from")
+        reset_to = data.get("last_reset_to")
         return cls(
             raw_prev=None if raw_prev is None else float(raw_prev),
             zero_point=float(data.get("zero_point", 0.0)),
@@ -122,6 +136,9 @@ class AccumulatorState:
             resets_detected=int(data.get("resets_detected", 0)),
             dips_detected=int(data.get("dips_detected", 0)),
             negatives_ignored=int(data.get("negatives_ignored", 0)),
+            last_reset_at=data.get("last_reset_at"),
+            last_reset_from=None if reset_from is None else float(reset_from),
+            last_reset_to=None if reset_to is None else float(reset_to),
         )
 
 
@@ -143,8 +160,13 @@ class ResetSafeAccumulator:
         self.state = state if state is not None else AccumulatorState()
         self._seed_offset = seed_offset
 
-    def update(self, raw: Any) -> AccumulatorEvent:
-        """Proses satu pembacaan mentah, kembalikan apa yang terjadi."""
+    def update(self, raw: Any, timestamp: str | None = None) -> AccumulatorEvent:
+        """Proses satu pembacaan mentah, kembalikan apa yang terjadi.
+
+        :param timestamp: waktu pembacaan (ISO 8601) - dicatat hanya kalau
+            terjadi reset, supaya kejadian meteran yang bermasalah bisa
+            ditelusuri tanpa harus mengaduk-aduk log.
+        """
         try:
             value = float(raw)
         except (TypeError, ValueError):
@@ -170,6 +192,9 @@ class ResetSafeAccumulator:
         if value < RESET_DIP_RATIO * state.raw_prev:
             # Reset genuine: tutup siklus lama, mulai siklus baru dari nol.
             state.banked += state.raw_prev - state.zero_point
+            state.last_reset_from = state.raw_prev
+            state.last_reset_to = value
+            state.last_reset_at = timestamp
             state.zero_point = 0.0
             state.raw_prev = value
             state.resets_detected += 1

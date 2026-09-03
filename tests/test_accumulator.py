@@ -147,6 +147,42 @@ def test_seed_offset_mirrors_physical_meter() -> None:
     assert accumulator.state.consumed == pytest.approx(2.0)
 
 
+def test_reset_records_diagnostic_detail() -> None:
+    """Setiap reset menyimpan kapan, dari berapa, ke berapa.
+
+    Ini yang dipakai user untuk mendiagnosis meteran yang diduga ter-reset
+    sendiri, tanpa harus mengaduk-aduk log Home Assistant.
+    """
+    accumulator = ResetSafeAccumulator(seed_offset=True)
+    accumulator.update(15114.43, "2026-09-03T10:00:00+00:00")
+    accumulator.update(15120.00, "2026-09-03T11:00:00+00:00")
+    accumulator.update(0.0, "2026-09-03T12:00:00+00:00")
+
+    state = accumulator.state
+    assert state.resets_detected == 1
+    assert state.last_reset_at == "2026-09-03T12:00:00+00:00"
+    assert state.last_reset_from == pytest.approx(15120.00)
+    assert state.last_reset_to == pytest.approx(0.0)
+
+    # Dip biasa tidak boleh ikut tercatat sebagai reset.
+    accumulator.update(0.0, "2026-09-03T13:00:00+00:00")
+    assert state.last_reset_at == "2026-09-03T12:00:00+00:00"
+    assert state.resets_detected == 1
+
+
+def test_reset_diagnostics_survive_restart() -> None:
+    """Riwayat reset tidak boleh hilang saat Home Assistant restart."""
+    accumulator = ResetSafeAccumulator(seed_offset=True)
+    accumulator.update(15114.43, "2026-09-03T10:00:00+00:00")
+    accumulator.update(0.0, "2026-09-03T12:00:00+00:00")
+
+    restored = AccumulatorState.from_dict(accumulator.state.as_dict())
+    assert restored.last_reset_at == "2026-09-03T12:00:00+00:00"
+    assert restored.last_reset_from == pytest.approx(15114.43)
+    assert restored.last_reset_to == pytest.approx(0.0)
+    assert restored.resets_detected == 1
+
+
 def test_state_survives_serialisation_round_trip() -> None:
     """State akumulator harus utuh setelah disimpan dan dibaca ulang."""
     accumulator = _consume([10, 15, 20, 10, 30])

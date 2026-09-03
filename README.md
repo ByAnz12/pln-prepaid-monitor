@@ -171,8 +171,23 @@ Setiap sensor membawa keterangan tambahan (atribut) yang bisa Anda lihat lewat
 - `source_of_truth` - `cumulative` (dari sensor kWh asli) atau
   `integrated_from_power` (perkiraan dari daya)
 - `resets_detected` - berapa kali counter meteran terdeteksi ter-reset
+- `last_reset_detected_at`, `last_reset_from_kwh`, `last_reset_to_kwh` - kapan
+  reset terakhir terjadi dan dari angka berapa ke angka berapa
 - `holding_last_value` - `true` saat sistem sedang menahan nilai lama karena
   sumbernya hilang sebentar
+
+### Kalau Anda curiga meteran Anda ter-reset sendiri
+
+Buka **Developer Tools -> States**, cari entity `..._energy` milik sumber itu,
+lalu lihat atribut `resets_detected`. Kalau angkanya bertambah dari waktu ke
+waktu padahal Anda tidak mengganti apa pun, meteran itu memang ter-reset
+sendiri - dan `last_reset_detected_at` beserta `last_reset_from_kwh` /
+`last_reset_to_kwh` memberi tahu Anda kapan dan sebesar apa.
+
+Ini berguna untuk membedakan dua hal yang mudah tertukar: **penghitung token
+bawaan perangkat** yang ter-reset (tidak mempengaruhi sistem ini sama sekali),
+versus **sensor energi kumulatif** yang ikut ter-reset (ditangani otomatis oleh
+sistem ini, dan tercatat di sini).
 
 ---
 
