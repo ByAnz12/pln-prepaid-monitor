@@ -38,18 +38,23 @@ from homeassistant.util import dt as dt_util
 from .const import (
     ATTR_ACCUMULATOR_OFFSET,
     ATTR_ACCUMULATOR_ZERO_POINT,
+    ATTR_ACTIVE_RATE,
     ATTR_CONSUMED_SINCE_START,
     ATTR_CYCLE_START,
     ATTR_DIPS_DETECTED,
-    ATTR_NEXT_CYCLE_START,
+    ATTR_ENERGY_COST_ONLY,
+    ATTR_FIXED_CHARGE_INCLUDED,
     ATTR_LAST_RESET_AT,
     ATTR_LAST_RESET_FROM,
     ATTR_LAST_RESET_TO,
+    ATTR_NEXT_CYCLE_START,
+    ATTR_RATE_HISTORY,
     ATTR_RESETS_DETECTED,
     ATTR_SOURCE_ENTITY_ID,
     ATTR_SOURCE_RAW_VALUE,
     ATTR_SOURCE_STATE_CLASS,
     ATTR_SOURCE_UNIT,
+    ATTR_TARIFF_NAME,
     ATTR_UNIT_CONVERSION_FACTOR,
     CHANNEL_CONF_KEYS,
     CHANNEL_CURRENT,
@@ -57,8 +62,10 @@ from .const import (
     CHANNEL_FREQUENCY,
     CHANNEL_POWER,
     CHANNEL_VOLTAGE,
+    DEFAULT_CURRENCY,
 )
 from .coordinator import BillingGroupRuntime, PlnRuntimeData, SourceRuntime
+from .engines.cost_engine import apply_rounding
 from .engines.period import next_cycle_start
 from .entity import PlnBillingGroupEntity, PlnSourceEntity
 
@@ -106,6 +113,8 @@ async def async_setup_entry(
         if entities:
             async_add_entities(entities, config_subentry_id=subentry_id)
 
+    currency = hass.config.currency or DEFAULT_CURRENCY
+
     for subentry_id, group in runtime_data.billing_groups.items():
         group_entities: list[SensorEntity] = [
             PlnGroupEnergyTotalSensor(group),
@@ -114,6 +123,13 @@ async def async_setup_entry(
         group_entities.extend(
             PlnGroupPeriodEnergySensor(group, period) for period in group.periods
         )
+        # Sensor biaya hanya dibuat kalau kelompok ini sudah punya tarif.
+        if group.has_cost:
+            group_entities.append(PlnGroupCostTotalSensor(group, currency))
+            group_entities.extend(
+                PlnGroupPeriodCostSensor(group, period, currency)
+                for period in group.periods
+            )
         async_add_entities(group_entities, config_subentry_id=subentry_id)
 
 
@@ -302,4 +318,100 @@ class PlnGroupPeriodEnergySensor(PlnBillingGroupEntity, SensorEntity):
         attributes[ATTR_NEXT_CYCLE_START] = next_cycle_start(
             self._period, dt_util.now(), self._group.cycle_config
         ).isoformat()
+        return attributes
+
+
+class PlnGroupCostTotalSensor(PlnBillingGroupEntity, SensorEntity):
+    """Total biaya berjalan satu Billing Group, dalam Rupiah.
+
+    Hanya berisi biaya dari energi yang benar-benar dipakai. Biaya beban tidak
+    dicampur ke sini - lihat sensor biaya bulanan.
+    """
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    # Home Assistant Core 2026.8.3 hanya mengizinkan `total` untuk device_class
+    # monetary (DEVICE_CLASS_STATE_CLASSES di components/sensor/const.py).
+    # Memakai `total_increasing` akan memicu peringatan di log.
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, group: BillingGroupRuntime, currency: str) -> None:
+        """Siapkan sensor total biaya."""
+        super().__init__(group, "cost_total")
+        self._attr_native_unit_of_measurement = currency
+
+    @property
+    def native_value(self) -> float | None:
+        """Total Rupiah, dibulatkan sesuai pengaturan tarif."""
+        return apply_rounding(self._group.cost_total_rp, self._group.tariff)
+
+    @property
+    def available(self) -> bool:
+        """Tersedia begitu ada pemakaian yang bisa dihitung biayanya."""
+        return self._group.cost_total_rp is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Tarif aktif dan riwayat perubahannya, untuk audit."""
+        attributes = super().extra_state_attributes
+        attributes.update(
+            {
+                ATTR_TARIFF_NAME: self._group.tariff_name,
+                ATTR_ACTIVE_RATE: self._group.active_rate,
+                ATTR_RATE_HISTORY: self._group.rate_history,
+            }
+        )
+        return attributes
+
+
+class PlnGroupPeriodCostSensor(PlnBillingGroupEntity, SensorEntity):
+    """Biaya pada periode berjalan: jam ini, hari ini, dan seterusnya."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 0
+
+    def __init__(
+        self, group: BillingGroupRuntime, period: str, currency: str
+    ) -> None:
+        """Siapkan sensor biaya untuk satu periode."""
+        super().__init__(group, f"cost_this_{period}")
+        self._period = period
+        self._attr_native_unit_of_measurement = currency
+
+    @property
+    def native_value(self) -> float | None:
+        """Biaya periode berjalan, sudah termasuk biaya beban bila berlaku."""
+        return apply_rounding(
+            self._group.cost_period_total(self._period), self._group.tariff
+        )
+
+    @property
+    def last_reset(self) -> datetime | None:
+        """Kapan penghitung biaya ini terakhir dimulai dari nol."""
+        return self._group.period_cycle_start(self._period)
+
+    @property
+    def available(self) -> bool:
+        """Tersedia begitu penghitung biayanya punya titik awal."""
+        return self._group.cost_period_total(self._period) is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Pisahkan biaya energi dari biaya beban, supaya angkanya jelas asalnya."""
+        attributes = super().extra_state_attributes
+        cycle_start_at = self._group.period_cycle_start(self._period)
+        attributes[ATTR_CYCLE_START] = (
+            cycle_start_at.isoformat() if cycle_start_at else None
+        )
+        attributes[ATTR_NEXT_CYCLE_START] = next_cycle_start(
+            self._period, dt_util.now(), self._group.cycle_config
+        ).isoformat()
+        attributes[ATTR_ENERGY_COST_ONLY] = self._group.cost_period_value(
+            self._period
+        )
+        attributes[ATTR_FIXED_CHARGE_INCLUDED] = (
+            self._group.cost_period_fixed_charge(self._period)
+        )
+        attributes[ATTR_ACTIVE_RATE] = self._group.active_rate
         return attributes

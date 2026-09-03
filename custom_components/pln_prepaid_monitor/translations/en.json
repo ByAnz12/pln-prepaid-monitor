@@ -179,6 +179,53 @@
         "review": {
           "title": "Check before saving",
           "description": "{summary}"
+        },
+        "tariff": {
+          "title": "Electricity tariff",
+          "description": "Pick the tariff this billing group uses. You may leave it empty - the group still counts kWh, it just will not calculate rupiah cost until a tariff is chosen.",
+          "data": {
+            "tariff_id": "Electricity tariff"
+          },
+          "data_description": {
+            "tariff_id": "If the tariff you need does not exist yet, close this form, add a tariff from the integration page, then start again."
+          }
+        }
+      }
+    },
+    "tariff": {
+      "abort": {
+        "reconfigure_successful": "Tariff saved."
+      },
+      "entry_type": "Electricity tariff",
+      "error": {
+        "name_required": "The tariff name cannot be empty.",
+        "name_duplicate": "A tariff with that name already exists. Use a different name.",
+        "rate_must_be_positive": "The rate per kWh must be greater than zero."
+      },
+      "initiate_flow": {
+        "reconfigure": "Reconfigure tariff",
+        "user": "Add tariff"
+      },
+      "step": {
+        "tariff": {
+          "title": "Electricity tariff",
+          "description": "Enter your electricity tariff. One tariff can be shared by several billing groups - if your house and shop are on the same tariff category, one tariff covers both.\n\n**The default of Rp {default_rate}/kWh is only an estimate** for category R-1 at 1300-2200 VA, gathered from tariff news reports, **not** an official PLN figure. You must adjust it to your own tariff category and region.\n\nWhere to find your real rate: your latest token purchase receipt, the PLN Mobile app, or an official PLN bill. Divide the rupiah amount that actually became kWh to estimate it.\n\nEvery time you change the rate here, the previous version is kept as history. Costs already recorded are not recalculated - which is correct, because that usage really did happen at the old rate.",
+          "data": {
+            "name": "Tariff name",
+            "rate_rp_per_kwh": "Rate per kWh (Rp)",
+            "fixed_charge_rp": "Standing charge (Rp)",
+            "fixed_charge_period": "Standing charge billed per",
+            "rounding_mode": "Rounding method",
+            "rounding_unit_rp": "Round to multiples of (Rp)"
+          },
+          "data_description": {
+            "name": "A name to tell this tariff apart from others, for example 'R-1 900VA' or 'Shop tariff'.",
+            "rate_rp_per_kwh": "The price of electricity per kWh for your PLN tariff category. The default is only an estimate - replace it with your actual rate.",
+            "fixed_charge_rp": "A fixed charge billed even when you use no electricity. For prepaid residential PLN this is usually **0** - enter 0 if you are unsure. This field exists for business categories or unusual cases.",
+            "fixed_charge_period": "Whether the standing charge above is billed daily or monthly. Has no effect when the standing charge is 0.",
+            "rounding_mode": "How rupiah amounts are rounded for display. Rounding only affects what you see; the underlying calculation keeps full precision, so no error accumulates.",
+            "rounding_unit_rp": "Round to multiples of how many rupiah. Enter 1 to round to the nearest rupiah, or 0 for no rounding at all."
+          }
         }
       }
     }
@@ -222,6 +269,24 @@
       },
       "energy_this_year": {
         "name": "Energy this year"
+      },
+      "cost_total": {
+        "name": "Cost total"
+      },
+      "cost_this_hour": {
+        "name": "Cost this hour"
+      },
+      "cost_this_day": {
+        "name": "Cost this day"
+      },
+      "cost_this_week": {
+        "name": "Cost this week"
+      },
+      "cost_this_month": {
+        "name": "Cost this month"
+      },
+      "cost_this_year": {
+        "name": "Cost this year"
       }
     }
   },
@@ -260,6 +325,19 @@
         "october": "October",
         "november": "November",
         "december": "December"
+      }
+    },
+    "fixed_charge_period": {
+      "options": {
+        "daily": "Day",
+        "monthly": "Month"
+      }
+    },
+    "rounding_mode": {
+      "options": {
+        "nearest": "To the nearest",
+        "up": "Always up",
+        "down": "Always down"
       }
     }
   }

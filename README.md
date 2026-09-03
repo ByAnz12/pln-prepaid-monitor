@@ -21,11 +21,12 @@ kapan token habis, dan mengingatkan Anda sebelum listrik padam.
 4. [Menambahkan sumber energi pertama](#menambahkan-sumber-energi-pertama)
 5. [Entity yang Anda dapatkan](#entity-yang-anda-dapatkan)
 6. [Membuat kelompok tagihan](#membuat-kelompok-tagihan)
-7. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
-8. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
-9. [Troubleshooting](#troubleshooting)
-10. [Untuk pengembang](#untuk-pengembang)
-11. [Rencana pengembangan](#rencana-pengembangan)
+7. [Mengatur tarif dan menghitung biaya](#mengatur-tarif-dan-menghitung-biaya)
+8. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
+9. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
+10. [Troubleshooting](#troubleshooting)
+11. [Untuk pengembang](#untuk-pengembang)
+12. [Rencana pengembangan](#rencana-pengembangan)
 
 ---
 
@@ -42,10 +43,11 @@ Integrasi ini dibangun bertahap. Yang **sudah selesai dan bisa dipakai**:
   tahun ini** yang di-reset otomatis tiap siklus.
 - **Riwayat jangka panjang** otomatis lewat long-term statistics Home Assistant,
   siap dipakai kartu grafik bawaan dan Energy Dashboard.
+- **Perhitungan biaya dalam Rupiah**, dengan tarif yang bisa dipakai bersama
+  beberapa kelompok tagihan dan riwayat perubahannya tersimpan.
 
-Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): perhitungan
-biaya rupiah, pencatatan token, prediksi hari tersisa, notifikasi Telegram, dan
-dashboard siap pakai.
+Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): pencatatan
+token, prediksi hari tersisa, notifikasi Telegram, dan dashboard siap pakai.
 
 ---
 
@@ -272,6 +274,83 @@ Artinya Anda bisa langsung:
 
 ---
 
+## Mengatur tarif dan menghitung biaya
+
+Kelompok tagihan menghitung kWh. Untuk mengubahnya jadi Rupiah, Anda perlu
+membuat **tarif**.
+
+Tarif sengaja dibuat sebagai benda tersendiri, bukan menempel di kelompok
+tagihan. Alasannya praktis: rumah dan toko Anda kemungkinan besar memakai
+golongan tarif yang sama, jadi kalau PLN menaikkan tarif Anda cukup mengubahnya
+**sekali** dan kedua kelompok ikut menyesuaikan.
+
+### Membuat tarif
+
+1. Buka **Settings → Devices & Services → PLN Prepaid Energy & Cost Monitor**.
+2. Klik **Tambah tarif**.
+
+| Isian | Bawaan | Penjelasan |
+|---|---|---|
+| Nama tarif | — | Misalnya `R-1 1300VA` atau `Tarif Toko` |
+| Tarif per kWh (Rp) | `1444,70` | **Hanya perkiraan** — lihat peringatan di bawah |
+| Biaya beban (Rp) | `0` | Untuk PLN prabayar rumah tangga biasanya 0 |
+| Biaya beban ditagih per | Bulan | Tidak berpengaruh kalau biaya bebannya 0 |
+| Cara pembulatan | Ke yang terdekat | Hanya mempengaruhi tampilan |
+| Bulatkan ke kelipatan (Rp) | `1` | Isi 0 kalau tidak ingin dibulatkan |
+
+> ### ⚠️ Angka Rp 1.444,70 itu hanya perkiraan
+>
+> Itu perkiraan untuk golongan **R-1 daya 1300–2200 VA**, dikumpulkan dari
+> pemberitaan tarif — **bukan** angka resmi dari PLN, dan tarif berubah dari
+> waktu ke waktu serta berbeda antar golongan daya dan wilayah.
+>
+> **Anda wajib menggantinya dengan tarif Anda sendiri.** Cara melihatnya:
+> struk atau bukti pembelian token terakhir, aplikasi PLN Mobile, atau tagihan
+> resmi PLN. Perkiraan kasarnya: bagi nominal rupiah yang benar-benar masuk
+> sebagai kWh dengan jumlah kWh yang Anda terima.
+
+### Menghubungkan tarif ke kelompok tagihan
+
+Saat membuat atau mengubah kelompok tagihan, kini ada satu langkah tambahan
+untuk memilih tarif. Langkah itu **dilewati otomatis** kalau Anda belum punya
+tarif sama sekali — kelompoknya tetap bisa dibuat, hanya belum menghitung biaya.
+
+### Entity biaya yang dihasilkan
+
+| Entity | Isinya |
+|---|---|
+| `sensor.pln_rumah_cost_total` | Total biaya sejak pemantauan dimulai |
+| `sensor.pln_rumah_cost_this_day` | Biaya hari ini |
+| `sensor.pln_rumah_cost_this_month` | Biaya bulan ini |
+| … | satu sensor untuk tiap periode yang Anda aktifkan |
+
+Setiap sensor biaya membawa atribut `energy_cost_only_rp` (biaya murni dari
+listrik yang dipakai) dan `fixed_charge_included_rp` (bagian biaya beban),
+supaya angkanya selalu jelas asalnya. Sensor total juga membawa `rate_history`,
+yaitu riwayat semua perubahan tarif berikut tanggalnya.
+
+### Kalau tarif PLN naik
+
+Ubah saja tarifnya lewat **Ubah tarif**. Dua hal yang terjadi:
+
+1. Versi tarif lama **tetap disimpan** sebagai riwayat, tidak ditimpa.
+2. Biaya yang sudah tercatat **tidak dihitung ulang**. Ini memang benar:
+   listrik yang Anda pakai bulan lalu memang dipakai pada tarif lama. Tarif baru
+   berlaku untuk pemakaian mulai saat itu.
+
+### Catatan penting soal arti angkanya
+
+Sensor biaya menjawab pertanyaan *"listrik yang saya pakai ini setara berapa
+rupiah?"* — dihitung dari tarif dasar per kWh.
+
+Itu **bukan** jumlah uang yang perlu Anda bayar untuk membeli kWh sebanyak itu.
+Saat membeli token, nominal rupiah Anda dipotong dulu oleh biaya admin dan PPJ
+sebelum sisanya dibagi tarif. Jadi untuk mendapat 10 kWh, uang yang keluar
+selalu lebih besar daripada angka di sensor ini. Perhitungan token akan
+ditangani terpisah di tahap berikutnya.
+
+---
+
 ## Kenapa angkanya beda dengan aplikasi meteran?
 
 Sensor `..._energy` buatan integrasi ini **dimulai dari angka yang sama** dengan
@@ -365,6 +444,23 @@ kalau Home Assistant sempat mati melewati tengah malam, siklus yang terlewat
 langsung ditutup begitu ia hidup lagi - pemakaian kemarin tidak akan menumpuk
 di penghitung hari ini.
 
+### Sensor biaya tidak muncul
+
+Kelompok tagihan itu belum dihubungkan ke tarif. Buka **Ubah kelompok tagihan**
+dan pilih tarifnya di langkah kedua. Kalau daftarnya kosong, buat dulu tarifnya
+lewat **Tambah tarif**.
+
+### Angka biayanya terasa tidak cocok dengan pengeluaran saya
+
+Dua kemungkinan, dan keduanya wajar:
+
+1. **Tarifnya belum disesuaikan.** Angka bawaan Rp 1.444,70 hanya perkiraan.
+   Cek atribut `active_rate_rp_per_kwh` pada sensor biaya untuk melihat tarif
+   yang sedang dipakai.
+2. **Sensor biaya memang bukan jumlah uang yang Anda bayar.** Ia menghitung
+   nilai listrik yang dipakai dari tarif dasar; sedangkan saat beli token, uang
+   Anda dipotong biaya admin dan PPJ dulu. Uang yang keluar selalu lebih besar.
+
 ### Grafik histori masih kosong
 
 Long-term statistics dihitung Home Assistant sekali per jam, jadi setelah
@@ -402,7 +498,7 @@ sensor yang sama.
 |---|---|---|
 | 1 | Pembacaan & penyeragaman sumber + config flow | **Selesai** |
 | 2 | Kelompok tagihan + penghitung per periode + statistik jangka panjang | **Selesai** |
-| 3 | Perhitungan biaya rupiah (tarif bisa diatur penuh) | Belum |
+| 3 | Perhitungan biaya rupiah (tarif bisa diatur penuh) | **Selesai** |
 | 4 | Pencatatan token: isi ulang, sisa kWh, kalibrasi manual | Belum |
 | 5 | Prediksi hari tersisa & tanggal habis | Belum |
 | 6 | Notifikasi Telegram bertingkat | Belum |

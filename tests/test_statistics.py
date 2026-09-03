@@ -184,3 +184,65 @@ async def test_measurement_entities_are_recorded_as_mean(
     power = rows["sensor.pln_rumah_power"]
     assert power["has_sum"] is False
     assert power["statistics_unit_of_measurement"] == "W"
+
+
+async def test_cost_entities_are_recorded_as_total(
+    recorder_mock, hass: HomeAssistant
+) -> None:
+    """Sensor biaya harus punya kolom sum, supaya grafik biaya bisa dibuat."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.pln_prepaid_monitor.const import (
+        CONF_FIXED_CHARGE_PERIOD,
+        CONF_FIXED_CHARGE_RP,
+        CONF_RATE_HISTORY,
+        CONF_RATE_RP_PER_KWH,
+        CONF_ROUNDING_MODE,
+        CONF_ROUNDING_UNIT_RP,
+        CONF_TARIFF_ID,
+        SUBENTRY_TYPE_TARIFF,
+    )
+
+    await hass.config.async_set_time_zone("Asia/Jakarta")
+    await hass.config.async_update(currency="IDR")
+    apply_states(hass, MCB_RUMAH)
+
+    subentries = [
+        SUBENTRIES[0],
+        {
+            "data": {
+                "name": "Tarif R-1",
+                CONF_RATE_RP_PER_KWH: 1444.70,
+                CONF_FIXED_CHARGE_RP: 0.0,
+                CONF_FIXED_CHARGE_PERIOD: "monthly",
+                CONF_ROUNDING_MODE: "nearest",
+                CONF_ROUNDING_UNIT_RP: 1.0,
+                CONF_RATE_HISTORY: [],
+            },
+            "subentry_id": "tar_r1",
+            "subentry_type": SUBENTRY_TYPE_TARIFF,
+            "title": "Tarif R-1",
+            "unique_id": None,
+        },
+        {
+            "data": {**SUBENTRIES[1]["data"], CONF_TARIFF_ID: "tar_r1"},
+            "subentry_id": "grp_rumah",
+            "subentry_type": SUBENTRIES[1]["subentry_type"],
+            "title": "PLN RUMAH",
+            "unique_id": None,
+        },
+    ]
+    entry = MockConfigEntry(domain=DOMAIN, data={}, subentries_data=subentries)
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    await async_wait_recording_done(hass)
+
+    from homeassistant.components.recorder.statistics import list_statistic_ids
+
+    statistic_ids = await hass.async_add_executor_job(list_statistic_ids, hass)
+    rows = {row["statistic_id"]: row for row in statistic_ids}
+
+    cost = rows["sensor.pln_rumah_cost_total"]
+    assert cost["has_sum"] is True
+    assert cost["statistics_unit_of_measurement"] == "IDR"

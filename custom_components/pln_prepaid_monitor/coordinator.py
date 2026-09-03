@@ -40,7 +40,9 @@ from .const import (
     CONF_AVAILABILITY_ENTITY_ID,
     CONF_CYCLE_PERIODS,
     CONF_ENABLED,
+    CONF_RATE_HISTORY,
     CONF_SOURCE_IDS,
+    CONF_TARIFF_ID,
     CONF_UNAVAILABLE_GRACE_MINUTES,
     DEFAULT_CYCLE_PERIODS,
     DEFAULT_UNAVAILABLE_GRACE_MINUTES,
@@ -51,6 +53,7 @@ from .const import (
     STORAGE_VERSION,
     SUBENTRY_TYPE_BILLING_GROUP,
     SUBENTRY_TYPE_ENERGY_SOURCE,
+    SUBENTRY_TYPE_TARIFF,
 )
 from .engines.accumulator import (
     AccumulatorEvent,
@@ -58,6 +61,12 @@ from .engines.accumulator import (
     IntegratorState,
     PowerIntegrator,
     ResetSafeAccumulator,
+)
+from .engines.cost_engine import (
+    CostAccumulator,
+    CostTotalState,
+    TariffConfig,
+    fixed_charge_accrued,
 )
 from .engines.energy_calc import (
     GroupTotal,
@@ -454,6 +463,7 @@ class BillingGroupRuntime:
         stored: dict[str, Any] | None,
         sources: dict[str, SourceRuntime],
         on_persist: Callable[[], None],
+        tariff_data: dict[str, Any] | None = None,
     ) -> None:
         """Siapkan runtime Billing Group dari konfigurasi dan state tersimpan."""
         self.hass = hass
@@ -486,6 +496,29 @@ class BillingGroupRuntime:
                 period,
                 self.cycle_config,
                 PeriodCounterState.from_dict(stored_counters.get(period)),
+            )
+            for period in self.periods
+        }
+
+        # Tarif bersifat opsional: kelompok tanpa tarif tetap menghitung energi,
+        # hanya tidak punya sensor biaya.
+        self.tariff_data = tariff_data
+        self.tariff: TariffConfig | None = (
+            TariffConfig.from_dict(tariff_data) if tariff_data else None
+        )
+        self.tariff_name: str | None = (
+            str(tariff_data.get(CONF_NAME, "")) if tariff_data else None
+        )
+        self.rate_history: list[dict[str, Any]] = list(
+            (tariff_data or {}).get(CONF_RATE_HISTORY) or []
+        )
+        self.cost = CostAccumulator(CostTotalState.from_dict(stored.get("cost")))
+        stored_cost_counters = stored.get("cost_counters") or {}
+        self.cost_counters: dict[str, PeriodCounter] = {
+            period: PeriodCounter(
+                period,
+                self.cycle_config,
+                PeriodCounterState.from_dict(stored_cost_counters.get(period)),
             )
             for period in self.periods
         }
@@ -546,6 +579,58 @@ class BillingGroupRuntime:
         if counter is None:
             return None
         return counter.cycle_start_at
+
+    # ------------------------------------------------------------------
+    # biaya
+    # ------------------------------------------------------------------
+
+    @property
+    def has_cost(self) -> bool:
+        """True bila kelompok ini punya tarif, sehingga biaya bisa dihitung."""
+        return self.tariff is not None
+
+    @property
+    def active_rate(self) -> float | None:
+        """Tarif Rp/kWh yang berlaku sekarang."""
+        return self.tariff.rate_rp_per_kwh if self.tariff else None
+
+    @property
+    def cost_total_rp(self) -> float | None:
+        """Total biaya berjalan, murni dari energi yang dipakai."""
+        if not self.has_cost or self.cost.state.energy_prev is None:
+            return None
+        return self.cost.state.total_rp
+
+    def cost_period_value(self, period: str) -> float | None:
+        """Biaya energi pada periode berjalan, belum termasuk biaya beban."""
+        if not self.has_cost:
+            return None
+        counter = self.cost_counters.get(period)
+        if counter is None:
+            return None
+        return counter.value(self.cost_total_rp)
+
+    def cost_period_fixed_charge(self, period: str) -> float:
+        """Biaya beban yang sudah berjalan pada periode ini.
+
+        Hanya berlaku untuk periode bulanan dan tahunan (spec F.3): penghitung
+        jam, hari, dan minggu sengaja tetap murni berisi biaya energi.
+        """
+        if not self.has_cost or period not in ("month", "year"):
+            return 0.0
+        counter = self.cost_counters.get(period)
+        if counter is None:
+            return 0.0
+        return fixed_charge_accrued(
+            self.tariff, counter.cycle_start_at, dt_util.now()
+        )
+
+    def cost_period_total(self, period: str) -> float | None:
+        """Biaya periode berjalan termasuk biaya beban bila ada."""
+        energy_cost = self.cost_period_value(period)
+        if energy_cost is None:
+            return None
+        return energy_cost + self.cost_period_fixed_charge(period)
 
     # ------------------------------------------------------------------
     # daur hidup
@@ -616,6 +701,16 @@ class BillingGroupRuntime:
                     self.name,
                 )
 
+        if self.tariff is None:
+            return
+
+        # Biaya dihitung dengan tarif yang berlaku SEKARANG, di saat pemakaian
+        # itu tercatat. Kalau tarif berubah nanti, angka yang sudah terhitung
+        # tidak diutak-atik lagi (spec K.7).
+        cost_total = self.cost.update(total, self.tariff.rate_rp_per_kwh)
+        for counter in self.cost_counters.values():
+            counter.sync(cost_total, now)
+
     @callback
     def _schedule_boundary(self, period: str) -> None:
         """Pasang timer tepat di batas siklus berikutnya."""
@@ -647,6 +742,11 @@ class BillingGroupRuntime:
             "counters": {
                 period: counter.state.as_dict()
                 for period, counter in self.counters.items()
+            },
+            "cost": self.cost.state.as_dict(),
+            "cost_counters": {
+                period: counter.state.as_dict()
+                for period, counter in self.cost_counters.items()
             },
         }
 
@@ -688,6 +788,12 @@ class PlnRuntimeData:
             self.sources[subentry_id] = runtime
             runtime.async_start()
 
+        tariffs = {
+            subentry_id: dict(subentry.data)
+            for subentry_id, subentry in self.entry.subentries.items()
+            if subentry.subentry_type == SUBENTRY_TYPE_TARIFF
+        }
+
         # Billing Group dibangun setelahnya karena ia berlangganan ke source.
         stored_groups = self._stored.get("billing_groups", {})
         for subentry_id, subentry in self.entry.subentries.items():
@@ -700,6 +806,7 @@ class PlnRuntimeData:
                 stored_groups.get(subentry_id),
                 self.sources,
                 self.async_schedule_save,
+                tariffs.get(subentry.data.get(CONF_TARIFF_ID)),
             )
             self.billing_groups[subentry_id] = group
             group.async_start()

@@ -66,21 +66,39 @@ from .const import (
     CONF_DAY_START_TIME,
     CONF_DEVICE_ID,
     CONF_ENABLED,
+    CONF_FIXED_CHARGE_PERIOD,
+    CONF_FIXED_CHARGE_RP,
     CONF_MONTH_START_DAY,
+    CONF_RATE_HISTORY,
+    CONF_RATE_RP_PER_KWH,
+    CONF_ROUNDING_MODE,
+    CONF_ROUNDING_UNIT_RP,
     CONF_SHOW_ALL_SENSORS,
     CONF_SOURCE_IDS,
+    CONF_TARIFF_ID,
     CONF_UNAVAILABLE_GRACE_MINUTES,
     CONF_WEEK_START_DAY,
     CONF_YEAR_START_MONTH,
     DEFAULT_CYCLE_PERIODS,
     DEFAULT_DAY_START_TIME,
+    DEFAULT_FIXED_CHARGE_PERIOD,
+    DEFAULT_FIXED_CHARGE_RP,
     DEFAULT_MONTH_START_DAY,
+    DEFAULT_RATE_RP_PER_KWH,
+    DEFAULT_ROUNDING_MODE,
+    DEFAULT_ROUNDING_UNIT_RP,
     DEFAULT_UNAVAILABLE_GRACE_MINUTES,
     DEFAULT_WEEK_START_DAY,
     DEFAULT_YEAR_START_MONTH,
     DOMAIN,
     SUBENTRY_TYPE_BILLING_GROUP,
     SUBENTRY_TYPE_ENERGY_SOURCE,
+    SUBENTRY_TYPE_TARIFF,
+)
+from .engines.cost_engine import (
+    FIXED_CHARGE_PERIODS,
+    ROUNDING_MODES,
+    append_rate_version,
 )
 from .engines.normalization import (
     CHANNEL_SPECS,
@@ -320,6 +338,8 @@ def _format_group_report(
     group_input: dict[str, Any],
     sources: dict[str, str],
     warnings: list[Issue],
+    tariffs: dict[str, str] | None = None,
+    entry: Any = None,
 ) -> str:
     """Rakit ringkasan Billing Group untuk halaman review."""
     language = pick_language(hass.config.language)
@@ -330,6 +350,20 @@ def _format_group_report(
     lines.append(f"**{texts['members_header']}**")
     for source_id in group_input.get(CONF_SOURCE_IDS, []):
         lines.append(f"- {sources.get(source_id, source_id)}")
+    lines.append("")
+
+    tariff_id = group_input.get(CONF_TARIFF_ID)
+    lines.append(f"**{texts['tariff_header']}**")
+    if tariff_id and tariffs and tariff_id in tariffs:
+        rate = None
+        if entry is not None and tariff_id in entry.subentries:
+            rate = entry.subentries[tariff_id].data.get(CONF_RATE_RP_PER_KWH)
+        detail = tariffs[tariff_id]
+        if rate is not None:
+            detail += f" — Rp {float(rate):,.2f}/kWh".replace(",", ".")
+        lines.append(f"- {detail}")
+    else:
+        lines.append(f"- _{texts['no_tariff']}_")
     lines.append("")
 
     cycle_config = CycleConfig.from_dict(group_input)
@@ -508,6 +542,7 @@ class PlnPrepaidMonitorConfigFlow(_SourceFlowMixin, ConfigFlow, domain=DOMAIN):
         """Jenis subentry yang bisa ditambahkan user dari halaman integrasi."""
         return {
             SUBENTRY_TYPE_ENERGY_SOURCE: EnergySourceSubentryFlowHandler,
+            SUBENTRY_TYPE_TARIFF: TariffSubentryFlowHandler,
             SUBENTRY_TYPE_BILLING_GROUP: BillingGroupSubentryFlowHandler,
         }
 
@@ -723,7 +758,7 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
                 errors["base"] = "no_sources_selected"
             else:
                 self._group_warnings = self._overlap_warnings(source_ids)
-                return await self.async_step_cycles()
+                return await self.async_step_tariff()
 
         options = [
             SelectOptionDict(value=source_id, label=name)
@@ -735,10 +770,57 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
             errors=errors,
         )
 
+    def _available_tariffs(self) -> dict[str, str]:
+        """Semua tarif yang sudah dibuat, dipetakan id ke nama."""
+        return {
+            subentry_id: str(subentry.data.get(CONF_NAME, "")) or subentry.title
+            for subentry_id, subentry in self._get_entry().subentries.items()
+            if subentry.subentry_type == SUBENTRY_TYPE_TARIFF
+        }
+
+    async def async_step_tariff(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Langkah 2: pilih tarif listrik yang dipakai kelompok ini.
+
+        Dilewati otomatis kalau belum ada tarif sama sekali - kelompok tetap bisa
+        dibuat, hanya belum menghitung biaya sampai tarifnya diisi nanti.
+        """
+        tariffs = self._available_tariffs()
+        if not tariffs:
+            self._group_input.setdefault(CONF_TARIFF_ID, None)
+            return await self.async_step_cycles()
+
+        if user_input is not None:
+            self._group_input[CONF_TARIFF_ID] = user_input.get(CONF_TARIFF_ID)
+            return await self.async_step_cycles()
+
+        options = [
+            SelectOptionDict(value=tariff_id, label=name)
+            for tariff_id, name in tariffs.items()
+        ]
+        return self.async_show_form(
+            step_id="tariff",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_TARIFF_ID,
+                        description={
+                            "suggested_value": self._group_input.get(CONF_TARIFF_ID)
+                        },
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=options, mode=SelectSelectorMode.LIST
+                        )
+                    )
+                }
+            ),
+        )
+
     async def async_step_cycles(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Langkah 2: periode apa saja, dan di mana batas siklusnya jatuh."""
+        """Langkah 3: periode apa saja, dan di mana batas siklusnya jatuh."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -762,7 +844,7 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
     async def async_step_review(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Langkah 3: ringkasan sebelum disimpan."""
+        """Langkah 4: ringkasan sebelum disimpan."""
         if user_input is None:
             return self.async_show_form(
                 step_id="review",
@@ -773,6 +855,8 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
                         self._group_input,
                         self._energy_sources(),
                         self._group_warnings,
+                        self._available_tariffs(),
+                        self._get_entry(),
                     )
                 },
             )
@@ -786,3 +870,147 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
                 data=data,
             )
         return self.async_create_entry(title=data[CONF_NAME], data=data)
+
+
+def _tariff_schema(defaults: dict[str, Any]) -> vol.Schema:
+    """Skema form tarif listrik."""
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_NAME, description={"suggested_value": defaults.get(CONF_NAME)}
+            ): TextSelector(),
+            vol.Required(
+                CONF_RATE_RP_PER_KWH,
+                default=float(
+                    defaults.get(CONF_RATE_RP_PER_KWH, DEFAULT_RATE_RP_PER_KWH)
+                ),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=0, step=0.01, mode=NumberSelectorMode.BOX
+                )
+            ),
+            vol.Required(
+                CONF_FIXED_CHARGE_RP,
+                default=float(
+                    defaults.get(CONF_FIXED_CHARGE_RP, DEFAULT_FIXED_CHARGE_RP)
+                ),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0, step=0.01, mode=NumberSelectorMode.BOX)
+            ),
+            vol.Required(
+                CONF_FIXED_CHARGE_PERIOD,
+                default=defaults.get(
+                    CONF_FIXED_CHARGE_PERIOD, DEFAULT_FIXED_CHARGE_PERIOD
+                ),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=list(FIXED_CHARGE_PERIODS),
+                    translation_key="fixed_charge_period",
+                )
+            ),
+            vol.Required(
+                CONF_ROUNDING_MODE,
+                default=defaults.get(CONF_ROUNDING_MODE, DEFAULT_ROUNDING_MODE),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=list(ROUNDING_MODES), translation_key="rounding_mode"
+                )
+            ),
+            vol.Required(
+                CONF_ROUNDING_UNIT_RP,
+                default=float(
+                    defaults.get(CONF_ROUNDING_UNIT_RP, DEFAULT_ROUNDING_UNIT_RP)
+                ),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0, step=0.01, mode=NumberSelectorMode.BOX)
+            ),
+        }
+    )
+
+
+class TariffSubentryFlowHandler(ConfigSubentryFlow):
+    """Flow untuk menambah dan mengedit satu tarif listrik.
+
+    Tarif dibuat terpisah dari kelompok tagihan supaya satu tarif yang sama bisa
+    dipakai beberapa kelompok sekaligus - misalnya rumah dan toko yang golongan
+    dayanya sama. Kalau tarif PLN naik, Anda cukup mengubahnya di satu tempat.
+    """
+
+    def _existing_tariff_names(self) -> set[str]:
+        """Nama tarif lain, untuk cek duplikat."""
+        skip_id = (
+            self._reconfigure_subentry_id
+            if self.source == SOURCE_RECONFIGURE
+            else None
+        )
+        return {
+            str(subentry.data.get(CONF_NAME, "")).strip()
+            for subentry_id, subentry in self._get_entry().subentries.items()
+            if subentry.subentry_type == SUBENTRY_TYPE_TARIFF
+            and subentry_id != skip_id
+        }
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Tambah tarif baru."""
+        return await self.async_step_tariff(user_input)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Ubah tarif yang sudah ada."""
+        return await self.async_step_tariff(user_input)
+
+    async def async_step_tariff(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Isian tarif listrik."""
+        reconfiguring = self.source == SOURCE_RECONFIGURE
+        existing = (
+            dict(self._get_reconfigure_subentry().data) if reconfiguring else {}
+        )
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            name = str(user_input.get(CONF_NAME, "")).strip()
+            rate = float(user_input.get(CONF_RATE_RP_PER_KWH, 0) or 0)
+
+            if not name:
+                errors["base"] = "name_required"
+            elif name in self._existing_tariff_names():
+                errors["base"] = "name_duplicate"
+            elif rate <= 0:
+                errors["base"] = "rate_must_be_positive"
+            else:
+                data = dict(user_input)
+                data[CONF_NAME] = name
+                # Perubahan tarif membuat versi baru, tidak pernah menimpa yang
+                # lama (spec K.7). Riwayat ini untuk audit: biaya yang sudah
+                # tercatat tetap memakai tarif saat pemakaian itu terjadi.
+                data[CONF_RATE_HISTORY] = append_rate_version(
+                    existing.get(CONF_RATE_HISTORY),
+                    rate,
+                    dt_util.now().isoformat(),
+                )
+                if reconfiguring:
+                    return self.async_update_and_abort(
+                        self._get_entry(),
+                        self._get_reconfigure_subentry(),
+                        title=name,
+                        data=data,
+                    )
+                return self.async_create_entry(title=name, data=data)
+
+            existing = {**existing, **user_input}
+
+        return self.async_show_form(
+            step_id="tariff",
+            data_schema=_tariff_schema(existing),
+            errors=errors,
+            description_placeholders={
+                "default_rate": f"{DEFAULT_RATE_RP_PER_KWH:,.2f}".replace(
+                    ",", "."
+                )
+            },
+        )

@@ -179,6 +179,53 @@
         "review": {
           "title": "Cek dulu sebelum disimpan",
           "description": "{summary}"
+        },
+        "tariff": {
+          "title": "Tarif listrik",
+          "description": "Pilih tarif yang dipakai kelompok tagihan ini. Boleh dikosongkan - kelompoknya tetap menghitung pemakaian kWh, hanya belum menghitung biaya rupiah sampai tarifnya dipilih.",
+          "data": {
+            "tariff_id": "Tarif listrik"
+          },
+          "data_description": {
+            "tariff_id": "Kalau tarif yang Anda butuhkan belum ada, tutup dulu form ini, tambahkan tarif dari halaman integrasi, lalu ulangi."
+          }
+        }
+      }
+    },
+    "tariff": {
+      "abort": {
+        "reconfigure_successful": "Tarif berhasil disimpan."
+      },
+      "entry_type": "Tarif listrik",
+      "error": {
+        "name_required": "Nama tarif tidak boleh kosong.",
+        "name_duplicate": "Sudah ada tarif dengan nama itu. Pakai nama lain.",
+        "rate_must_be_positive": "Tarif per kWh harus lebih besar dari nol."
+      },
+      "initiate_flow": {
+        "reconfigure": "Ubah tarif",
+        "user": "Tambah tarif"
+      },
+      "step": {
+        "tariff": {
+          "title": "Tarif listrik",
+          "description": "Masukkan tarif listrik Anda. Tarif ini bisa dipakai oleh beberapa kelompok tagihan sekaligus - kalau rumah dan toko Anda golongan dayanya sama, cukup buat satu tarif untuk keduanya.\n\n**Angka bawaan Rp {default_rate}/kWh hanyalah perkiraan** untuk golongan R-1 daya 1300-2200 VA, dikumpulkan dari pemberitaan tarif, **bukan** angka resmi dari PLN. Anda wajib menyesuaikannya dengan golongan daya dan wilayah Anda sendiri.\n\nDi mana melihat tarif Anda yang sebenarnya: struk atau bukti pembelian token terakhir, aplikasi PLN Mobile, atau tagihan resmi PLN. Bagi nominal rupiah yang benar-benar masuk sebagai kWh untuk memperkirakannya.\n\nSetiap kali Anda mengubah tarif di sini, versi lamanya tetap disimpan sebagai riwayat. Biaya yang sudah tercatat tidak dihitung ulang - itu memang benar, karena pemakaian lama memang terjadi pada tarif lama.",
+          "data": {
+            "name": "Nama tarif",
+            "rate_rp_per_kwh": "Tarif per kWh (Rp)",
+            "fixed_charge_rp": "Biaya beban (Rp)",
+            "fixed_charge_period": "Biaya beban ditagih per",
+            "rounding_mode": "Cara pembulatan",
+            "rounding_unit_rp": "Bulatkan ke kelipatan (Rp)"
+          },
+          "data_description": {
+            "name": "Nama untuk membedakan tarif ini dari tarif lain, misalnya 'R-1 900VA' atau 'Tarif Toko'.",
+            "rate_rp_per_kwh": "Harga listrik per kWh sesuai golongan daya PLN Anda. Angka bawaan hanya perkiraan - ganti dengan tarif Anda yang sebenarnya.",
+            "fixed_charge_rp": "Biaya tetap yang ditagih walaupun tidak memakai listrik. Untuk PLN prabayar rumah tangga biasanya **0** - isi 0 kalau Anda tidak yakin. Field ini disediakan untuk golongan bisnis atau kasus tidak biasa.",
+            "fixed_charge_period": "Apakah biaya beban di atas ditagih tiap hari atau tiap bulan. Tidak berpengaruh apa pun kalau biaya bebannya 0.",
+            "rounding_mode": "Bagaimana angka rupiah dibulatkan saat ditampilkan. Pembulatan hanya mempengaruhi tampilan; perhitungan di belakang layar tetap memakai angka penuh, jadi tidak ada galat yang menumpuk.",
+            "rounding_unit_rp": "Bulatkan ke kelipatan berapa rupiah. Isi 1 untuk membulatkan ke rupiah terdekat, atau 0 untuk tidak membulatkan sama sekali."
+          }
         }
       }
     }
@@ -222,6 +269,24 @@
       },
       "energy_this_year": {
         "name": "Energi tahun ini"
+      },
+      "cost_total": {
+        "name": "Total biaya"
+      },
+      "cost_this_hour": {
+        "name": "Biaya jam ini"
+      },
+      "cost_this_day": {
+        "name": "Biaya hari ini"
+      },
+      "cost_this_week": {
+        "name": "Biaya minggu ini"
+      },
+      "cost_this_month": {
+        "name": "Biaya bulan ini"
+      },
+      "cost_this_year": {
+        "name": "Biaya tahun ini"
       }
     }
   },
@@ -260,6 +325,19 @@
         "october": "Oktober",
         "november": "November",
         "december": "Desember"
+      }
+    },
+    "fixed_charge_period": {
+      "options": {
+        "daily": "Hari",
+        "monthly": "Bulan"
+      }
+    },
+    "rounding_mode": {
+      "options": {
+        "nearest": "Ke yang terdekat",
+        "up": "Selalu ke atas",
+        "down": "Selalu ke bawah"
       }
     }
   }

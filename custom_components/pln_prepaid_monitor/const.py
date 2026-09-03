@@ -24,6 +24,7 @@ ALLOWED_AVAILABILITY_DOMAINS: Final = ("binary_sensor", "sensor")
 
 SUBENTRY_TYPE_ENERGY_SOURCE: Final = "energy_source"
 SUBENTRY_TYPE_BILLING_GROUP: Final = "billing_group"
+SUBENTRY_TYPE_TARIFF: Final = "tariff"
 
 # --- kunci konfigurasi Energy Source -----------------------------------------
 CONF_DEVICE_ID: Final = "device_id"
@@ -52,6 +53,26 @@ DEFAULT_DAY_START_TIME: Final = "00:00:00"
 DEFAULT_WEEK_START_DAY: Final = "monday"
 DEFAULT_MONTH_START_DAY: Final = 1
 DEFAULT_YEAR_START_MONTH: Final = "january"
+
+# --- kunci konfigurasi Tarif --------------------------------------------------
+CONF_TARIFF_ID: Final = "tariff_id"
+CONF_RATE_RP_PER_KWH: Final = "rate_rp_per_kwh"
+CONF_FIXED_CHARGE_RP: Final = "fixed_charge_rp"
+CONF_FIXED_CHARGE_PERIOD: Final = "fixed_charge_period"
+CONF_ROUNDING_MODE: Final = "rounding_mode"
+CONF_ROUNDING_UNIT_RP: Final = "rounding_unit_rp"
+CONF_RATE_HISTORY: Final = "rate_history"
+
+# Tarif awal yang ditampilkan di form. INDIKATIF, bukan angka resmi: perkiraan
+# golongan R-1 1300-2200VA dari agregator berita tarif, bukan kutipan langsung
+# pln.co.id (spec B.2, confidence LIKELY). Help text di form wajib menyebutkan
+# bahwa user harus menyesuaikannya dengan golongan daya dan wilayahnya.
+DEFAULT_RATE_RP_PER_KWH: Final = 1444.70
+DEFAULT_FIXED_CHARGE_RP: Final = 0.0
+DEFAULT_FIXED_CHARGE_PERIOD: Final = "monthly"
+DEFAULT_ROUNDING_MODE: Final = "nearest"
+DEFAULT_ROUNDING_UNIT_RP: Final = 1.0
+DEFAULT_CURRENCY: Final = "IDR"
 
 # --- peran kanal (channel) kanonik -------------------------------------------
 CHANNEL_ENERGY: Final = "energy"
@@ -98,3 +119,8 @@ ATTR_MEMBER_SOURCES: Final = "member_sources"
 ATTR_MEMBERS_UNAVAILABLE: Final = "members_unavailable"
 ATTR_CYCLE_START: Final = "cycle_start"
 ATTR_NEXT_CYCLE_START: Final = "next_cycle_start"
+ATTR_TARIFF_NAME: Final = "tariff_name"
+ATTR_ACTIVE_RATE: Final = "active_rate_rp_per_kwh"
+ATTR_RATE_HISTORY: Final = "rate_history"
+ATTR_FIXED_CHARGE_INCLUDED: Final = "fixed_charge_included_rp"
+ATTR_ENERGY_COST_ONLY: Final = "energy_cost_only_rp"

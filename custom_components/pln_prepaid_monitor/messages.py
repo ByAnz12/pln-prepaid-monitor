@@ -206,6 +206,8 @@ REPORT_TEXTS: dict[str, dict[str, str]] = {
         "periods_header": "Penghitung yang akan dibuat",
         "resets_at": "reset berikutnya",
         "no_data_yet": "belum ada data",
+        "tariff_header": "Tarif listrik",
+        "no_tariff": "belum dipilih - biaya belum akan dihitung",
     },
     LANG_EN: {
         "not_configured": "not used",
@@ -224,6 +226,8 @@ REPORT_TEXTS: dict[str, dict[str, str]] = {
         "periods_header": "Counters that will be created",
         "resets_at": "next reset",
         "no_data_yet": "no data yet",
+        "tariff_header": "Electricity tariff",
+        "no_tariff": "not selected - cost will not be calculated yet",
     },
 }
 

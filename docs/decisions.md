@@ -9,6 +9,107 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-015 · Biaya beban disebar per hari, bukan ditagihkan sekaligus di awal siklus
+
+**Tanggal**: 3 September 2026 · **Milestone 3**
+
+Spec F.3 menyebut biaya beban ditambahkan "secara prorata" di sensor bulanan
+dan tahunan. Yang diimplementasikan: biaya beban dikonversi jadi **Rupiah per
+hari** (bulanan dibagi 365,25/12 = 30,44 hari), lalu diakumulasi sesuai lama
+siklus yang sudah berjalan.
+
+Efeknya, `cost_this_month` naik mulus dari hari ke hari, bukan melompat di
+tanggal 1 lalu diam. Untuk PLN prabayar rumah tangga field ini default **0**
+dan tidak berpengaruh sama sekali; ia disediakan untuk golongan bisnis atau
+kasus tidak biasa.
+
+Sesuai spec, biaya beban **hanya** masuk ke penghitung bulanan dan tahunan.
+Penghitung jam, hari, dan minggu tetap murni berisi biaya energi. Atribut
+`energy_cost_only_rp` dan `fixed_charge_included_rp` memisahkan keduanya di
+setiap sensor biaya, supaya angkanya selalu jelas asalnya.
+
+---
+
+## D-014 · Tarif dibuat sebagai objek tersendiri (berbeda dari keputusan Aggregate)
+
+**Tanggal**: 3 September 2026 · **Milestone 3**
+
+Di [D-011](#d-011--billing-group-menerima-beberapa-sumber-langsung-objek-aggregate-ditunda)
+saya menunda objek Aggregate karena nilai tambahnya tidak terasa. Untuk
+**tarif**, keputusannya kebalikan: tarif dibuat sebagai subentry tersendiri yang
+bisa dirujuk beberapa kelompok tagihan.
+
+Alasan perbedaannya konkret:
+
+- Rumah dan toko user hampir pasti memakai golongan tarif yang sama. Kalau PLN
+  menaikkan tarif, dengan objek bersama cukup diubah **satu kali**; kalau tarif
+  menempel di masing-masing kelompok, user harus ingat mengubahnya di dua tempat
+  dan angka keduanya bisa diam-diam berbeda.
+- Tarif punya **riwayat versi** (spec K.7) yang perlu tempat tinggal sendiri.
+- Berbeda dari Aggregate, tarif adalah sesuatu yang user memang sudah
+  pikirkan sebagai benda tersendiri ("tarif R-1 saya"), bukan konsep buatan.
+
+Kelompok tagihan boleh **tidak** punya tarif: ia tetap menghitung kWh, hanya
+belum punya sensor biaya. Langkah pilih-tarif dilewati otomatis kalau belum ada
+tarif sama sekali.
+
+---
+
+## D-013 · Tarif waktu (TOU) dan komponen biaya tambahan ditunda
+
+**Tanggal**: 3 September 2026 · **Milestone 3** · **Sesuai urutan spec L.3**
+
+Spec D.1 mendefinisikan `rate_periods` (beberapa tarif menurut jam) dan
+`additional_components` (daftar pajak/komponen lain). Spec L.3 sendiri meminta
+Cost Engine dikerjakan "dengan TariffProfile sederhana (flat rate) dulu, baru
+tambahkan TOU/additional components" - jadi ini penundaan yang direncanakan,
+bukan kelalaian.
+
+Dua alasan tambahan:
+
+- PLN prabayar rumah tangga tidak memakai skema tarif per waktu. Spec sendiri
+  menandainya sebagai persiapan "jika suatu saat" dipakai.
+- PPJ dan biaya admin - dua komponen yang benar-benar nyata untuk token PLN -
+  bukan urusan Cost Engine, melainkan **Token Engine** (spec B.2 dan G).
+  Keduanya dipotong dari nominal rupiah saat beli token, bukan ditambahkan ke
+  biaya pemakaian.
+- Keduanya berbentuk **daftar** yang perlu form berulang; desain UI-nya pantas
+  dapat perhatian tersendiri, bukan disisipkan tergesa-gesa.
+
+Model datanya sudah menyediakan tempat, jadi menambahkannya nanti tidak butuh
+migrasi.
+
+---
+
+## D-012 · `monetary` hanya menerima `state_class: total` (koreksi spec D.2)
+
+**Tanggal**: 3 September 2026 · **Milestone 3** · **Status: VERIFIED**
+
+Spec bertentangan dengan dirinya sendiri: B.3 menyatakan `monetary` **tidak**
+valid dengan `total_increasing`, sedangkan D.2 justru memakainya untuk
+`cost_total`.
+
+Diverifikasi langsung ke source Core 2026.8.3,
+`homeassistant/components/sensor/const.py`:
+
+```python
+SensorDeviceClass.MONETARY: {SensorStateClass.TOTAL},
+```
+
+Hanya `total` - bahkan `measurement` pun tidak. Kombinasi yang salah tidak
+membuat integrasi gagal, tapi memicu peringatan berulang di log
+(`components/sensor/__init__.py`, "is using state class ... which is not
+supported").
+
+Yang diimplementasikan: seluruh sensor biaya memakai `state_class: total`.
+`cost_total` tanpa `last_reset` (nilainya memang tidak pernah di-reset), dan
+penghitung biaya per periode dengan `last_reset` di awal siklusnya - sama
+seperti penghitung energi per periode.
+
+**Catatan**: `spec.md` Bagian D.2 sebaiknya diperbarui mengikuti ini.
+
+---
+
 ## D-011 · Billing Group menerima beberapa sumber langsung; objek Aggregate ditunda
 
 **Tanggal**: 3 September 2026 · **Milestone 2** · **Menyimpang dari spec D.1**
