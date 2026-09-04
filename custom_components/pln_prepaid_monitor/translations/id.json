@@ -308,6 +308,9 @@
       },
       "data_sufficient": {
         "name": "Data cukup untuk perkiraan"
+      },
+      "rate_change_pending": {
+        "name": "Usulan harga menunggu keputusan"
       }
     },
     "sensor": {
@@ -428,6 +431,9 @@
       },
       "calibrate_token": {
         "name": "Samakan dengan angka meteran"
+      },
+      "save_template": {
+        "name": "Simpan sebagai template"
       }
     }
   },
@@ -513,8 +519,9 @@
     },
     "dashboard_layout": {
       "options": {
-        "sections": "Sections (bisa digeser)",
-        "masonry": "Masonry (klasik)"
+        "sections": "Sections - bisa digeser (disarankan)",
+        "sections_hacs": "Sections + kartu HACS - perlu Mushroom & apexcharts-card",
+        "masonry": "Masonry - klasik"
       }
     },
     "detail_row": {
@@ -664,6 +671,21 @@
           "description": "Sekali pakai, menimpa pengaturan retensi. Kosongkan untuk memakai pengaturan yang tersimpan."
         }
       }
+    },
+    "resolve_rate_change": {
+      "name": "Putuskan usulan harga",
+      "description": "Menerima atau menolak harga efektif per kWh yang dihitung dari pengisian token terakhir. Harga tidak pernah berubah sendiri - keputusannya selalu di tangan Anda.",
+      "fields": {
+        "apply": {
+          "name": "Terapkan",
+          "description": "Nyalakan untuk memakai harga baru, matikan untuk membiarkan harga lama."
+        }
+      }
+    },
+    "save_topup_template": {
+      "name": "Simpan template pengisian",
+      "description": "Menyimpan isi kotak Jumlah kWh dan Nominal pembelian sekarang sebagai template, supaya pembelian berikutnya cukup sekali klik.",
+      "fields": {}
     }
   },
   "exceptions": {
@@ -708,6 +730,15 @@
     },
     "no_rate_for_conversion": {
       "message": "Kelompok ini belum punya tarif, jadi nominal pembelian tidak bisa diubah jadi kWh. Isi kotak Jumlah kWh, atau hubungkan kelompok ini ke sebuah tarif lebih dulu."
+    },
+    "no_rate_proposal": {
+      "message": "Tidak ada usulan harga yang menunggu keputusan untuk '{group}'."
+    },
+    "template_needs_both": {
+      "message": "Template perlu dua angka. Isi kotak Jumlah kWh dan Nominal pembelian dulu, baru simpan."
+    },
+    "template_already_exists": {
+      "message": "Template dengan angka yang sama persis sudah ada."
     }
   },
   "issues": {

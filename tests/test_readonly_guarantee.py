@@ -197,6 +197,11 @@ async def test_only_bookkeeping_services_are_registered(
         "delete_topup",
         "reset_token_ledger",
         "resolve_ledger_hold",
+        # Menerima atau menolak usulan harga per kWh; hanya menyentuh
+        # konfigurasi tarif milik integrasi ini sendiri.
+        "resolve_rate_change",
+        # Menyimpan isian jumlah kWh dan nominal sekarang sebagai template.
+        "save_topup_template",
         # Hanya membaca dan mengembalikan teks YAML; tidak mengubah apa pun.
         "generate_dashboard",
         # Menghapus riwayat milik integrasi ini saja, tidak pernah menyentuh

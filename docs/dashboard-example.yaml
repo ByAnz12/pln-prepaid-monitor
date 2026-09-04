@@ -245,14 +245,16 @@ views:
         name: Nominal pembelian
       - entity: button.pln_rumah_catat_pengisian
         name: Catat pengisian
+      - entity: button.pln_rumah_simpan_sebagai_template
+        name: Simpan sebagai template
     - type: markdown
-      content: '**Nilai siap pakai**'
+      content: '**Template pengisian**'
     - type: grid
       columns: 2
       square: false
       cards:
       - type: button
-        name: Rp 1.000.000 (826,50 kWh)
+        name: Rp 1.002.500 (825,00 kWh)
         icon: mdi:cash-plus
         show_state: false
         tap_action:
@@ -261,12 +263,12 @@ views:
           target:
             device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
           data:
-            kwh_credited: 826.5
-            nominal_rp: 1000000.0
+            kwh_credited: 825.0
+            nominal_rp: 1002500.0
           confirmation:
-            text: Rp 1.000.000 (826,50 kWh)?
+            text: Rp 1.002.500 (825,00 kWh)?
       - type: button
-        name: Rp 500.000 (413,25 kWh)
+        name: Rp 503.000 (425,00 kWh)
         icon: mdi:cash-plus
         show_state: false
         tap_action:
@@ -275,10 +277,76 @@ views:
           target:
             device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
           data:
-            kwh_credited: 413.25
-            nominal_rp: 500000.0
+            kwh_credited: 425.0
+            nominal_rp: 503000.0
           confirmation:
-            text: Rp 500.000 (413,25 kWh)?
+            text: Rp 503.000 (425,00 kWh)?
+    - type: conditional
+      conditions:
+      - entity: binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan
+        state: 'on'
+      card:
+        type: vertical-stack
+        cards:
+        - type: markdown
+          content: '### Harga per kWh berubah{% set a = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
+            ''from_rate'') %}{% set b = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
+            ''to_rate'') %}{% set kwh = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
+            ''kwh'') %}{% set rp = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
+            ''nominal_rp'') %}
+
+
+            Pengisian terakhir menyebut jumlah kWh dan nominal sekaligus, jadi harga
+            efektifnya bisa dihitung - sudah termasuk admin, PPJ, dan materai. Mau
+            dipakai sebagai harga baru?
+
+
+            | | |
+
+            |---|--:|
+
+            | Harga sekarang | Rp {{ ''{:,.2f}''.format(a) | replace('','', ''@'')
+            | replace(''.'', '','') | replace(''@'', ''.'') }} |
+
+            | Harga hasil hitungan | **Rp {{ ''{:,.2f}''.format(b) | replace('','',
+            ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}** |
+
+            | Dari pembelian | {{ ''%.2f'' | format(kwh) }} kWh / Rp {{ ''{:,.0f}''.format(rp)
+            | replace('','', ''.'') }} |
+
+
+            {% if state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
+            ''implausible'') %}> **Perubahannya besar sekali.** Periksa lagi angka
+            pengisiannya sebelum menerima - salah ketik satu angka bisa membuat seluruh
+            hitungan biaya berikutnya meleset.{% endif %}'
+        - type: horizontal-stack
+          cards:
+          - type: button
+            name: Ya, pakai harga baru
+            icon: mdi:check
+            show_state: false
+            tap_action:
+              action: perform-action
+              perform_action: pln_prepaid_monitor.resolve_rate_change
+              target:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+              data:
+                apply: true
+              confirmation:
+                text: Ya, pakai harga baru?
+          - type: button
+            name: Tidak, biarkan
+            icon: mdi:close
+            show_state: false
+            tap_action:
+              action: perform-action
+              perform_action: pln_prepaid_monitor.resolve_rate_change
+              target:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+              data:
+                apply: false
+              confirmation:
+                text: Tidak, biarkan?
     - type: markdown
       content: Dipakai kalau angka sistem sudah melenceng dari layar meteran. Isi
         angka yang tertera di meteran, lalu tekan **Samakan**.
@@ -636,6 +704,74 @@ views:
         name: Nominal pembelian
       - entity: button.pln_toko_catat_pengisian
         name: Catat pengisian
+      - entity: button.pln_toko_simpan_sebagai_template
+        name: Simpan sebagai template
+    - type: conditional
+      conditions:
+      - entity: binary_sensor.pln_toko_usulan_harga_menunggu_keputusan
+        state: 'on'
+      card:
+        type: vertical-stack
+        cards:
+        - type: markdown
+          content: '### Harga per kWh berubah{% set a = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
+            ''from_rate'') %}{% set b = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
+            ''to_rate'') %}{% set kwh = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
+            ''kwh'') %}{% set rp = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
+            ''nominal_rp'') %}
+
+
+            Pengisian terakhir menyebut jumlah kWh dan nominal sekaligus, jadi harga
+            efektifnya bisa dihitung - sudah termasuk admin, PPJ, dan materai. Mau
+            dipakai sebagai harga baru?
+
+
+            | | |
+
+            |---|--:|
+
+            | Harga sekarang | Rp {{ ''{:,.2f}''.format(a) | replace('','', ''@'')
+            | replace(''.'', '','') | replace(''@'', ''.'') }} |
+
+            | Harga hasil hitungan | **Rp {{ ''{:,.2f}''.format(b) | replace('','',
+            ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}** |
+
+            | Dari pembelian | {{ ''%.2f'' | format(kwh) }} kWh / Rp {{ ''{:,.0f}''.format(rp)
+            | replace('','', ''.'') }} |
+
+
+            {% if state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
+            ''implausible'') %}> **Perubahannya besar sekali.** Periksa lagi angka
+            pengisiannya sebelum menerima - salah ketik satu angka bisa membuat seluruh
+            hitungan biaya berikutnya meleset.{% endif %}'
+        - type: horizontal-stack
+          cards:
+          - type: button
+            name: Ya, pakai harga baru
+            icon: mdi:check
+            show_state: false
+            tap_action:
+              action: perform-action
+              perform_action: pln_prepaid_monitor.resolve_rate_change
+              target:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+              data:
+                apply: true
+              confirmation:
+                text: Ya, pakai harga baru?
+          - type: button
+            name: Tidak, biarkan
+            icon: mdi:close
+            show_state: false
+            tap_action:
+              action: perform-action
+              perform_action: pln_prepaid_monitor.resolve_rate_change
+              target:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+              data:
+                apply: false
+              confirmation:
+                text: Tidak, biarkan?
     - type: markdown
       content: Dipakai kalau angka sistem sudah melenceng dari layar meteran. Isi
         angka yang tertera di meteran, lalu tekan **Samakan**.

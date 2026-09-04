@@ -6,6 +6,12 @@
         "state": {
           "on": "mdi:database-check"
         }
+      },
+      "rate_change_pending": {
+        "default": "mdi:cash-check",
+        "state": {
+          "on": "mdi:cash-sync"
+        }
       }
     },
     "button": {
@@ -14,6 +20,9 @@
       },
       "calibrate_token": {
         "default": "mdi:auto-fix"
+      },
+      "save_template": {
+        "default": "mdi:content-save-plus"
       }
     },
     "number": {
@@ -85,6 +94,8 @@
     "reset_token_ledger": "mdi:restore-alert",
     "resolve_ledger_hold": "mdi:play-circle-outline",
     "generate_dashboard": "mdi:view-dashboard-outline",
-    "purge_old_data": "mdi:database-remove"
+    "purge_old_data": "mdi:database-remove",
+    "resolve_rate_change": "mdi:cash-sync",
+    "save_topup_template": "mdi:content-save-plus"
   }
 }

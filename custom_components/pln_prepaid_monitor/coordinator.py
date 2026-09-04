@@ -124,6 +124,11 @@ _MEASUREMENT_CHANNELS = (
 # berhenti diam-diam. Sumber yang punya sensor kWh asli tidak terpengaruh.
 POWER_SAMPLE_INTERVAL = timedelta(seconds=30)
 
+# Seberapa jauh harga efektif hasil hitungan harus meleset dari harga yang
+# berlaku sebelum user ditanya. Di bawah ini selisihnya berasal dari
+# pembulatan struk, bukan dari perubahan harga.
+RATE_CHANGE_TOLERANCE = 0.0025
+
 
 class SourceRuntime:
     """Menjaga state satu Energy Source selama Home Assistant berjalan."""
@@ -568,6 +573,15 @@ class BillingGroupRuntime:
         # prediksi dihitung ulang.
         self.summaries: dict[str, dict[str, Any]] = {"energy": {}, "cost": {}}
 
+        # Usulan perubahan harga per kWh yang menunggu keputusan user. Sengaja
+        # tidak langsung diterapkan: harga adalah angka yang user tetapkan
+        # sendiri, dan mengubahnya diam-diam berarti seluruh biaya berikutnya
+        # dihitung dengan angka yang tidak pernah mereka setujui.
+        self.entry_id: str | None = None
+        self.pending_rate: dict[str, Any] | None = (
+            dict(stored["pending_rate"]) if stored.get("pending_rate") else None
+        )
+
         self.inputs: dict[str, float] = {
             str(key): float(value)
             for key, value in (stored.get("inputs") or {}).items()
@@ -943,8 +957,58 @@ class BillingGroupRuntime:
             entry["id"],
             self.token_remaining_kwh,
         )
+        self._propose_rate_from(entry)
         self.async_ledger_changed()
         return entry
+
+    def _propose_rate_from(self, entry: dict[str, Any]) -> None:
+        """Kalau pengisian menyebut kWh dan nominal sekaligus, hitung harganya.
+
+        Pengisian yang mencantumkan keduanya adalah struk: di sana tertulis
+        berapa yang dibayar dan berapa kWh yang masuk, sudah termasuk admin,
+        PPJ, dan materai. Bagi keduanya dan ketemu **harga efektif** per kWh.
+
+        Yang dihasilkan cuma usulan. User yang memutuskan, lewat tombol Ya/Tidak
+        di dashboard - lihat docs/decisions.md D-045.
+        """
+        current = self.active_rate
+        kwh = float(entry.get("kwh_credited") or 0.0)
+        nominal = entry.get("nominal_rp")
+        if not current or nominal is None or kwh <= 0:
+            return
+
+        derived = round(float(nominal) / kwh, 2)
+        if abs(derived - current) / current < RATE_CHANGE_TOLERANCE:
+            # Selisih sekecil ini datang dari pembulatan, bukan dari perubahan
+            # harga sungguhan. Bertanya untuk itu cuma jadi gangguan.
+            return
+
+        self.pending_rate = {
+            "from_rate": current,
+            "to_rate": derived,
+            "kwh": kwh,
+            "nominal_rp": float(nominal),
+            "topup_id": entry.get("id"),
+            "at": entry.get("timestamp"),
+            # Perubahan sebesar ini hampir pasti salah ketik, bukan kenaikan
+            # tarif. Ditandai supaya kartunya bisa memperingatkan, bukan
+            # ditolak diam-diam - user tetap yang memutuskan.
+            "implausible": not 0.5 <= derived / current <= 2.0,
+        }
+        _LOGGER.info(
+            "Harga efektif '%s' terhitung %s/kWh (sebelumnya %s), menunggu keputusan",
+            self.name,
+            derived,
+            current,
+        )
+
+    def resolve_rate_change(self, *, apply: bool) -> dict[str, Any] | None:
+        """Terima atau tolak usulan harga. Mengembalikan usulan yang diputuskan."""
+        proposal = self.pending_rate
+        self.pending_rate = None
+        self._async_notify()
+        self._on_persist()
+        return proposal if apply else None
 
     def calibrate_to(
         self,
@@ -1132,6 +1196,7 @@ class BillingGroupRuntime:
             "token": self.ledger.state.as_dict(),
             "notifier": self.notifier_state.as_dict(),
             "inputs": dict(self.inputs),
+            "pending_rate": dict(self.pending_rate) if self.pending_rate else None,
         }
 
 
@@ -1193,6 +1258,10 @@ class PlnRuntimeData:
                 self.async_schedule_save,
                 tariffs.get(subentry.data.get(CONF_TARIFF_ID)),
             )
+            # Beberapa layanan perlu menulis kembali ke config entry induk
+            # (menyimpan template, menerapkan harga baru), jadi runtime perlu
+            # tahu dia milik entry yang mana.
+            group.entry_id = self.entry.entry_id
             self.billing_groups[subentry_id] = group
             group.async_start()
 

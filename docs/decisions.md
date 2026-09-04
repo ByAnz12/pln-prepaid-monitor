@@ -9,6 +9,90 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-046 · Varian HACS ada, tapi batasnya disebutkan apa adanya
+
+**Tanggal**: 5 September 2026 · **Atas permintaan user**
+
+Tata letak ketiga, `sections_hacs`, memakai **Mushroom** dan
+**apexcharts-card**. Bawaan tetap `sections` yang murni kartu Home Assistant.
+
+### Yang harus dikatakan apa adanya
+
+Seluruh proyek ini dibangun dengan memverifikasi setiap API ke source code Home
+Assistant yang terpasang. **Untuk kartu HACS itu tidak bisa dilakukan**: kodenya
+JavaScript milik pihak ketiga, bukan paket Python yang bisa dibaca.
+
+Jadi bentuk konfigurasi kartu Mushroom dan ApexCharts di sini ditulis
+berdasarkan dokumentasinya, bukan verifikasi. Test bisa memastikan kita
+menghasilkan struktur yang konsisten; test **tidak bisa** memastikan Mushroom
+menerimanya. Ini satu-satunya bagian sistem dengan sifat seperti itu selain
+pembersihan data (D-034).
+
+### Yang diganti, dan yang sengaja tidak
+
+| Kartu | Varian HACS |
+|---|---|
+| Status token | `mushroom-template-card`, ikon berubah warna mengikuti keadaan |
+| Baris sumber energi | `mushroom-chips-card`, jauh lebih ringkas |
+| Grafik harian | `apexcharts-card`, beranimasi |
+| **Isian angka** | **Tetap kartu bawaan** |
+| Tabel Pemakaian, Biaya, Riwayat | Tetap markdown |
+
+Isian angka sengaja tidak diganti: `mushroom-number-card` menampilkan penggeser,
+yang lebih cantik tapi justru menyulitkan mengetik angka kWh yang persis.
+Kecantikan tidak dibayar dengan mempersulit tugas utamanya. Dikunci oleh
+`test_hacs_layout_keeps_the_number_boxes_built_in`.
+
+Tabel tidak punya padanan di Mushroom, jadi varian ini adalah **skin sebagian**,
+bukan desain ulang - dan itu disebutkan ke user sebelum mereka memilih.
+
+Dashboard varian ini menyebut sendiri apa yang perlu dipasang di kartu
+pertamanya, karena kartu yang belum terpasang hanya tampil sebagai kotak merah
+tanpa penjelasan.
+
+---
+
+## D-045 · Harga per kWh boleh dihitung dari struk, tapi tidak pernah berubah sendiri
+
+**Tanggal**: 5 September 2026 · **Atas permintaan user**
+
+Pengisian yang menyebut jumlah kWh **dan** nominal sekaligus adalah struk: dari
+dua angka itu harga efektif per kWh bisa dihitung, sudah termasuk admin, PPJ,
+dan materai.
+
+Sistem menghitungnya, lalu **bertanya**. Polanya sama dengan penahanan ledger
+(D-007): sensor penanda menyala, kartu bersyarat muncul di dashboard dengan
+angka lama, angka baru, dan pembelian yang jadi dasarnya, plus tombol Ya/Tidak
+yang keduanya minta konfirmasi.
+
+Kenapa tidak langsung diterapkan: harga per kWh adalah angka yang user tetapkan
+sendiri, dan **seluruh biaya dihitung darinya**. Mengubahnya diam-diam berarti
+setiap angka biaya sesudahnya memakai harga yang tidak pernah mereka setujui.
+
+### Tiga pagar
+
+1. **Ambang 0,25%.** Di bawah itu selisihnya berasal dari pembulatan struk,
+   bukan perubahan harga. Bertanya untuk itu cuma jadi gangguan.
+2. **Pengisian yang hanya menyebut kWh tidak pernah mengusulkan apa pun.**
+   Nominalnya kita hitung sendiri dari tarif berjalan; memakainya untuk
+   mengusulkan tarif baru berarti sistem mengusulkan angkanya sendiri kembali.
+3. **Perubahan di luar rentang ½x-2x ditandai** sebagai kemungkinan salah ketik,
+   dan kartunya memperingatkan - tapi tetap ditawarkan. User yang menilai, bukan
+   sistem yang memutuskan diam-diam.
+
+Menerima usulan **menambah versi tarif**, tidak menimpa yang lama, jadi biaya
+yang sudah tercatat tetap memakai harga saat pemakaian itu terjadi (spec K.7).
+
+### Yang perlu user tahu
+
+Biaya admin bersifat **per transaksi, bukan per kWh**. Dua template milik user
+sendiri membuktikannya: 825 kWh seharga Rp 1.002.500 setara Rp 1.215,15/kWh,
+sementara 425 kWh seharga Rp 503.000 setara Rp 1.183,53/kWh - selisih 2,6%
+hanya karena ukuran pembeliannya berbeda. Karena itu sistem bertanya tiap kali,
+bukan mengikuti angka terakhir secara membabi buta.
+
+---
+
 ## D-043 · Mengisi token boleh lewat nominal, tapi konversinya disebut perkiraan
 
 **Tanggal**: 5 September 2026

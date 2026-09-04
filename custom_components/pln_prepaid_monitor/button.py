@@ -40,7 +40,11 @@ async def async_setup_entry(
         if not group.token_enabled:
             continue
         async_add_entities(
-            [PlnRecordTopupButton(group), PlnCalibrateButton(group)],
+            [
+                PlnRecordTopupButton(group),
+                PlnSaveTemplateButton(hass, group),
+                PlnCalibrateButton(group),
+            ],
             config_subentry_id=subentry_id,
         )
 
@@ -122,3 +126,23 @@ class PlnCalibrateButton(_PlnLedgerButton):
         """Samakan ledger, lalu kosongkan isiannya."""
         self._group.calibrate_to(actual_remaining_kwh=self._amount(METER_INPUT))
         self._clear(METER_INPUT)
+
+
+class PlnSaveTemplateButton(_PlnLedgerButton):
+    """Simpan isian jumlah kWh dan nominal sekarang sebagai template.
+
+    Tidak perlu dialog konfirmasi: menyimpan template tidak mengubah catatan
+    token sama sekali, dan template yang salah bisa dihapus lewat layar
+    pengaturan kelompok tagihan.
+    """
+
+    def __init__(self, hass: HomeAssistant, group: BillingGroupRuntime) -> None:
+        """Buat tombol penyimpan template."""
+        super().__init__(group, "save_template")
+        self._hass = hass
+
+    async def async_press(self) -> None:
+        """Teruskan ke layanan yang sama, supaya perilakunya satu pintu."""
+        from .services import async_save_template  # noqa: PLC0415
+
+        async_save_template(self._hass, self._group)

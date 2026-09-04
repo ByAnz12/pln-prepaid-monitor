@@ -308,6 +308,9 @@
       },
       "data_sufficient": {
         "name": "Data sufficient"
+      },
+      "rate_change_pending": {
+        "name": "Rate proposal pending"
       }
     },
     "sensor": {
@@ -428,6 +431,9 @@
       },
       "calibrate_token": {
         "name": "Match the meter reading"
+      },
+      "save_template": {
+        "name": "Save as template"
       }
     }
   },
@@ -513,8 +519,9 @@
     },
     "dashboard_layout": {
       "options": {
-        "sections": "Sections (drag & drop)",
-        "masonry": "Masonry (classic)"
+        "sections": "Sections - drag & drop (recommended)",
+        "sections_hacs": "Sections + HACS cards - needs Mushroom & apexcharts-card",
+        "masonry": "Masonry - classic"
       }
     },
     "detail_row": {
@@ -664,6 +671,21 @@
           "description": "One-off override of the retention setting. Leave empty to use the saved setting."
         }
       }
+    },
+    "resolve_rate_change": {
+      "name": "Decide on the rate proposal",
+      "description": "Accept or reject the effective price per kWh worked out from the last top-up. The price never changes on its own - the decision is always yours.",
+      "fields": {
+        "apply": {
+          "name": "Apply",
+          "description": "Turn on to use the new price, off to keep the old one."
+        }
+      }
+    },
+    "save_topup_template": {
+      "name": "Save top-up template",
+      "description": "Saves what is currently in the kWh and purchase amount boxes as a template, so the next purchase is a single click.",
+      "fields": {}
     }
   },
   "exceptions": {
@@ -708,6 +730,15 @@
     },
     "no_rate_for_conversion": {
       "message": "This group has no tariff, so a purchase amount cannot be converted into kWh. Fill in the kWh box instead, or link this group to a tariff first."
+    },
+    "no_rate_proposal": {
+      "message": "There is no rate proposal waiting for a decision on '{group}'."
+    },
+    "template_needs_both": {
+      "message": "A template needs both figures. Fill in the kWh box and the purchase amount box first, then save."
+    },
+    "template_already_exists": {
+      "message": "A template with exactly these figures already exists."
     }
   },
   "issues": {

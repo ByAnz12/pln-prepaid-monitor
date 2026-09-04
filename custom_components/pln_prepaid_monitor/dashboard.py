@@ -26,8 +26,15 @@ from .messages import PERIOD_LABELS, currency_symbol, pick_language
 # Tata letak halaman. "sections" bawaan Home Assistant, dan satu-satunya
 # yang mendukung geser kartu dengan drag & drop.
 LAYOUT_SECTIONS = "sections"
+LAYOUT_HACS = "sections_hacs"
 LAYOUT_MASONRY = "masonry"
-LAYOUTS = (LAYOUT_SECTIONS, LAYOUT_MASONRY)
+LAYOUTS = (LAYOUT_SECTIONS, LAYOUT_HACS, LAYOUT_MASONRY)
+
+# Kartu pihak ketiga yang dipakai varian HACS. Berbeda dari seluruh bagian
+# lain sistem ini, bentuk konfigurasi kartu ini TIDAK bisa diverifikasi ke
+# source code: kodenya JavaScript milik pihak ketiga, bukan paket Python
+# Home Assistant. Lihat docs/decisions.md D-046.
+HACS_CARDS = ("mushroom", "apexcharts-card")
 
 # Judul bagian, mengikuti empat seksi yang diminta di spec J.
 SECTION_TITLES: dict[str, dict[str, str]] = {
@@ -64,7 +71,7 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "topup_amount": "Jumlah kWh",
         "topup_record": "Catat pengisian",
-        "presets_title": "Nilai siap pakai",
+        "presets_title": "Template pengisian",
         "fix_title": "Perbaiki hitungan",
         "fix_note": (
             "Dipakai kalau angka sistem sudah melenceng dari layar meteran. "
@@ -111,6 +118,25 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "sec_settings": "Pengaturan",
         "sec_graphs": "Grafik",
         "sec_maintenance": "Perawatan",
+        "save_template": "Simpan sebagai template",
+        "save_action": "SIMPAN",
+        "rate_title": "Harga per kWh berubah",
+        "rate_explain": "Pengisian terakhir menyebut jumlah kWh dan nominal sekaligus, jadi harga efektifnya bisa dihitung - sudah termasuk admin, PPJ, dan materai. Mau dipakai sebagai harga baru?",
+        "rate_from": "Harga sekarang",
+        "rate_to": "Harga hasil hitungan",
+        "rate_basis": "Dari pembelian",
+        "rate_implausible": "> **Perubahannya besar sekali.** Periksa lagi angka pengisiannya sebelum menerima - salah ketik satu angka bisa membuat seluruh hitungan biaya berikutnya meleset.",
+        "rate_yes": "Ya, pakai harga baru",
+        "rate_no": "Tidak, biarkan",
+        "hacs_note": (
+            "**Dashboard ini butuh dua kartu dari HACS.** Kalau belum "
+            "terpasang, beberapa kartu di bawah akan tampil sebagai kotak "
+            "merah *Custom element doesn't exist*.\n\n"
+            "Pasang lewat **HACS → Frontend**:\n\n"
+            "* **Mushroom** — status token dan baris ringkas sumber energi\n"
+            "* **apexcharts-card** — grafik pemakaian dan biaya harian\n\n"
+            "Setelah dipasang, muat ulang halaman dengan **Ctrl+Shift+R**."
+        ),
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
     },
@@ -147,7 +173,7 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "topup_amount": "Amount in kWh",
         "topup_record": "Record top-up",
-        "presets_title": "Ready-to-use values",
+        "presets_title": "Top-up templates",
         "fix_title": "Correct the figure",
         "fix_note": (
             "Use this when the system's figure has drifted from the meter "
@@ -194,6 +220,24 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "sec_settings": "Settings",
         "sec_graphs": "Charts",
         "sec_maintenance": "Maintenance",
+        "save_template": "Save as template",
+        "save_action": "SAVE",
+        "rate_title": "Price per kWh has changed",
+        "rate_explain": "The last top-up carried both the kWh figure and the amount paid, so the effective price can be worked out - admin fees, tax and stamp duty included. Use it as the new price?",
+        "rate_from": "Current price",
+        "rate_to": "Calculated price",
+        "rate_basis": "From purchase",
+        "rate_implausible": "> **That is a very large change.** Check the top-up figures before accepting - one mistyped digit can throw off every cost figure from here on.",
+        "rate_yes": "Yes, use the new price",
+        "rate_no": "No, leave it",
+        "hacs_note": (
+            "**This dashboard needs two cards from HACS.** Without them, some "
+            "cards below show up as a red *Custom element doesn't exist* box."
+            "\n\nInstall them via **HACS → Frontend**:\n\n"
+            "* **Mushroom** — token status and the compact source row\n"
+            "* **apexcharts-card** — daily usage and cost charts\n\n"
+            "Then hard-reload the page with **Ctrl+Shift+R**."
+        ),
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
     },
@@ -289,8 +333,10 @@ GROUP_KEYS = [
     # dashboard tanpa membuka Developer Tools.
     "topup_kwh",
     "topup_rp",
+    "rate_change_pending",
     "meter_reading_kwh",
     "record_topup",
+    "save_template",
     "calibrate_token",
     "warning_threshold_days",
     "critical_threshold_days",
@@ -559,13 +605,7 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
 
 
 def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
-    """Semua cara mengisi token, dalam satu tumpukan yang tidak bisa terpisah.
-
-    Digabung jadi satu ``vertical-stack`` dengan sengaja: tata letak masonry
-    Home Assistant menyebar kartu ke kolom mana pun yang masih kosong, sehingga
-    judul dan tombolnya bisa berakhir di kolom berbeda - persis yang terjadi
-    sebelum ini, di mana judul "Isi token" tampil sendirian tanpa isi apa pun.
-    """
+    """Semua cara mengisi token: template sekali klik, atau ketik sendiri."""
     inner: list[dict[str, Any]] = []
 
     rows = [
@@ -574,6 +614,9 @@ def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
             ("topup_kwh", "topup_amount"),
             ("topup_rp", "topup_nominal"),
             ("record_topup", "topup_record"),
+            # Cara paling alami membuat template adalah tepat sesudah mengetik
+            # angkanya, bukan dengan membuka layar pengaturan terpisah.
+            ("save_template", "save_template"),
         )
         if (entity := view.entity(key))
     ]
@@ -589,11 +632,87 @@ def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
                 "type": "grid",
                 "columns": 2,
                 "square": False,
-                "cards": [_topup_button(view, preset) for preset in view.presets[:4]],
+                "cards": [_topup_button(view, preset) for preset in view.presets[:6]],
             }
         )
 
+    inner.extend(_rate_proposal_cards(view, texts))
     return inner
+
+
+def _rate_proposal_cards(
+    view: GroupView, texts: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Pertanyaan harga baru, hanya muncul saat memang ada yang ditanyakan.
+
+    Polanya sama dengan penahanan ledger: sistem berhenti dan bertanya, bukan
+    diam-diam mengubah angka yang user tetapkan sendiri.
+    """
+    pending = view.entity("rate_change_pending")
+    if not pending or not view.device_id:
+        return []
+
+    body = (
+        f"### {texts['rate_title']}"
+        f"{{% set a = state_attr('{pending}', 'from_rate') %}}"
+        f"{{% set b = state_attr('{pending}', 'to_rate') %}}"
+        f"{{% set kwh = state_attr('{pending}', 'kwh') %}}"
+        f"{{% set rp = state_attr('{pending}', 'nominal_rp') %}}"
+        f"{chr(10)}{chr(10)}"
+        f"{texts['rate_explain']}"
+        f"{chr(10)}{chr(10)}"
+        f"| | |{chr(10)}|---|--:|{chr(10)}"
+        f"| {texts['rate_from']} | {view.currency} "
+        f"{{{{ '{{:,.2f}}'.format(a) | replace(',', '@') | replace('.', ',') "
+        f"| replace('@', '.') }}}} |{chr(10)}"
+        f"| {texts['rate_to']} | **{view.currency} "
+        f"{{{{ '{{:,.2f}}'.format(b) | replace(',', '@') | replace('.', ',') "
+        f"| replace('@', '.') }}}}** |{chr(10)}"
+        f"| {texts['rate_basis']} | {{{{ '%.2f' | format(kwh) }}}} kWh / "
+        f"{view.currency} {{{{ '{{:,.0f}}'.format(rp) | replace(',', '.') }}}} |"
+        f"{chr(10)}{chr(10)}"
+        f"{{% if state_attr('{pending}', 'implausible') %}}"
+        f"{texts['rate_implausible']}{{% endif %}}"
+    )
+
+    return [
+        {
+            "type": "conditional",
+            "conditions": [{"entity": pending, "state": "on"}],
+            "card": {
+                "type": "vertical-stack",
+                "cards": [
+                    {"type": "markdown", "content": body},
+                    {
+                        "type": "horizontal-stack",
+                        "cards": [
+                            _rate_button(view, texts["rate_yes"], True, "mdi:check"),
+                            _rate_button(view, texts["rate_no"], False, "mdi:close"),
+                        ],
+                    },
+                ],
+            },
+        }
+    ]
+
+
+def _rate_button(
+    view: GroupView, name: str, apply: bool, icon: str
+) -> dict[str, Any]:
+    """Satu tombol keputusan harga, tetap dengan dialog konfirmasi."""
+    return {
+        "type": "button",
+        "name": name,
+        "icon": icon,
+        "show_state": False,
+        "tap_action": {
+            "action": "perform-action",
+            "perform_action": f"{DOMAIN}.resolve_rate_change",
+            "target": {"device_id": view.device_id},
+            "data": {"apply": apply},
+            "confirmation": {"text": f"{name}?"},
+        },
+    }
 
 
 def _fix_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
@@ -817,6 +936,99 @@ def _maintenance_cards(
     return cards
 
 
+def _mushroom_chips(card: dict[str, Any]) -> dict[str, Any]:
+    """Ubah kartu glance jadi baris chip Mushroom yang jauh lebih ringkas."""
+    return {
+        "type": "custom:mushroom-chips-card",
+        "alignment": "center",
+        "chips": [
+            {
+                "type": "entity",
+                "entity": row["entity"] if isinstance(row, dict) else row,
+                "content_info": "state",
+            }
+            for row in card.get("entities", [])
+        ],
+    }
+
+
+def _apex_chart(card: dict[str, Any]) -> dict[str, Any]:
+    """Ubah statistics-graph jadi grafik ApexCharts yang beranimasi."""
+    return {
+        "type": "custom:apexcharts-card",
+        "graph_span": f"{card.get('days_to_show', 30)}d",
+        "span": {"end": "day"},
+        "header": {"show": True, "title": card.get("title", "")},
+        "series": [
+            {
+                "entity": entity,
+                "type": "column",
+                "statistics": {"type": "change", "period": "day"},
+            }
+            for entity in card.get("entities", [])
+        ],
+    }
+
+
+def _mushroom_status(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
+    """Kartu status token yang ikonnya berubah warna mengikuti keadaan."""
+    status = view.entity("token_status")
+    remaining = view.entity("token_remaining")
+    if not status:
+        return None
+    color = (
+        "{% set s = states('" + status + "') %}"
+        "{% if s == 'very_critical' %}red"
+        "{% elif s == 'critical' %}deep-orange"
+        "{% elif s == 'warning' %}amber"
+        "{% elif s == 'normal' %}green"
+        "{% else %}grey{% endif %}"
+    )
+    card: dict[str, Any] = {
+        "type": "custom:mushroom-template-card",
+        "primary": texts["token_remaining"],
+        "icon": "mdi:lightning-bolt-circle",
+        "icon_color": color,
+        "tap_action": {"action": "more-info"},
+        "entity": status,
+    }
+    if remaining:
+        card["secondary"] = "{{ states('" + remaining + "') }} kWh"
+    return card
+
+
+def _to_hacs(
+    groups: list[tuple[str, list[dict[str, Any]]]],
+    view: GroupView,
+    texts: dict[str, str],
+) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Ganti sebagian kartu bawaan dengan padanan HACS-nya.
+
+    Sengaja hanya sebagian. Kotak isian angka tetap memakai kartu bawaan,
+    karena kartu number Mushroom menampilkan penggeser - lebih cantik, tapi
+    justru menyulitkan mengetik angka kWh yang persis. Tabel Pemakaian, Biaya,
+    dan Riwayat juga tetap markdown, karena tidak ada padanannya.
+    """
+    out: list[tuple[str, list[dict[str, Any]]]] = []
+    for index, (heading, cards) in enumerate(groups):
+        new_cards: list[dict[str, Any]] = []
+        if index == 0:
+            new_cards.append(
+                {"type": "markdown", "content": texts["hacs_note"]}
+            )
+            if status := _mushroom_status(view, texts):
+                new_cards.append(status)
+        for card in cards:
+            if card.get("type") == "glance":
+                new_cards.append(_mushroom_chips(card))
+            elif card.get("type") == "statistics-graph":
+                new_cards.append(_apex_chart(card))
+            else:
+                new_cards.append(card)
+        out.append((heading, new_cards))
+    return out
+
+
 def view_cards(page: dict[str, Any]) -> list[dict[str, Any]]:
     """Seluruh kartu satu halaman, apa pun tata letaknya.
 
@@ -882,7 +1094,10 @@ def build_view(
 
     page: dict[str, Any] = {"title": view.name, "path": _slugify(view.name)}
 
-    if layout == LAYOUT_SECTIONS:
+    if layout == LAYOUT_HACS:
+        groups = _to_hacs(groups, view, texts)
+
+    if layout in (LAYOUT_SECTIONS, LAYOUT_HACS):
         # Tata letak sections adalah satu-satunya yang mendukung geser kartu
         # dengan drag & drop, dan itu bawaan Home Assistant - bukan fitur kartu
         # pihak ketiga. Lihat docs/decisions.md D-040.

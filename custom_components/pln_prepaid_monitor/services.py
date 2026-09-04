@@ -43,6 +43,7 @@ from .const import (
     ATTR_NOMINAL_RP,
     ATTR_NOTE,
     ATTR_TIMESTAMP,
+    ATTR_APPLY,
     ATTR_LAYOUT,
     ATTR_TOPUP_ID,
     DOMAIN,
@@ -51,11 +52,17 @@ from .const import (
     SERVICE_GENERATE_DASHBOARD,
     SERVICE_DELETE_TOPUP,
     SERVICE_EDIT_TOPUP,
+    CONF_RATE_HISTORY,
+    CONF_RATE_RP_PER_KWH,
     CONF_STATISTICS_RETENTION_YEARS,
+    CONF_TARIFF_ID,
+    CONF_TOKEN_PRESETS,
     DEFAULT_STATISTICS_RETENTION_YEARS,
     SERVICE_PURGE_OLD_DATA,
     SERVICE_RESET_TOKEN_LEDGER,
     SERVICE_RESOLVE_LEDGER_HOLD,
+    SERVICE_RESOLVE_RATE_CHANGE,
+    SERVICE_SAVE_TOPUP_TEMPLATE,
 )
 from .engines.token_engine import (
     HOLD_ACTIONS,
@@ -64,6 +71,7 @@ from .engines.token_engine import (
     implausible_kwh_hint,
 )
 from .dashboard import LAYOUT_SECTIONS, LAYOUTS
+from .engines.cost_engine import append_rate_version
 from .retention import (
     RETENTION_OPTIONS,
     RetentionUnsupportedError,
@@ -116,6 +124,12 @@ EDIT_TOPUP_SCHEMA = vol.Schema(
 DELETE_TOPUP_SCHEMA = vol.Schema(
     {**TARGET_SCHEMA, vol.Required(ATTR_TOPUP_ID): cv.string}
 )
+
+RESOLVE_RATE_SCHEMA = vol.Schema(
+    {**TARGET_SCHEMA, vol.Required(ATTR_APPLY): cv.boolean}
+)
+
+SAVE_TEMPLATE_SCHEMA = vol.Schema({**TARGET_SCHEMA})
 
 RESET_LEDGER_SCHEMA = vol.Schema(
     {**TARGET_SCHEMA, vol.Optional(ATTR_NOTE): cv.string}
@@ -269,6 +283,48 @@ def _timestamp(call: ServiceCall) -> str:
 
 
 @callback
+def async_save_template(hass: HomeAssistant, group: Any) -> None:
+    """Simpan isian jumlah kWh dan nominal sekarang sebagai template.
+
+    Di luar ``async_setup_services`` supaya tombol entity dan layanan memakai
+    jalur yang persis sama - tidak ada kemungkinan keduanya berperilaku beda.
+    """
+    _require_token_enabled(group)
+    kwh = round(group.inputs.get("topup_kwh", 0.0), 2)
+    nominal = group.inputs.get("topup_rp", 0.0)
+    if kwh <= 0 or nominal <= 0:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="template_needs_both"
+        )
+
+    existing = [preset.as_dict() for preset in group.token_presets]
+    if any(
+        round(float(item["kwh"]), 2) == kwh
+        and float(item.get("nominal_rp") or 0) == nominal
+        for item in existing
+    ):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="template_already_exists"
+        )
+
+    entry = hass.config_entries.async_get_entry(group.entry_id)
+    if entry is None:
+        return
+    subentry = entry.subentries[group.subentry_id]
+    hass.config_entries.async_update_subentry(
+        entry,
+        subentry,
+        data={
+            **subentry.data,
+            CONF_TOKEN_PRESETS: [*existing, {"kwh": kwh, "nominal_rp": nominal}],
+        },
+    )
+    _LOGGER.info(
+        "Template pengisian '%s' disimpan: %s kWh / %s", group.name, kwh, nominal
+    )
+
+
+@callback
 def async_setup_services(hass: HomeAssistant) -> None:
     """Daftarkan seluruh layanan token, sekali saja."""
     if hass.services.has_service(DOMAIN, SERVICE_ADD_TOKEN_TOPUP):
@@ -375,6 +431,50 @@ def async_setup_services(hass: HomeAssistant) -> None:
             )
             group.async_ledger_changed()
 
+    async def async_resolve_rate_change(call: ServiceCall) -> None:
+        """Terima atau tolak usulan harga efektif per kWh."""
+        apply = bool(call.data[ATTR_APPLY])
+        for group in _resolve_groups(hass, call):
+            if group.pending_rate is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="no_rate_proposal",
+                    translation_placeholders={"group": group.name},
+                )
+            proposal = group.resolve_rate_change(apply=apply)
+            if proposal is None:
+                _LOGGER.info("Usulan harga '%s' ditolak user", group.name)
+                continue
+
+            entry = hass.config_entries.async_get_entry(group.entry_id)
+            tariff_id = group.config.get(CONF_TARIFF_ID)
+            if entry is None or not tariff_id or tariff_id not in entry.subentries:
+                continue
+            subentry = entry.subentries[tariff_id]
+            rate = float(proposal["to_rate"])
+            hass.config_entries.async_update_subentry(
+                entry,
+                subentry,
+                data={
+                    **subentry.data,
+                    CONF_RATE_RP_PER_KWH: rate,
+                    # Versi baru, tidak pernah menimpa yang lama: biaya yang
+                    # sudah tercatat tetap memakai harga saat pemakaian itu
+                    # terjadi (spec K.7).
+                    CONF_RATE_HISTORY: append_rate_version(
+                        list(subentry.data.get(CONF_RATE_HISTORY) or []),
+                        rate,
+                        dt_util.now().isoformat(),
+                    ),
+                },
+            )
+            _LOGGER.info("Harga '%s' diperbarui jadi %s/kWh", group.name, rate)
+
+    async def async_save_topup_template(call: ServiceCall) -> None:
+        """Simpan isian jumlah kWh dan nominal sekarang sebagai template."""
+        for group in _resolve_groups(hass, call):
+            async_save_template(hass, group)
+
     async def async_generate_dashboard(call: ServiceCall) -> ServiceResponse:
         """Susun konfigurasi dashboard Lovelace untuk kelompok tagihan yang ada.
 
@@ -462,6 +562,18 @@ def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_RESET_TOKEN_LEDGER,
         async_reset_ledger,
         schema=RESET_LEDGER_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RESOLVE_RATE_CHANGE,
+        async_resolve_rate_change,
+        schema=RESOLVE_RATE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SAVE_TOPUP_TEMPLATE,
+        async_save_topup_template,
+        schema=SAVE_TEMPLATE_SCHEMA,
     )
     hass.services.async_register(
         DOMAIN,

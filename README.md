@@ -709,12 +709,27 @@ Saat menjalankan **Buatkan dashboard**, ada pilihan **Tata letak**:
 | Pilihan | Isinya |
 |---|---|
 | **Sections** (bawaan) | Kartu bisa **digeser drag & drop** langsung di dashboard, dan tersusun rapi per bagian |
+| **Sections + kartu HACS** | Sama seperti Sections, tapi status token, baris sumber, dan grafik memakai kartu **Mushroom** dan **apexcharts-card** |
 | **Masonry** | Tata letak klasik satu kolom mengalir, tanpa drag & drop |
 
 > Drag & drop adalah fitur **bawaan Home Assistant**, bukan fitur kartu pihak
 > ketiga. Mushroom dan kartu HACS lain mengubah *tampilan* kartu, bukan
 > kemampuan menggesernya. Karena itu dashboard di sini tetap memakai kartu
 > bawaan saja — tidak ada yang perlu dipasang lebih dulu.
+
+> **Tentang pilihan HACS.** Kartunya harus Anda pasang lebih dulu lewat
+> **HACS → Frontend** (*Mushroom* dan *apexcharts-card*); kalau belum, kartu
+> itu tampil sebagai kotak merah. Dashboard yang dihasilkan menyebut sendiri
+> apa yang perlu dipasang.
+>
+> Perlu Anda tahu juga: berbeda dari seluruh bagian lain proyek ini, bentuk
+> konfigurasi kartu pihak ketiga **tidak bisa saya verifikasi ke source code** —
+> kodenya JavaScript milik pihak ketiga. Bagian itu ditulis berdasarkan
+> dokumentasinya, dan lebih mungkin rusak kalau kartunya berubah.
+>
+> Kotak isian angka sengaja **tetap kartu bawaan** meski varian ini dipilih:
+> kartu number Mushroom memakai penggeser, yang lebih cantik tapi menyulitkan
+> mengetik angka kWh yang persis.
 
 ### Mengisi token: kWh, nominal, atau keduanya
 
@@ -744,6 +759,69 @@ akan menolak dengan pesan yang jelas — bukan mencatat angka tebakan.
 Nominal yang dihitung dari kWh **disimpan saat pencatatan**, bukan dihitung ulang
 tiap ditampilkan. Jadi kalau tarif naik nanti, harga pembelian yang sudah lewat
 tidak ikut berubah.
+
+### Template pengisian
+
+Kalau Anda selalu membeli dengan angka yang sama, simpan sebagai **template**
+dan pembelian berikutnya cukup sekali klik.
+
+Cara membuatnya, langsung dari dashboard:
+
+1. Isi **Jumlah kWh** dan **Nominal pembelian** sesuai struk.
+2. Tekan **Simpan sebagai template**.
+
+Templatenya langsung muncul sebagai tombol di bagian **Template pengisian**
+pada dashboard berikutnya yang Anda buat. Anda boleh menyimpan sebanyak yang
+Anda perlukan — misalnya:
+
+| Template | kWh | Nominal |
+|---|---|---|
+| Pembelian besar | 825 | Rp 1.002.500 |
+| Pembelian kecil | 425 | Rp 503.000 |
+
+Template dengan angka yang sama persis ditolak, supaya tidak ada dua tombol
+kembar yang membingungkan. Untuk **menghapus** atau mengubah template, buka
+**Ubah kelompok tagihan → Pencatatan token PLN → Template pengisian**.
+
+### Kalau harga per kWh berubah
+
+Pengisian yang menyebut **kedua** angka adalah struk — dan dari struk, harga
+efektif per kWh bisa dihitung:
+
+```
+Rp 1.002.500 ÷ 825 kWh = Rp 1.215,15 per kWh
+```
+
+Angka itu sudah termasuk admin, PPJ, dan materai. Kalau berbeda dari harga yang
+sedang berlaku, dashboard menampilkan pertanyaan:
+
+> **Harga per kWh berubah**
+> Harga sekarang: Rp 1.444,70
+> Harga hasil hitungan: **Rp 1.215,15**
+> Dari pembelian: 825,00 kWh / Rp 1.002.500
+>
+> [ Ya, pakai harga baru ] [ Tidak, biarkan ]
+
+**Harga tidak pernah berubah sendiri.** Seluruh angka biaya Anda dihitung dari
+harga ini, jadi mengubahnya diam-diam berarti setiap angka sesudahnya memakai
+harga yang tidak pernah Anda setujui.
+
+Kalau Anda pilih **Ya**, harga baru dipakai mulai saat itu — biaya yang sudah
+tercatat tetap memakai harga lama. Kalau **Tidak**, tidak ada yang berubah.
+
+> ### ⚠️ Biaya admin itu per transaksi, bukan per kWh
+>
+> Dua template di atas menghasilkan harga efektif yang berbeda — Rp 1.215,15
+> dan Rp 1.183,53 — padahal tarifnya sama. Selisih 2,6% itu murni karena
+> ukuran pembeliannya berbeda: admin Rp 2.500 terasa jauh lebih berat pada
+> pembelian kecil.
+>
+> Karena itu sistem **bertanya setiap kali**, bukan mengikuti angka terakhir
+> begitu saja. Pembelian kecil sesekali tidak akan diam-diam menaikkan seluruh
+> hitungan biaya Anda.
+
+Perubahan yang sangat besar (di luar rentang ½× sampai 2×) tetap ditawarkan,
+tapi diberi peringatan — itu lebih sering salah ketik daripada kenaikan tarif.
 
 ### Riwayat pengisian
 

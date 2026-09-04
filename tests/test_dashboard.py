@@ -472,3 +472,79 @@ async def test_templates_survive_the_yaml_round_trip(hass: HomeAssistant) -> Non
     assert markdowns
     for content in markdowns:
         Template(content, hass).async_render(parse_result=False)
+
+
+async def test_hacs_cards_never_appear_unless_asked_for(
+    hass: HomeAssistant,
+) -> None:
+    """Bawaan harus tetap berfungsi penuh tanpa memasang apa pun lewat HACS."""
+    from custom_components.pln_prepaid_monitor.dashboard import (
+        LAYOUT_MASONRY,
+        LAYOUT_SECTIONS,
+        build_dashboard,
+    )
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    for layout in (LAYOUT_SECTIONS, LAYOUT_MASONRY):
+        config = build_dashboard(hass, entry.runtime_data, layout)
+        used = {card["type"] for card in _all_cards(config)}
+        assert not any(name.startswith("custom:") for name in used), layout
+
+
+async def test_hacs_layout_says_what_to_install(hass: HomeAssistant) -> None:
+    """Kartu pihak ketiga yang belum dipasang tampil sebagai kotak merah.
+
+    Karena itu dashboard varian ini harus menyebut sendiri apa yang perlu
+    dipasang - kalau tidak, user hanya melihat kotak merah tanpa tahu sebabnya.
+    """
+    from custom_components.pln_prepaid_monitor.dashboard import (
+        HACS_CARDS,
+        LAYOUT_HACS,
+        build_dashboard,
+    )
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    cards = _all_cards(build_dashboard(hass, entry.runtime_data, LAYOUT_HACS))
+    custom = {card["type"] for card in cards if card["type"].startswith("custom:")}
+    assert custom, "varian HACS harus benar-benar memakai kartu HACS"
+
+    notes = " ".join(card.get("content", "") for card in cards)
+    for name in HACS_CARDS:
+        assert name in notes.lower(), name
+    # Dan setiap kartu custom yang dipakai memang berasal dari daftar itu.
+    for card_type in custom:
+        assert any(name.split("-")[0] in card_type for name in HACS_CARDS), card_type
+
+
+async def test_hacs_layout_keeps_the_number_boxes_built_in(
+    hass: HomeAssistant,
+) -> None:
+    """Kartu number Mushroom memakai penggeser - menyulitkan mengetik kWh persis.
+
+    Jadi isian angka sengaja tetap kartu bawaan, sekalipun varian HACS dipilih.
+    Kecantikan tidak boleh dibayar dengan mempersulit tugas utamanya.
+    """
+    from custom_components.pln_prepaid_monitor.dashboard import (
+        LAYOUT_HACS,
+        build_dashboard,
+        collect_views,
+    )
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    topup = collect_views(hass, entry.runtime_data)[0].entity("topup_kwh")
+    holders = [
+        card
+        for card in _all_cards(build_dashboard(hass, entry.runtime_data, LAYOUT_HACS))
+        if any(
+            (row.get("entity") if isinstance(row, dict) else row) == topup
+            for row in card.get("entities", [])
+        )
+    ]
+    assert holders
+    assert all(card["type"] == "entities" for card in holders)

@@ -175,6 +175,7 @@ AUTO_PURGE_INTERVAL_HOURS: Final = 24
 
 ATTR_KEEP_YEARS: Final = "keep_years"
 ATTR_LAYOUT: Final = "layout"
+ATTR_APPLY: Final = "apply"
 
 # --- nama service --------------------------------------------------------------
 SERVICE_ADD_TOKEN_TOPUP: Final = "add_token_topup"
@@ -183,6 +184,8 @@ SERVICE_EDIT_TOPUP: Final = "edit_topup"
 SERVICE_DELETE_TOPUP: Final = "delete_topup"
 SERVICE_RESET_TOKEN_LEDGER: Final = "reset_token_ledger"
 SERVICE_RESOLVE_LEDGER_HOLD: Final = "resolve_ledger_hold"
+SERVICE_RESOLVE_RATE_CHANGE: Final = "resolve_rate_change"
+SERVICE_SAVE_TOPUP_TEMPLATE: Final = "save_topup_template"
 SERVICE_GENERATE_DASHBOARD: Final = "generate_dashboard"
 SERVICE_PURGE_OLD_DATA: Final = "purge_old_data"
 

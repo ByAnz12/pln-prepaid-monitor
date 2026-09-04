@@ -152,6 +152,24 @@ resolve_ledger_hold:
       selector:
         text:
 
+resolve_rate_change:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields:
+    apply:
+      required: true
+      selector:
+        boolean:
+
+save_topup_template:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields: {}
+
 generate_dashboard:
   fields:
     layout:
@@ -160,6 +178,7 @@ generate_dashboard:
         select:
           options:
             - sections
+            - sections_hacs
             - masonry
           translation_key: dashboard_layout
 

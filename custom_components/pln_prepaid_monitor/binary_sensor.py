@@ -8,6 +8,8 @@ K.1 vs K.2.
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -50,6 +52,7 @@ async def async_setup_entry(
         ]
         if group.token_enabled:
             entities.append(PlnGroupLedgerHoldBinarySensor(group))
+            entities.append(PlnGroupRateChangeBinarySensor(group))
         async_add_entities(entities, config_subentry_id=subentry_id)
 
 
@@ -138,4 +141,30 @@ class PlnGroupDataSufficientBinarySensor(PlnBillingGroupEntity, BinarySensorEnti
                 ATTR_CONFIDENCE: prediction.confidence,
             }
         )
+        return attributes
+
+
+class PlnGroupRateChangeBinarySensor(PlnBillingGroupEntity, BinarySensorEntity):
+    """Menyala saat ada usulan harga per kWh yang menunggu keputusan Anda.
+
+    Muncul kalau pengisian token dicatat lengkap dengan jumlah kWh **dan**
+    nominal yang dibayar: dari dua angka itu harga efektif per kWh bisa
+    dihitung. Harganya tidak pernah diubah sendiri - lihat docs/decisions.md
+    D-045.
+    """
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor usulan harga."""
+        super().__init__(group, "rate_change_pending")
+
+    @property
+    def is_on(self) -> bool:
+        """True selama masih ada usulan yang belum diputuskan."""
+        return self._group.pending_rate is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Angka lama, angka baru, dan pembelian yang jadi dasarnya."""
+        attributes = super().extra_state_attributes
+        attributes.update(self._group.pending_rate or {})
         return attributes
