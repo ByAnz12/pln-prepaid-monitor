@@ -535,3 +535,40 @@ def implausible_kwh_hint(kwh: float) -> float | None:
     if kwh <= MAX_PLAUSIBLE_TOPUP_KWH:
         return None
     return kwh / KWM_PER_KWH
+
+
+def topup_log(entries: list[dict[str, Any]], limit: int = 20) -> list[dict[str, Any]]:
+    """Riwayat pengisian siap tampil, yang terbaru di atas.
+
+    Sengaja disiapkan di sini, bukan di template kartu dashboard: template Jinja
+    di kartu markdown sulit di-debug oleh user kalau ada yang salah, dan tidak
+    ada test yang bisa menjaganya. Dengan bentuk yang sudah rapi, template-nya
+    tinggal perulangan sederhana.
+
+    Nomor 1 selalu pengisian **terakhir**, bukan yang pertama - itulah yang
+    dicari orang saat membuka riwayat.
+    """
+    topups = [entry for entry in entries if entry.get("kind") == ENTRY_TOPUP]
+    log: list[dict[str, Any]] = []
+    for number, entry in enumerate(reversed(topups), start=1):
+        if number > limit:
+            break
+        try:
+            kwh = float(entry.get("kwh_credited") or 0.0)
+        except (TypeError, ValueError):
+            kwh = 0.0
+        nominal = entry.get("nominal_rp")
+        log.append(
+            {
+                "no": number,
+                "at": entry.get("timestamp"),
+                "kwh": round(kwh, 2),
+                "rp": None if nominal is None else float(nominal),
+                # Pengisian yang sudah digantikan kalibrasi atau reset tetap
+                # ditampilkan - menghilangkannya membuat riwayat berbohong -
+                # tapi ditandai supaya jelas tidak lagi ikut dihitung.
+                "superseded": bool(entry.get("superseded")),
+                "id": entry.get("id"),
+            }
+        )
+    return log

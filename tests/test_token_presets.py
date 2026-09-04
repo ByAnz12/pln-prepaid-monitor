@@ -36,6 +36,8 @@ from custom_components.pln_prepaid_monitor.engines.token_engine import (
     parse_rupiah,
 )
 
+from custom_components.pln_prepaid_monitor.dashboard import view_cards
+
 from .conftest import apply_states, MCB_RUMAH
 
 RUMAH_ID = "src_rumah"
@@ -309,7 +311,7 @@ async def test_presets_become_dashboard_buttons(hass: HomeAssistant) -> None:
     buttons = [
         card
         for view in config["views"]
-        for card in _walk(view["cards"])
+        for card in _walk(view_cards(view))
         if card["type"] == "button"
         and card["tap_action"]["perform_action"].endswith("add_token_topup")
     ]
@@ -534,7 +536,7 @@ def _topup_buttons(hass: HomeAssistant, runtime_data) -> list[dict]:
     return [
         card
         for view in config["views"]
-        for card in _walk_cards(view["cards"])
+        for card in _walk_cards(view_cards(view))
         if card["type"] == "button"
         and card["tap_action"]["perform_action"].endswith("add_token_topup")
     ]
@@ -578,7 +580,7 @@ async def test_manual_entry_works_without_any_preset(hass: HomeAssistant) -> Non
     entities = {
         row["entity"] if isinstance(row, dict) else row
         for page in build_dashboard(hass, entry.runtime_data)["views"]
-        for card in _walk_cards(page["cards"])
+        for card in _walk_cards(view_cards(page))
         for row in card.get("entities", [])
     }
 

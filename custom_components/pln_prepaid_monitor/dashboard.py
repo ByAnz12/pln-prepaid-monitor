@@ -18,15 +18,23 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import CONF_TARIFF_ID, DOMAIN
+from .const import CONF_DETAIL_ROWS, CONF_TARIFF_ID, DOMAIN
+from .engines.period_summary import selected_rows
 from .engines.token_engine import presets_from_history
 from .messages import PERIOD_LABELS, pick_language
+
+# Tata letak halaman. "sections" bawaan Home Assistant, dan satu-satunya
+# yang mendukung geser kartu dengan drag & drop.
+LAYOUT_SECTIONS = "sections"
+LAYOUT_MASONRY = "masonry"
+LAYOUTS = (LAYOUT_SECTIONS, LAYOUT_MASONRY)
 
 # Judul bagian, mengikuti empat seksi yang diminta di spec J.
 SECTION_TITLES: dict[str, dict[str, str]] = {
     "id": {
         "status": "Status",
         "current": "Sekarang",
+        "usage": "Pemakaian",
         "cost": "Biaya",
         "token": "Token",
         "history": "Riwayat",
@@ -71,11 +79,11 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "settings_title": "Pengaturan",
         "rate": "Tarif per kWh",
-        "meter": "Angka meteran",
-        "voltage": "Tegangan",
-        "current": "Arus",
-        "frequency": "Frekuensi",
-        "connection": "Koneksi",
+        "ch_meter": "Meteran",
+        "ch_voltage": "Tegangan",
+        "ch_current": "Arus",
+        "ch_frequency": "Frekuensi",
+        "ch_connection": "Koneksi",
         "status_token": "Status",
         "days_remaining": "Perkiraan hari tersisa",
         "empty_date": "Perkiraan tanggal habis",
@@ -84,12 +92,22 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "token_value": "Nilai sisa token",
         "token_consumed": "Terpakai dari token",
         "avg_daily": "Rata-rata harian",
+        "topup_history_title": "Riwayat pengisian",
+        "col_date": "Tanggal",
+        "col_rp": "Rupiah",
+        "history_rows": "Tampilkan berapa baris",
+        "no_topup_yet": "Belum ada pengisian yang tercatat.",
+        "superseded_note": (
+            "Tanda bintang berarti pengisian itu sudah digantikan penyamaan "
+            "atau reset, jadi tidak lagi ikut dihitung."
+        ),
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
     },
     "en": {
         "status": "Status",
         "current": "Right now",
+        "usage": "Usage",
         "cost": "Cost",
         "token": "Token",
         "history": "History",
@@ -134,11 +152,11 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "settings_title": "Settings",
         "rate": "Rate per kWh",
-        "meter": "Meter reading",
-        "voltage": "Voltage",
-        "current": "Current",
-        "frequency": "Frequency",
-        "connection": "Connection",
+        "ch_meter": "Meter",
+        "ch_voltage": "Voltage",
+        "ch_current": "Current",
+        "ch_frequency": "Frequency",
+        "ch_connection": "Connection",
         "status_token": "Status",
         "days_remaining": "Estimated days remaining",
         "empty_date": "Estimated empty date",
@@ -147,6 +165,15 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "token_value": "Value of remaining token",
         "token_consumed": "Used from token",
         "avg_daily": "Daily average",
+        "topup_history_title": "Top-up history",
+        "col_date": "Date",
+        "col_rp": "Amount",
+        "history_rows": "Rows to show",
+        "no_topup_yet": "No top-up recorded yet.",
+        "superseded_note": (
+            "An asterisk means that top-up was superseded by a match or a "
+            "reset, so it no longer counts."
+        ),
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
     },
@@ -171,6 +198,8 @@ class GroupView:
     has_cost: bool
     token_enabled: bool
     presets: list[Any] = field(default_factory=list)
+    detail_rows: list[str] = field(default_factory=list)
+    thresholds: Any = None
     entities: dict[str, str] = field(default_factory=dict)
     tariff_entities: dict[str, str] = field(default_factory=dict)
     sources: list[SourceView] = field(default_factory=list)
@@ -244,6 +273,7 @@ GROUP_KEYS = [
     "warning_threshold_days",
     "critical_threshold_days",
     "very_critical_threshold_days",
+    "history_rows",
 ]
 
 SOURCE_KEYS = ["energy", "power", "voltage", "current", "frequency", "available"]
@@ -273,6 +303,8 @@ def collect_views(hass: HomeAssistant, runtime_data: Any) -> list[GroupView]:
                 has_cost=group.has_cost,
                 token_enabled=group.token_enabled,
                 presets=_usable_presets(group),
+                detail_rows=selected_rows(group.config.get(CONF_DETAIL_ROWS)),
+                thresholds=group.thresholds,
                 entities=_resolve(hass, subentry_id, keys),
                 tariff_entities=(
                     _resolve(hass, tariff_id, TARIFF_KEYS)
@@ -315,9 +347,28 @@ def _status_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]
     if not rows:
         return []
 
-    cards: list[dict[str, Any]] = [
-        {"type": "entities", "title": texts["status"], "entities": rows}
-    ]
+    cards: list[dict[str, Any]] = []
+
+    # Titik fokus halaman: satu angka besar yang langsung menjawab "masih aman
+    # atau tidak". Warnanya memakai ambang yang user atur sendiri, jadi merah di
+    # sini berarti persis apa yang mereka tetapkan sebagai sangat kritis.
+    if (days := view.entity("days_remaining")) and view.thresholds is not None:
+        cards.append(
+            {
+                "type": "gauge",
+                "entity": days,
+                "name": texts["days_remaining"],
+                "min": 0,
+                "max": round(float(view.thresholds.warning_days) * 3),
+                "severity": {
+                    "green": float(view.thresholds.warning_days),
+                    "yellow": float(view.thresholds.critical_days),
+                    "red": 0,
+                },
+            }
+        )
+
+    cards.append({"type": "entities", "title": texts["status"], "entities": rows})
     if sufficient := view.entity("data_sufficient"):
         cards.append(
             {
@@ -352,11 +403,11 @@ def _current_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any
         entities = [
             {"entity": entity, "name": texts[label]}
             for key, label in (
-                ("energy", "meter"),
-                ("voltage", "voltage"),
-                ("current", "current"),
-                ("frequency", "frequency"),
-                ("available", "connection"),
+                ("energy", "ch_meter"),
+                ("voltage", "ch_voltage"),
+                ("current", "ch_current"),
+                ("frequency", "ch_frequency"),
+                ("available", "ch_connection"),
             )
             if (entity := source.entities.get(key))
         ]
@@ -375,15 +426,36 @@ def _current_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any
 def _period_card(
     view: GroupView, prefix: str, title: str, labels: dict[str, str]
 ) -> dict[str, Any] | None:
-    """Kartu daftar penghitung per periode (energi atau biaya)."""
-    rows = [
-        {"entity": entity, "name": labels.get(period, period)}
-        for period in view.periods
-        if (entity := view.entity(f"{prefix}_this_{period}"))
-    ]
-    if not rows:
+    """Rincian per periode: rata-rata, beberapa hari lalu, beberapa bulan lalu.
+
+    Dirender dari atribut ``period_summary`` pada sensor total, bukan dari
+    belasan entity terpisah. Baris seperti "3 bulan lalu" adalah angka untuk
+    dibaca, bukan untuk dipakai automation; membuat entity sendiri untuk
+    masing-masing berarti belasan entity baru per kelompok tagihan, lengkap
+    dengan riwayatnya di database - biaya yang tidak sepadan.
+    """
+    total = view.entity(f"{prefix}_total")
+    if not total or not view.detail_rows:
         return None
-    return {"type": "entities", "title": title, "entities": rows}
+
+    unit = "kWh" if prefix == "energy" else ""
+    lines = [f"### {title}", f"{{% set s = state_attr('{total}', 'period_summary') or {{}} %}}"]
+    for row in view.detail_rows:
+        value = f"s.get('{row}')"
+        shown = (
+            f"{{{{ '%.2f' | format({value}) }}}}{' ' + unit if unit else ''}"
+            if prefix == "energy"
+            else f"{{{{ '{{:,.0f}}'.format({value}) | replace(',', '.') }}}}"
+        )
+        lines.append(
+            f"{{% if {value} is not none %}}"
+            f"| {labels.get(row, row)} | {shown} |"
+            f"{{% else %}}| {labels.get(row, row)} | - |{{% endif %}}"
+        )
+    # Header tabel disisipkan sesudah baris set supaya template tetap terbaca.
+    lines.insert(2, "| | |")
+    lines.insert(3, "|---|--:|")
+    return {"type": "markdown", "content": "\n".join(lines)}
 
 
 def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
@@ -599,6 +671,54 @@ def _hold_button(view: GroupView, name: str, action: str, icon: str) -> dict[str
     }
 
 
+def _topup_history_card(
+    view: GroupView, texts: dict[str, str]
+) -> dict[str, Any] | None:
+    """Tabel riwayat pengisian, terbaru di atas, jumlah barisnya bisa diatur.
+
+    Kartu markdown adalah satu-satunya kartu bawaan Home Assistant yang bisa
+    menampilkan tabel dari data yang berubah-ubah. Template-nya sengaja pendek:
+    atribut ``topup_log`` sudah disiapkan dalam bentuk siap tampil oleh
+    ``token_engine.topup_log``, karena template Jinja di dashboard tidak bisa
+    diuji dan sulit di-debug user kalau ada yang salah.
+    """
+    token = view.entity("token_remaining")
+    if not token:
+        return None
+
+    rows_entity = view.entity("history_rows")
+    limit = f"states('{rows_entity}') | int(10)" if rows_entity else "10"
+
+    template = f"""### {texts["topup_history_title"]}
+{{% set log = state_attr('{token}', 'topup_log') or [] %}}
+{{% set rows = log[:({limit})] %}}
+{{% if rows %}}
+| # | {texts["col_date"]} | kWh | {texts["col_rp"]} |
+|--:|---|--:|--:|
+{{%- for row in rows %}}
+| {{{{ row.no }}}} | {{{{ (row.at | as_datetime | as_local).strftime('%d/%m/%y %H:%M') }}}} \
+| {{{{ '%.2f' | format(row.kwh) }}}}{{{{ ' *' if row.superseded else '' }}}} \
+| {{{{ '{{:,.0f}}'.format(row.rp) | replace(',', '.') if row.rp else '-' }}}} |
+{{%- endfor %}}
+
+{{% if log | selectattr('superseded') | list | count > 0 -%}}
+{texts["superseded_note"]}
+{{%- endif %}}
+{{% else %}}
+{texts["no_topup_yet"]}
+{{% endif %}}"""
+
+    cards: list[dict[str, Any]] = [{"type": "markdown", "content": template}]
+    if rows_entity:
+        cards.append(
+            {
+                "type": "entities",
+                "entities": [{"entity": rows_entity, "name": texts["history_rows"]}],
+            }
+        )
+    return {"type": "vertical-stack", "cards": cards}
+
+
 def _history_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
     """Grafik riwayat, dibaca langsung dari long-term statistics."""
     cards: list[dict[str, Any]] = []
@@ -663,39 +783,90 @@ def _maintenance_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any]:
     return {"type": "vertical-stack", "cards": cards}
 
 
-def build_view(view: GroupView, language: str) -> dict[str, Any]:
-    """Susun satu halaman dashboard untuk satu kelompok tagihan."""
-    texts = SECTION_TITLES[language]
-    labels = PERIOD_LABELS[language]
+def view_cards(page: dict[str, Any]) -> list[dict[str, Any]]:
+    """Seluruh kartu satu halaman, apa pun tata letaknya.
 
-    cards: list[dict[str, Any]] = []
-    cards.extend(_status_cards(view, texts))
-    cards.extend(_current_cards(view, texts))
+    Tata letak sections menaruh kartu di dalam ``sections``, masonry langsung di
+    ``cards``. Fungsi ini menyembunyikan bedanya supaya pemakainya tidak perlu
+    tahu tata letak mana yang sedang dipakai.
+    """
+    if page.get("type") == "sections":
+        return [
+            card
+            for section in page.get("sections", [])
+            for card in section.get("cards", [])
+        ]
+    return list(page.get("cards", []))
 
-    if energy_periods := _period_card(view, "energy", texts["current"], labels):
-        cards.append(energy_periods)
+
+def _view_groups(
+    view: GroupView, texts: dict[str, str], labels: dict[str, str]
+) -> list[list[dict[str, Any]]]:
+    """Kartu halaman, sudah dikelompokkan menurut isinya.
+
+    Pengelompokan ini yang jadi *section* pada tata letak sections. Pada tata
+    letak masonry semuanya diratakan lagi jadi satu daftar, jadi satu tempat ini
+    saja yang menentukan urutan kartu untuk kedua tata letak.
+    """
+    groups: list[list[dict[str, Any]]] = []
+
+    if overview := [*_status_cards(view, texts), *_current_cards(view, texts)]:
+        groups.append(overview)
+
+    usage: list[dict[str, Any]] = []
+    if energy_periods := _period_card(view, "energy", texts["usage"], labels):
+        usage.append(energy_periods)
     if view.has_cost and (
         cost_periods := _period_card(view, "cost", texts["cost"], labels)
     ):
-        cards.append(cost_periods)
+        usage.append(cost_periods)
+    if usage:
+        groups.append(usage)
 
-    cards.extend(_token_cards(view, texts))
+    token = list(_token_cards(view, texts))
+    if view.token_enabled and (log := _topup_history_card(view, texts)):
+        token.append(log)
+    if token:
+        groups.append(token)
+
     if settings := _settings_card(view, texts):
-        cards.append(settings)
-    cards.extend(_history_cards(view, texts))
-    cards.append(_maintenance_card(view, texts))
+        groups.append([settings])
 
-    return {
-        "title": view.name,
-        "path": _slugify(view.name),
-        "cards": cards,
-    }
+    if graphs := _history_cards(view, texts):
+        groups.append(graphs)
+
+    groups.append([_maintenance_card(view, texts)])
+    return groups
 
 
-def build_dashboard(hass: HomeAssistant, runtime_data: Any) -> dict[str, Any]:
+def build_view(
+    view: GroupView, language: str, layout: str = LAYOUT_SECTIONS
+) -> dict[str, Any]:
+    """Susun satu halaman dashboard untuk satu kelompok tagihan."""
+    texts = SECTION_TITLES[language]
+    groups = _view_groups(view, texts, PERIOD_LABELS[language])
+
+    page: dict[str, Any] = {"title": view.name, "path": _slugify(view.name)}
+
+    if layout == LAYOUT_SECTIONS:
+        # Tata letak sections adalah satu-satunya yang mendukung geser kartu
+        # dengan drag & drop, dan itu bawaan Home Assistant - bukan fitur kartu
+        # pihak ketiga. Lihat docs/decisions.md D-040.
+        page["type"] = "sections"
+        page["max_columns"] = 3
+        page["sections"] = [{"type": "grid", "cards": cards} for cards in groups]
+        return page
+
+    page["cards"] = [card for cards in groups for card in cards]
+    return page
+
+
+def build_dashboard(
+    hass: HomeAssistant, runtime_data: Any, layout: str = LAYOUT_SECTIONS
+) -> dict[str, Any]:
     """Susun seluruh dashboard: satu halaman per kelompok tagihan."""
     language = pick_language(hass.config.language)
     views = collect_views(hass, runtime_data)
     return {
-        "views": [build_view(view, language) for view in views],
+        "views": [build_view(view, language, layout) for view in views],
     }

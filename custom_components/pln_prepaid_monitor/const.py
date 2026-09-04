@@ -77,6 +77,8 @@ CONF_DAY_START_TIME: Final = "day_start_time"
 CONF_WEEK_START_DAY: Final = "week_start_day"
 CONF_MONTH_START_DAY: Final = "month_start_day"
 CONF_YEAR_START_MONTH: Final = "year_start_month"
+# Baris apa saja yang tampil di kartu Pemakaian dan Biaya di dashboard.
+CONF_DETAIL_ROWS: Final = "detail_rows"
 
 DEFAULT_CYCLE_PERIODS: Final = ("hour", "day", "week", "month", "year")
 DEFAULT_DAY_START_TIME: Final = "00:00:00"
@@ -172,6 +174,7 @@ DEFAULT_AUTO_PURGE_ENABLED: Final = False
 AUTO_PURGE_INTERVAL_HOURS: Final = 24
 
 ATTR_KEEP_YEARS: Final = "keep_years"
+ATTR_LAYOUT: Final = "layout"
 
 # --- nama service --------------------------------------------------------------
 SERVICE_ADD_TOKEN_TOPUP: Final = "add_token_topup"
@@ -241,12 +244,18 @@ ATTR_NEXT_CYCLE_START: Final = "next_cycle_start"
 ATTR_TARIFF_NAME: Final = "tariff_name"
 ATTR_ACTIVE_RATE: Final = "active_rate_rp_per_kwh"
 ATTR_RATE_HISTORY: Final = "rate_history"
+# Rincian per periode (rata-rata, hari kemarin, bulan lalu, dst) yang jadi
+# isi kartu Pemakaian dan Biaya di dashboard.
+ATTR_PERIOD_SUMMARY: Final = "period_summary"
 ATTR_FIXED_CHARGE_INCLUDED: Final = "fixed_charge_included_rp"
 ATTR_ENERGY_COST_ONLY: Final = "energy_cost_only_rp"
 ATTR_TOTAL_CREDITED: Final = "total_credited_kwh"
 ATTR_TOPUP_COUNT: Final = "topup_count"
 ATTR_LAST_TOPUP_AT: Final = "last_topup_at"
 ATTR_TOPUP_HISTORY: Final = "topup_history"
+# Riwayat yang sudah dirapikan untuk ditampilkan: terbaru di atas, sudah
+# bernomor. Dipakai kartu riwayat di dashboard.
+ATTR_TOPUP_LOG: Final = "topup_log"
 ATTR_TOKEN_PRESETS: Final = "token_presets"
 ATTR_LEDGER_ON_HOLD: Final = "ledger_on_hold"
 ATTR_HOLD_SINCE: Final = "hold_since"

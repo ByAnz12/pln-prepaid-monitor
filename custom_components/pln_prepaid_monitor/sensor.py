@@ -54,6 +54,7 @@ from .const import (
     ATTR_LEDGER_ON_HOLD,
     ATTR_TOPUP_COUNT,
     ATTR_TOPUP_HISTORY,
+    ATTR_TOPUP_LOG,
     ATTR_TOTAL_CREDITED,
     ATTR_CYCLE_START,
     ATTR_DIPS_DETECTED,
@@ -63,6 +64,7 @@ from .const import (
     ATTR_LAST_RESET_FROM,
     ATTR_LAST_RESET_TO,
     ATTR_NEXT_CYCLE_START,
+    ATTR_PERIOD_SUMMARY,
     ATTR_RATE_HISTORY,
     ATTR_RESETS_DETECTED,
     ATTR_SOURCE_ENTITY_ID,
@@ -82,6 +84,7 @@ from .const import (
 from .coordinator import BillingGroupRuntime, PlnRuntimeData, SourceRuntime
 from .engines.cost_engine import apply_rounding
 from .engines.prediction_engine import STATUSES
+from .engines.token_engine import topup_log
 from .engines.period import next_cycle_start
 from .entity import PlnBillingGroupEntity, PlnSourceEntity
 
@@ -279,6 +282,13 @@ class PlnGroupEnergyTotalSensor(PlnBillingGroupEntity, SensorEntity):
         """Tersedia begitu ada minimal satu anggota yang mengirim data."""
         return self._group.total_kwh is not None
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Rincian per periode, dipakai kartu Pemakaian di dashboard."""
+        attributes = super().extra_state_attributes
+        attributes[ATTR_PERIOD_SUMMARY] = self._group.summary_for("energy")
+        return attributes
+
 
 class PlnGroupPowerSensor(PlnBillingGroupEntity, SensorEntity):
     """Daya gabungan satu Billing Group, dalam Watt."""
@@ -387,6 +397,7 @@ class PlnGroupCostTotalSensor(PlnBillingGroupEntity, SensorEntity):
                 ATTR_TARIFF_NAME: self._group.tariff_name,
                 ATTR_ACTIVE_RATE: self._group.active_rate,
                 ATTR_RATE_HISTORY: self._group.rate_history,
+                ATTR_PERIOD_SUMMARY: self._group.summary_for("cost"),
             }
         )
         return attributes
@@ -486,6 +497,7 @@ class PlnGroupTokenRemainingSensor(PlnBillingGroupEntity, SensorEntity):
                 ATTR_TOPUP_COUNT: len(active),
                 ATTR_LAST_TOPUP_AT: active[-1]["timestamp"] if active else None,
                 ATTR_TOPUP_HISTORY: ledger.state.entries,
+                ATTR_TOPUP_LOG: topup_log(ledger.state.entries),
                 ATTR_LEDGER_ON_HOLD: ledger.on_hold,
             }
         )

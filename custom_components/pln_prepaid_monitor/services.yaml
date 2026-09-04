@@ -153,7 +153,15 @@ resolve_ledger_hold:
         text:
 
 generate_dashboard:
-  fields: {}
+  fields:
+    layout:
+      required: false
+      selector:
+        select:
+          options:
+            - sections
+            - masonry
+          translation_key: dashboard_layout
 
 purge_old_data:
   target:

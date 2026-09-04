@@ -43,6 +43,7 @@ from .const import (
     ATTR_NOMINAL_RP,
     ATTR_NOTE,
     ATTR_TIMESTAMP,
+    ATTR_LAYOUT,
     ATTR_TOPUP_ID,
     DOMAIN,
     SERVICE_ADD_TOKEN_TOPUP,
@@ -62,6 +63,7 @@ from .engines.token_engine import (
     find_preset,
     implausible_kwh_hint,
 )
+from .dashboard import LAYOUT_SECTIONS, LAYOUTS
 from .retention import (
     RETENTION_OPTIONS,
     RetentionUnsupportedError,
@@ -119,7 +121,9 @@ RESET_LEDGER_SCHEMA = vol.Schema(
     {**TARGET_SCHEMA, vol.Optional(ATTR_NOTE): cv.string}
 )
 
-GENERATE_DASHBOARD_SCHEMA = vol.Schema({})
+GENERATE_DASHBOARD_SCHEMA = vol.Schema(
+    {vol.Optional(ATTR_LAYOUT): vol.In(LAYOUTS)}
+)
 
 PURGE_SCHEMA = vol.Schema(
     {
@@ -398,7 +402,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
         # YAML dan user menyalinnya bulat-bulat; kunci tambahan apa pun (dulu
         # "yaml" dan jumlah "views") membuat Raw configuration editor menolak
         # hasil tempelan itu. Lihat docs/decisions.md D-036.
-        return build_dashboard(hass, runtime_data)
+        return build_dashboard(
+            hass, runtime_data, call.data.get(ATTR_LAYOUT, LAYOUT_SECTIONS)
+        )
 
     async def async_purge_old_data(call: ServiceCall) -> ServiceResponse:
         """Hapus statistik lama milik integrasi ini saja."""

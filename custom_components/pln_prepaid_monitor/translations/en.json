@@ -506,6 +506,30 @@
         "5": "5 years",
         "unlimited": "Forever (never deleted)"
       }
+    },
+    "dashboard_layout": {
+      "options": {
+        "sections": "Sections (drag & drop)",
+        "masonry": "Masonry (classic)"
+      }
+    },
+    "detail_row": {
+      "options": {
+        "avg_hourly": "Hourly average",
+        "avg_daily": "Daily average",
+        "avg_monthly": "Monthly average",
+        "this_hour": "This hour",
+        "this_day": "Today",
+        "prev_day_1": "Yesterday",
+        "prev_day_2": "2 days ago",
+        "prev_day_3": "3 days ago",
+        "this_week": "This week",
+        "this_month": "This month",
+        "prev_month_1": "Last month",
+        "prev_month_2": "2 months ago",
+        "prev_month_3": "3 months ago",
+        "this_year": "This year"
+      }
     }
   },
   "services": {
@@ -619,7 +643,13 @@
     },
     "generate_dashboard": {
       "name": "Generate dashboard",
-      "description": "Builds a Lovelace dashboard configuration for all your billing groups with the correct entity ids already filled in. Copy the WHOLE result and paste it into the Raw configuration editor of a new dashboard - this action does not change any existing dashboard."
+      "description": "Builds a Lovelace dashboard configuration for all your billing groups with the correct entity ids already filled in. Copy the WHOLE result and paste it into the Raw configuration editor of a new dashboard - this action does not change any existing dashboard.",
+      "fields": {
+        "layout": {
+          "name": "Layout",
+          "description": "Sections: cards can be dragged and dropped right on the dashboard, and are grouped per section. This is built into Home Assistant, not a third-party card. Masonry: the classic flowing layout, no drag and drop."
+        }
+      }
     },
     "purge_old_data": {
       "name": "Purge old data",

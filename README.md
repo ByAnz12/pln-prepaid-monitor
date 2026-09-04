@@ -702,6 +702,88 @@ Dua hal yang mungkin ingin Anda sesuaikan setelah menempel:
   Anda supaya jarumnya proporsional.
 - **Rentang grafik riwayat** diisi 30 hari (`days_to_show`).
 
+### Memilih tata letak
+
+Saat menjalankan **Buatkan dashboard**, ada pilihan **Tata letak**:
+
+| Pilihan | Isinya |
+|---|---|
+| **Sections** (bawaan) | Kartu bisa **digeser drag & drop** langsung di dashboard, dan tersusun rapi per bagian |
+| **Masonry** | Tata letak klasik satu kolom mengalir, tanpa drag & drop |
+
+> Drag & drop adalah fitur **bawaan Home Assistant**, bukan fitur kartu pihak
+> ketiga. Mushroom dan kartu HACS lain mengubah *tampilan* kartu, bukan
+> kemampuan menggesernya. Karena itu dashboard di sini tetap memakai kartu
+> bawaan saja — tidak ada yang perlu dipasang lebih dulu.
+
+### Riwayat pengisian
+
+Kartu **Riwayat pengisian** menampilkan pembelian token Anda, **yang terbaru di
+nomor 1**, lengkap dengan tanggal, jumlah kWh, dan nominal rupiahnya.
+
+Kotak **Tampilkan berapa baris** di bawahnya mengatur panjang tabelnya — isi
+angka berapa pun antara 1 sampai 50.
+
+Pengisian yang sudah digantikan penyamaan atau reset **tetap ditampilkan** dan
+diberi tanda bintang. Menghilangkannya akan membuat riwayat berbohong tentang
+apa yang pernah Anda lakukan.
+
+### Memilih baris pada kartu Pemakaian dan Biaya
+
+Di **Ubah kelompok tagihan → Periode**, ada checklist **Baris rincian**. Yang
+bisa dipilih:
+
+| Kelompok | Baris |
+|---|---|
+| Rata-rata | per jam, harian, bulanan |
+| Harian | hari ini, hari kemarin, 2 hari lalu, 3 hari lalu |
+| Mingguan | minggu ini |
+| Bulanan | bulan ini, bulan kemarin, 2 bulan lalu, 3 bulan lalu |
+| Tahunan | tahun ini |
+
+Urutan tampilnya selalu sama, tidak mengikuti urutan Anda mencentang.
+
+Angka periode yang **sedang berjalan** diambil dari penghitung langsung, jadi
+"hari ini" bergerak seketika. Sisanya dibaca dari riwayat jangka panjang Home
+Assistant, yang disusun tiap jam.
+
+Periode yang sedang berjalan **tidak pernah ikut dihitung** ke rata-rata maupun
+ke baris "kemarin" — jam yang baru berjalan lima menit akan menyeret rata-rata
+turun tanpa alasan.
+
+Baris yang datanya belum ada ditampilkan sebagai `-`, bukan nol. Nol berarti
+"tidak ada pemakaian"; strip berarti "belum ada datanya".
+
+### Kalau tampilannya masih berbahasa Inggris
+
+Home Assistant punya **dua** pengaturan bahasa yang berbeda:
+
+| Pengaturan | Letaknya | Mempengaruhi |
+|---|---|---|
+| Bahasa **server** | Settings → System → General | Nama entity |
+| Bahasa **profil Anda** | Klik nama Anda di kiri bawah → Language | Layar setup, tombol, tulisan seperti *Unknown* dan *Press* |
+
+Kalau nama entity sudah berbahasa Indonesia tapi layar setup integrasi masih
+berbahasa Inggris, yang perlu diubah adalah **bahasa profil Anda** — bukan
+bahasa server, dan bukan integrasinya.
+
+Seluruh teks integrasi ini sudah tersedia lengkap dalam kedua bahasa; tidak ada
+satu pun yang tertinggal.
+
+### Soal animasi
+
+Kartu bawaan Home Assistant **tidak menyediakan animasi**. Yang bergerak hanya
+grafik saat dimuat dan jarum gauge saat nilainya berubah.
+
+Yang diberikan sebagai gantinya: **gauge sisa hari** sebagai titik fokus
+halaman, dengan warna hijau/kuning/merah yang diambil dari ambang yang Anda
+atur sendiri. Merah di sana berarti persis apa yang Anda tetapkan sebagai
+sangat kritis.
+
+Animasi sungguhan mensyaratkan kartu pihak ketiga lewat HACS. Itu bisa
+ditambahkan kalau Anda memang menginginkannya, tapi berarti dashboard tidak
+lagi bisa dipakai tanpa memasang apa pun lebih dulu.
+
 ### Semua urusan token dilakukan dari dashboard
 
 Tidak ada satu pun langkah token yang mengharuskan Anda membuka **Developer

@@ -28,6 +28,8 @@ from custom_components.pln_prepaid_monitor.const import (
     SUBENTRY_TYPE_TARIFF,
 )
 
+from custom_components.pln_prepaid_monitor.dashboard import view_cards
+
 from .conftest import apply_states, MCB_RUMAH
 
 RUMAH_ID = "src_rumah"
@@ -114,7 +116,7 @@ def _all_cards(config: dict) -> list[dict]:
                 _walk(nested.get("cards", []))
 
     for view in config["views"]:
-        _walk(view["cards"])
+        _walk(view_cards(view))
     return cards
 
 
@@ -202,7 +204,10 @@ async def test_all_sections_from_the_spec_are_present(
     from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
 
     cards = _all_cards(build_dashboard(hass, entry.runtime_data))
-    titles = {card.get("title", "") for card in cards}
+    # Kartu markdown menaruh judulnya di dalam isi, bukan di kunci "title".
+    titles = {card.get("title", "") for card in cards} | {
+        card.get("content", "") for card in cards
+    }
 
     assert any("Status" in title for title in titles)
     assert any("Cost" in title for title in titles)
@@ -426,3 +431,40 @@ async def test_every_key_the_dashboard_asks_for_really_exists(
     # kunci yang diminta dashboard wajib ketemu entity-nya.
     assert not set(GROUP_KEYS) - set(view.entities)
     assert not set(SOURCE_KEYS) - set(view.sources[0].entities)
+
+
+async def test_templates_survive_the_yaml_round_trip(hass: HomeAssistant) -> None:
+    """Yang ditempel user adalah YAML-nya, bukan struktur Python-nya.
+
+    Kartu markdown kita berisi template Jinja bertingkat baris. YAML gaya
+    kutip-tunggal melipat baris panjang, dan pelipatan yang salah akan merusak
+    tabelnya - kerusakan yang tidak akan terlihat di test mana pun yang hanya
+    memeriksa dict hasil ``build_dashboard``.
+    """
+    from homeassistant.util.yaml import dump, parse_yaml
+
+    from custom_components.pln_prepaid_monitor.dashboard import (
+        build_dashboard,
+        view_cards,
+    )
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    config = build_dashboard(hass, entry.runtime_data)
+    restored = parse_yaml(dump(config))
+
+    assert restored == config
+
+    # Dan template yang sudah melewati YAML tetap bisa dirender.
+    from homeassistant.helpers.template import Template
+
+    markdowns = [
+        card["content"]
+        for view in restored["views"]
+        for card in view_cards(view)
+        if card.get("type") == "markdown"
+    ]
+    assert markdowns
+    for content in markdowns:
+        Template(content, hass).async_render(parse_result=False)

@@ -79,3 +79,55 @@ async def async_fetch_window_samples(
         samples[window] = values
 
     return samples
+
+
+async def async_fetch_period_changes(
+    hass: HomeAssistant,
+    statistic_id: str,
+    period: str,
+    start: datetime,
+) -> list[tuple[datetime, float]]:
+    """Konsumsi per periode sejak ``start``, urut dari yang paling lama.
+
+    Dipakai untuk baris "hari kemarin", "bulan lalu", dan rata-rata. Sama
+    seperti prediksi, memakai tipe ``change`` supaya tidak perlu menghitung
+    selisih ``sum`` sendiri.
+    """
+    if not _recorder_available(hass):
+        return []
+
+    from homeassistant.components.recorder import get_instance  # noqa: PLC0415
+    from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
+        statistics_during_period,
+    )
+
+    try:
+        rows: dict[str, list[dict[str, Any]]] = await get_instance(
+            hass
+        ).async_add_executor_job(
+            statistics_during_period,
+            hass,
+            start,
+            None,
+            {statistic_id},
+            period,
+            None,
+            {"change"},
+        )
+    except Exception:  # noqa: BLE001
+        # Sama seperti prediksi: gagal membaca statistik tidak boleh
+        # menjatuhkan integrasi, cukup dilaporkan sebagai belum tersedia.
+        _LOGGER.exception(
+            "Gagal membaca statistik %s untuk periode %s", statistic_id, period
+        )
+        return []
+
+    from homeassistant.util import dt as dt_util  # noqa: PLC0415
+
+    out: list[tuple[datetime, float]] = []
+    for row in rows.get(statistic_id, []):
+        change = row.get("change")
+        if change is None or float(change) < 0:
+            continue
+        out.append((dt_util.utc_from_timestamp(row["start"]), float(change)))
+    return out

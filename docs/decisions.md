@@ -9,6 +9,84 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-041 · Rincian per periode disimpan sebagai satu atribut, bukan belasan entity
+
+**Tanggal**: 5 September 2026
+
+User meminta kartu Pemakaian dan Biaya berisi rata-rata per jam/harian/bulanan,
+hari ini sampai 3 hari lalu, dan bulan ini sampai 3 bulan lalu - dengan checklist
+untuk memilih barisnya.
+
+Cara paling lurus adalah membuat satu entity per baris. Itu berarti **17 entity
+baru per kelompok tagihan**, masing-masing dengan riwayatnya sendiri di database
+recorder, hanya untuk angka yang sifatnya dibaca sekali lalu ditutup. Baris
+"3 bulan lalu" bukan sesuatu yang dipakai automation.
+
+Jadi seluruh baris disusun jadi satu atribut `period_summary` pada sensor total,
+lalu dirender kartu markdown. Angkanya tetap terlihat di dashboard, tetap bisa
+dibaca template kalau memang dibutuhkan, tanpa membebani database.
+
+Yang berjalan diambil dari penghitung siklus, bukan dari statistik: statistik
+jangka panjang baru disusun tiap jam, sementara "hari ini" harus terlihat
+bergerak.
+
+**Periode yang sedang berjalan tidak pernah ikut ke rata-rata maupun ke baris
+"kemarin".** Jam yang baru berjalan lima menit akan menyeret rata-rata turun
+tanpa alasan - jenis kesalahan yang angkanya tetap terlihat masuk akal, hanya
+diam-diam meleset. Dikunci oleh
+`test_the_running_period_never_drags_the_average_down`.
+
+---
+
+## D-040 · Drag & drop datang dari tata letak sections, bukan dari Mushroom
+
+**Tanggal**: 5 September 2026
+
+User meminta pilihan "dashboard Mushroom (supaya geser card tinggal drag drop)".
+
+Premisnya keliru, dan itu perlu disampaikan apa adanya: **Mushroom tidak
+memberikan drag & drop.** Mushroom adalah kumpulan kartu dengan tampilan lain;
+kemampuan menggeser kartu langsung di dashboard datang dari **tata letak
+sections**, yang sudah bawaan Home Assistant sejak 2024.3.
+
+Jadi yang dibuat adalah pilihan tata letak:
+
+| Pilihan | Isinya |
+|---|---|
+| `sections` (bawaan) | Kartu bisa digeser drag & drop, tersusun per bagian |
+| `masonry` | Tata letak klasik satu kolom mengalir |
+
+Keduanya tetap memakai **kartu bawaan Home Assistant saja** - tidak ada HACS,
+tidak ada dependency baru, sesuai prinsip spec J.
+
+Kalau nanti user memang menginginkan tampilan Mushroom demi tampilannya sendiri
+(bukan demi drag & drop), itu bisa ditambahkan sebagai pilihan ketiga yang
+mensyaratkan HACS. Tapi menambahkannya sekarang berarti menambah dependency
+untuk memecahkan masalah yang sudah terpecahkan tanpa dependency.
+
+---
+
+## D-042 · Animasi tidak dijanjikan, karena kartu bawaan tidak punya
+
+**Tanggal**: 5 September 2026
+
+User meminta dashboard diberi kartu berisi animasi. Ini ditulis apa adanya:
+**kartu bawaan Home Assistant tidak menyediakan animasi.** Yang bergerak hanya
+grafik saat dimuat dan jarum gauge saat nilainya berubah.
+
+Yang bisa diberikan tanpa dependency, dan itulah yang dikerjakan:
+
+* **Gauge sisa hari** sebagai titik fokus halaman, dengan warna hijau/kuning/
+  merah yang diambil dari ambang yang user atur sendiri - jadi merah di sana
+  berarti persis apa yang mereka tetapkan sebagai sangat kritis.
+* **Tata letak sections**, yang mengelompokkan kartu jadi bagian-bagian
+  sehingga halaman lebih mudah dipindai.
+
+Animasi sungguhan mensyaratkan kartu pihak ketiga lewat HACS. Menjanjikannya
+tanpa itu akan jadi janji yang tidak bisa ditepati.
+
+---
+
 ## D-039 · Platform `number` dan `button` ditambahkan, larangan `switch` tetap mutlak
 
 **Tanggal**: 4 September 2026 · **Atas permintaan eksplisit user**

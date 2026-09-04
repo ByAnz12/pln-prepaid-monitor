@@ -27,6 +27,8 @@ from custom_components.pln_prepaid_monitor.const import (
     SUBENTRY_TYPE_TARIFF,
 )
 
+from custom_components.pln_prepaid_monitor.dashboard import view_cards
+
 from .conftest import apply_states, MCB_RUMAH
 
 RUMAH_ID = "src_rumah"
@@ -71,14 +73,20 @@ GROUP_SUBENTRY = {
 }
 
 
-async def _setup(hass: HomeAssistant) -> MockConfigEntry:
+async def _setup(
+    hass: HomeAssistant, group_overrides: dict | None = None
+) -> MockConfigEntry:
     """Pasang integrasi lengkap dengan tarif dan token."""
     await hass.config.async_set_time_zone("Asia/Jakarta")
     await hass.config.async_update(currency="IDR")
+    group = {
+        **GROUP_SUBENTRY,
+        "data": {**GROUP_SUBENTRY["data"], **(group_overrides or {})},
+    }
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={},
-        subentries_data=[SOURCE_SUBENTRY, TARIFF_SUBENTRY, GROUP_SUBENTRY],
+        subentries_data=[SOURCE_SUBENTRY, TARIFF_SUBENTRY, group],
     )
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
@@ -293,7 +301,7 @@ async def test_dashboard_offers_reset_behind_a_confirmation(
     resets = [
         card
         for view in build_dashboard(hass, entry.runtime_data)["views"]
-        for card in _walk(view["cards"])
+        for card in _walk(view_cards(view))
         if card.get("type") == "button"
         and card["tap_action"]["perform_action"].endswith("reset_token_ledger")
     ]

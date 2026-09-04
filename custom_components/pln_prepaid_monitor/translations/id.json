@@ -506,6 +506,30 @@
         "5": "5 tahun",
         "unlimited": "Selamanya (tidak dihapus)"
       }
+    },
+    "dashboard_layout": {
+      "options": {
+        "sections": "Sections (bisa digeser)",
+        "masonry": "Masonry (klasik)"
+      }
+    },
+    "detail_row": {
+      "options": {
+        "avg_hourly": "Rata-rata per jam",
+        "avg_daily": "Rata-rata harian",
+        "avg_monthly": "Rata-rata bulanan",
+        "this_hour": "Jam ini",
+        "this_day": "Hari ini",
+        "prev_day_1": "Hari kemarin",
+        "prev_day_2": "2 hari lalu",
+        "prev_day_3": "3 hari lalu",
+        "this_week": "Minggu ini",
+        "this_month": "Bulan ini",
+        "prev_month_1": "Bulan kemarin",
+        "prev_month_2": "2 bulan lalu",
+        "prev_month_3": "3 bulan lalu",
+        "this_year": "Tahun ini"
+      }
     }
   },
   "services": {
@@ -619,7 +643,13 @@
     },
     "generate_dashboard": {
       "name": "Buatkan dashboard",
-      "description": "Menyusun konfigurasi dashboard Lovelace untuk seluruh kelompok tagihan Anda, lengkap dengan entity_id yang sudah benar. Salin SELURUH hasilnya, lalu tempelkan di Raw configuration editor sebuah dashboard baru - layanan ini tidak mengubah dashboard yang sudah ada."
+      "description": "Menyusun konfigurasi dashboard Lovelace untuk seluruh kelompok tagihan Anda, lengkap dengan entity_id yang sudah benar. Salin SELURUH hasilnya, lalu tempelkan di Raw configuration editor sebuah dashboard baru - layanan ini tidak mengubah dashboard yang sudah ada.",
+      "fields": {
+        "layout": {
+          "name": "Tata letak",
+          "description": "Sections: kartu bisa digeser dengan drag & drop langsung di dashboard, dan tersusun rapi per bagian. Ini bawaan Home Assistant, bukan kartu pihak ketiga. Masonry: tata letak klasik satu kolom mengalir, tanpa drag & drop."
+        }
+      }
     },
     "purge_old_data": {
       "name": "Bersihkan data lama",

@@ -67,6 +67,7 @@ from .const import (
     CHANNEL_VOLTAGE,
     CONF_AVAILABILITY_ENTITY_ID,
     CONF_CYCLE_PERIODS,
+    CONF_DETAIL_ROWS,
     CONF_DAY_START_TIME,
     CONF_DEVICE_ID,
     CONF_ENABLED,
@@ -158,6 +159,7 @@ from .engines.normalization import (
     SourceReport,
     inspect_source,
 )
+from .engines.period_summary import DEFAULT_ROWS, ROW_KEYS
 from .engines.prediction_engine import OUTLIER_FILTERS, WINDOWS
 from .engines.period import (
     ALL_PERIODS,
@@ -686,6 +688,17 @@ def _billing_group_cycles_schema(defaults: dict[str, Any]) -> vol.Schema:
                 )
             ),
             vol.Required(
+                CONF_DETAIL_ROWS,
+                default=list(defaults.get(CONF_DETAIL_ROWS) or DEFAULT_ROWS),
+            ): SelectSelector(
+                SelectSelectorConfig(
+                    options=list(ROW_KEYS),
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                    translation_key="detail_row",
+                )
+            ),
+            vol.Required(
                 CONF_DAY_START_TIME,
                 default=defaults.get(CONF_DAY_START_TIME, DEFAULT_DAY_START_TIME),
             ): TimeSelector(),
@@ -1181,6 +1194,9 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
             else:
                 self._group_input.update(user_input)
                 self._group_input[CONF_CYCLE_PERIODS] = periods
+                self._group_input[CONF_DETAIL_ROWS] = list(
+                    user_input.get(CONF_DETAIL_ROWS) or DEFAULT_ROWS
+                )
                 self._group_input[CONF_MONTH_START_DAY] = int(
                     user_input.get(CONF_MONTH_START_DAY, DEFAULT_MONTH_START_DAY)
                 )

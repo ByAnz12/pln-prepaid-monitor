@@ -564,6 +564,10 @@ class BillingGroupRuntime:
         # ditekan. Disimpan di sini, bukan di entity, supaya tombol dan isian
         # membaca satu angka yang sama - dan supaya angkanya tidak hilang kalau
         # Home Assistant restart di tengah-tengah.
+        # Rincian per periode, diisi dari long-term statistics tiap kali
+        # prediksi dihitung ulang.
+        self.summaries: dict[str, dict[str, Any]] = {"energy": {}, "cost": {}}
+
         self.inputs: dict[str, float] = {
             str(key): float(value)
             for key, value in (stored.get("inputs") or {}).items()
@@ -1001,8 +1005,78 @@ class BillingGroupRuntime:
             config=self.prediction_config,
             now=dt_util.now(),
         )
+        await self.async_refresh_summaries()
         self._async_notify()
         await self.async_evaluate_notifications()
+
+    @property
+    def cost_total_statistic_id(self) -> str | None:
+        """entity_id sensor biaya grup, kalau kelompok ini memakai tarif."""
+        return er.async_get(self.hass).async_get_entity_id(
+            "sensor", DOMAIN, f"{self.subentry_id}_cost_total"
+        )
+
+    async def async_refresh_summaries(self) -> None:
+        """Hitung ulang rincian per periode dari long-term statistics.
+
+        Menumpang pada jadwal prediksi yang sudah ada, bukan timer sendiri:
+        keduanya membaca database recorder, dan angka "bulan lalu" jelas tidak
+        berubah lebih cepat dari itu.
+        """
+        from .engines.period_summary import (  # noqa: PLC0415
+            DAYS_TO_FETCH,
+            HOURS_FOR_AVERAGE,
+            MONTHS_TO_FETCH,
+            summarise,
+        )
+        from .statistics_helper import (  # noqa: PLC0415
+            async_fetch_period_changes,
+        )
+
+        now = dt_util.now()
+        for family, statistic_id in (
+            ("energy", self.energy_total_statistic_id),
+            ("cost", self.cost_total_statistic_id),
+        ):
+            if statistic_id is None:
+                continue
+            self.summaries[family] = summarise(
+                hourly=await async_fetch_period_changes(
+                    self.hass,
+                    statistic_id,
+                    "hour",
+                    now - timedelta(hours=HOURS_FOR_AVERAGE),
+                ),
+                daily=await async_fetch_period_changes(
+                    self.hass, statistic_id, "day", now - timedelta(days=DAYS_TO_FETCH)
+                ),
+                monthly=await async_fetch_period_changes(
+                    self.hass,
+                    statistic_id,
+                    "month",
+                    now - timedelta(days=31 * MONTHS_TO_FETCH),
+                ),
+                now=now,
+            )
+
+    def summary_for(self, family: str) -> dict[str, Any]:
+        """Rincian per periode satu keluarga, digabung dengan angka berjalan.
+
+        Periode yang sedang berjalan diambil dari penghitung siklus, bukan dari
+        statistik: statistik baru disusun tiap jam, sementara "hari ini" harus
+        terlihat bergerak.
+        """
+        from .engines.period_summary import LIVE_ROWS  # noqa: PLC0415
+
+        summary = dict(self.summaries.get(family, {}))
+        if family == "energy":
+            counters, total = self.counters, self.total_kwh
+        else:
+            counters, total = self.cost_counters, self.cost_total_rp
+        for row in LIVE_ROWS:
+            if (counter := counters.get(row.removeprefix("this_"))) is not None:
+                summary[row] = counter.value(total)
+        return summary
 
     async def async_evaluate_notifications(self) -> str:
         """Timbang apakah ada notifikasi token yang pantas dikirim sekarang.

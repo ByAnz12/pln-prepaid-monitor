@@ -55,6 +55,9 @@ MAX_KWH = MAX_PLAUSIBLE_TOPUP_KWH
 # longgar, hanya untuk mencegah salah ketik yang ekstrem.
 MAX_RATE_RP = 100_000.0
 
+# Cukup untuk melihat beberapa pembelian terakhir tanpa kartunya jadi panjang.
+DEFAULT_HISTORY_ROWS = 10.0
+
 # (kunci konfigurasi, nama field di TokenThresholds, translation_key entity)
 THRESHOLD_KEYS = (
     (CONF_WARNING_THRESHOLD_DAYS, "warning_days", "warning_threshold_days"),
@@ -81,6 +84,7 @@ async def async_setup_entry(
         entities: list[NumberEntity] = [
             PlnTopupAmountNumber(group),
             PlnMeterReadingNumber(group),
+            PlnHistoryRowsNumber(group),
         ]
         entities.extend(
             PlnThresholdNumber(hass, entry, group, conf_key, field, key)
@@ -137,6 +141,33 @@ class PlnMeterReadingNumber(_PlnInputNumber):
     def __init__(self, group: BillingGroupRuntime) -> None:
         """Buat isian angka layar meteran."""
         super().__init__(group, "meter_reading_kwh")
+
+
+class PlnHistoryRowsNumber(PlnBillingGroupEntity, NumberEntity):
+    """Berapa baris riwayat pengisian yang ditampilkan di dashboard.
+
+    Dibuat sebagai isian bebas, bukan pilihan 5/10/20: begitu ada kotak angka,
+    angka berapa pun bisa dipakai, dan tidak ada alasan membatasi user pada tiga
+    nilai yang kebetulan saya pilih.
+    """
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = 50
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Buat isian jumlah baris riwayat."""
+        super().__init__(group, "history_rows")
+
+    @property
+    def native_value(self) -> float:
+        """Jumlah baris yang sedang dipilih, bawaannya 10."""
+        return self._group.inputs.get(self._key, DEFAULT_HISTORY_ROWS)
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Simpan pilihannya; kartu riwayat membacanya lewat template."""
+        self._group.async_set_input(self._key, value)
 
 
 class PlnThresholdNumber(PlnBillingGroupEntity, NumberEntity):
