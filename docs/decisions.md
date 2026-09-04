@@ -9,6 +9,79 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-035 · Retensi diatur untuk seluruh integrasi, bukan per kelompok tagihan
+
+**Tanggal**: 3 September 2026 · **Milestone 8**
+
+Pengaturan retensi duduk di **options flow entry induk** (tombol *Configure*),
+bukan di alur kelompok tagihan.
+
+Alasannya: yang dibersihkan adalah database recorder milik Home Assistant secara
+keseluruhan. "Simpan riwayat 2 tahun untuk rumah tapi 5 tahun untuk toko" bukan
+kebutuhan nyata - yang nyata adalah "database saya jangan terus membengkak".
+Menaruhnya per kelompok hanya menggandakan pertanyaan yang sama.
+
+Layanan `purge_old_data` tetap **bisa** ditargetkan ke satu kelompok, karena di
+sana targetnya memang masuk akal: user mungkin ingin membersihkan satu meteran
+saja tanpa menyentuh yang lain.
+
+---
+
+## D-034 · Pembersihan data: satu-satunya jalan yang ada, dengan tiga pengaman
+
+**Tanggal**: 3 September 2026 · **Milestone 8** · **Status: VERIFIED**
+
+Seluruh klaim di spec N.4 saya verifikasi ulang sendiri ke Core 2026.8.3
+sebelum menulis kode, karena inilah satu-satunya bagian sistem yang tidak
+memakai API publik:
+
+| Yang dicek | Hasil |
+|---|---|
+| `Statistics` / `StatisticsShortTerm` punya `metadata_id`, `start_ts` | Ada |
+| `StatisticsMeta` punya `id`, `statistic_id` | Ada |
+| FK `metadata_id` memakai `ON DELETE CASCADE` | Benar - inilah yang harus dihindari |
+| `get_instance`, `session_scope`, `Recorder.async_add_executor_job` | Ada |
+| `DEFAULT_MAX_BIND_VARS` | 4000 |
+
+**Kenapa tidak ada jalan lain**: `recorder.purge_entities` sama sekali tidak
+menyentuh tabel statistik, dan `recorder/clear_statistics` bersifat
+semua-atau-tidak tanpa parameter waktu - ia menghapus baris `StatisticsMeta`
+yang lewat cascade membuang **seluruh** riwayat entity. Keduanya tidak menjawab
+"hapus yang lebih tua dari N tahun, sisanya tetap".
+
+### Tiga pengaman
+
+1. **Cek struktur lebih dulu.** `check_supported()` memeriksa model dan kolom
+   yang dibutuhkan sebelum menyentuh apa pun. Kalau Home Assistant mengubahnya,
+   integrasi gagal dengan pesan yang menyuruh user menghapus manual - dan
+   `test_unsupported_schema_fails_loudly_and_deletes_nothing` membuktikan tidak
+   ada satu baris pun terhapus saat itu terjadi.
+2. **Baris `StatisticsMeta` tidak pernah disentuh**, supaya cascade tidak
+   terpicu dan cache metadata recorder tidak korup. Dijaga oleh
+   `test_metadata_row_is_kept`.
+3. **Hanya entity milik integrasi ini.** Daftarnya dibangun dari *entity
+   registry* (`platform == DOMAIN`), bukan dari pola nama, sehingga tidak ada
+   cara entity asing ikut terjaring. `test_purge_never_touches_other_peoples_data`
+   menaruh data milik entity lain dengan umur yang sama persis, lalu
+   membuktikan tidak satu baris pun darinya hilang.
+
+Ditambah satu kanari: `test_recorder_schema_is_still_what_we_expect` akan gagal
+di versi Home Assistant berikutnya yang mengubah struktur ini - jauh sebelum
+ada data user yang salah terhapus.
+
+### Yang tetap harus diketahui user
+
+Fitur ini **lebih rapuh terhadap upgrade Home Assistant** dibanding seluruh
+bagian lain sistem ini, dan itu ditulis apa adanya di README - bukan
+disembunyikan. Pengaturan bawaannya "Selamanya", jadi tidak ada yang terhapus
+sampai user memutuskan sendiri.
+
+Penghapusan dilakukan bertahap maksimal 1.000 baris per transaksi, masing-masing
+di sesi sendiri, supaya write-lock tidak dipegang lama dan kompaksi per jam
+milik recorder tidak tertahan.
+
+---
+
 ## D-033 · Nilai pengisian siap pakai, dan pagar salah satuan dari struk PLN
 
 **Tanggal**: 3 September 2026 · **Permintaan user, dengan struk nyata**

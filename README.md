@@ -26,11 +26,12 @@ kapan token habis, dan mengingatkan Anda sebelum listrik padam.
 9. [Memperkirakan kapan token habis](#memperkirakan-kapan-token-habis)
 10. [Notifikasi token](#notifikasi-token)
 11. [Dashboard](#dashboard)
-12. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
-13. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
-14. [Troubleshooting](#troubleshooting)
-15. [Untuk pengembang](#untuk-pengembang)
-16. [Rencana pengembangan](#rencana-pengembangan)
+12. [Perawatan data](#perawatan-data)
+13. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
+14. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
+15. [Troubleshooting](#troubleshooting)
+16. [Untuk pengembang](#untuk-pengembang)
+17. [Rencana pengembangan](#rencana-pengembangan)
 
 ---
 
@@ -58,9 +59,10 @@ Integrasi ini dibangun bertahap. Yang **sudah selesai dan bisa dipakai**:
   saat status berpindah tingkat, menghormati jam tenang.
 - **Dashboard yang dibuatkan otomatis**, dengan entity_id yang sudah benar dan
   hanya memakai kartu bawaan Home Assistant.
+- **Perawatan data**: batasi berapa lama riwayat disimpan, manual atau otomatis.
 
-Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): pembersihan
-data lama.
+Seluruh tahap yang direncanakan sudah selesai — lihat
+[Rencana pengembangan](#rencana-pengembangan).
 
 ---
 
@@ -689,6 +691,63 @@ layanan dengan isian itu, jadi angka bebas memang perlu lewat sana.
 
 ---
 
+## Perawatan data
+
+Riwayat jangka panjang Home Assistant **tidak pernah dihapus otomatis**. Untuk
+pemakaian bertahun-tahun, ukuran databasenya terus membesar. Integrasi ini bisa
+membatasi berapa lama riwayat miliknya sendiri disimpan.
+
+### Mengatur
+
+**Settings → Devices & Services → PLN Prepaid Energy & Cost Monitor →
+Configure**.
+
+| Pengaturan | Bawaan | Artinya |
+|---|---|---|
+| Simpan riwayat selama | **Selamanya** | Tidak ada yang dihapus |
+| Bersihkan otomatis | mati | Kalau menyala, jalan sendiri tiap hari |
+
+Bawaannya sengaja "Selamanya" — tidak ada yang terhapus sampai Anda memutuskan
+sendiri.
+
+### Membersihkan sekarang
+
+Lewat tombol **Bersihkan data lama** di bagian Perawatan pada dashboard, atau
+**Developer Tools → Actions → Bersihkan data lama**. Keduanya meminta
+konfirmasi. Layanan ini melaporkan berapa baris yang terhapus, jadi hasilnya
+bisa Anda periksa.
+
+Anda juga bisa menimpa batas retensi sekali pakai lewat isian **Simpan riwayat
+selama** saat memanggil layanan.
+
+### Apa yang dihapus, dan apa yang tidak
+
+> ### ⚠️ Penghapusan bersifat permanen
+>
+> Tidak ada tombol batal. Riwayat yang terhapus tidak bisa dikembalikan.
+
+Yang dihapus **hanya** riwayat milik entity buatan integrasi ini. Daftarnya
+diambil dari registry Home Assistant, bukan dari tebakan nama, jadi entity dan
+data lain di Home Assistant Anda tidak mungkin ikut terjaring.
+
+Baris metadata entity sengaja **tidak** ikut dihapus. Kalau ikut, Home Assistant
+akan membuang seluruh riwayat entity itu sekaligus lewat penghapusan berantai —
+persis kebalikan dari yang Anda minta.
+
+### Kejujuran soal bagian ini
+
+Home Assistant **tidak menyediakan cara resmi** untuk menghapus riwayat lama
+secara selektif. Fitur ini karena itu memakai struktur internal recorder yang
+bisa berubah sewaktu-waktu — satu-satunya bagian sistem ini yang begitu.
+
+Konsekuensinya: **fitur ini lebih mungkin rusak setelah Home Assistant naik
+versi** dibanding fitur lain di sini. Kalau itu terjadi, ia akan berhenti dengan
+pesan yang jelas dan **tidak menghapus apa pun**, lalu menyarankan Anda
+menghapus manual lewat **Developer Tools → Statistics**. Ia tidak akan pernah
+diam-diam menghapus baris yang salah.
+
+---
+
 ## Kenapa angkanya beda dengan aplikasi meteran?
 
 Sensor `..._energy` buatan integrasi ini **dimulai dari angka yang sama** dengan
@@ -875,7 +934,10 @@ sensor yang sama.
 | 5 | Prediksi hari tersisa & tanggal habis | **Selesai** |
 | 6 | Notifikasi Telegram bertingkat | **Selesai** |
 | 7 | Dashboard | **Selesai** |
-| 8 | Pembersihan data lama | Belum |
+| 8 | Pembersihan data lama | **Selesai** |
 
-Semua tarif, ambang batas, dan periode akan selalu bisa diatur dari antarmuka -
+Semua tarif, ambang batas, dan periode selalu bisa diatur dari antarmuka -
 tidak ada satu pun yang dikunci di dalam kode.
+
+Catatan keputusan implementasi, termasuk beberapa koreksi terhadap blueprint
+awal, ada di [docs/decisions.md](docs/decisions.md).

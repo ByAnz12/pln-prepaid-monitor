@@ -231,8 +231,12 @@ async def test_group_without_tariff_gets_no_cost_cards(
         assert hass.states.get(entity_id) is not None, entity_id
 
 
-async def test_hold_buttons_ask_for_confirmation(hass: HomeAssistant) -> None:
-    """Tombol keputusan penahanan wajib pakai dialog konfirmasi."""
+async def test_every_button_asks_for_confirmation(hass: HomeAssistant) -> None:
+    """Setiap tombol di dashboard mengubah catatan, jadi wajib dikonfirmasi.
+
+    Ini invarian yang paling penting dijaga: tidak boleh ada tombol yang
+    langsung bekerja hanya karena tersenggol.
+    """
     apply_states(hass, MCB_RUMAH)
     entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
 
@@ -247,9 +251,47 @@ async def test_hold_buttons_ask_for_confirmation(hass: HomeAssistant) -> None:
     assert buttons
     for button in buttons:
         action = button["tap_action"]
-        assert action["perform_action"] == f"{DOMAIN}.resolve_ledger_hold"
-        assert "confirmation" in action
-        assert action["target"]["device_id"]
+        assert "confirmation" in action, button["name"]
+        assert action["target"]["device_id"], button["name"]
+        # Hanya layanan milik integrasi ini yang boleh dipanggil dari dashboard.
+        assert action["perform_action"].startswith(f"{DOMAIN}.")
+
+
+async def test_hold_buttons_target_the_hold_action(hass: HomeAssistant) -> None:
+    """Dua tombol keputusan penahanan memanggil layanan yang benar."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
+
+    actions = [
+        card["tap_action"]["data"]["action"]
+        for card in _all_cards(build_dashboard(hass, entry.runtime_data))
+        if card["type"] == "button"
+        and card["tap_action"]["perform_action"].endswith("resolve_ledger_hold")
+    ]
+
+    assert sorted(actions) == ["accept", "ignore"]
+
+
+async def test_maintenance_card_is_present_and_confirmed(
+    hass: HomeAssistant,
+) -> None:
+    """Kartu perawatan ada, dan tombol hapusnya wajib dikonfirmasi (spec J)."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
+
+    purge_buttons = [
+        card
+        for card in _all_cards(build_dashboard(hass, entry.runtime_data))
+        if card["type"] == "button"
+        and card["tap_action"]["perform_action"].endswith("purge_old_data")
+    ]
+
+    assert len(purge_buttons) == 1
+    assert "confirmation" in purge_buttons[0]["tap_action"]
 
 
 async def test_hold_cards_are_hidden_until_needed(hass: HomeAssistant) -> None:

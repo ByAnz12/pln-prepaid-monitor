@@ -38,6 +38,8 @@ from .const import (
     CHANNEL_FREQUENCY,
     CHANNEL_POWER,
     CHANNEL_VOLTAGE,
+    AUTO_PURGE_INTERVAL_HOURS,
+    CONF_AUTO_PURGE_ENABLED,
     CONF_AVAILABILITY_ENTITY_ID,
     CONF_CYCLE_PERIODS,
     CONF_ENABLED,
@@ -48,8 +50,11 @@ from .const import (
     CONF_TARIFF_ID,
     CONF_TOKEN_ENABLED,
     CONF_UNAVAILABLE_GRACE_MINUTES,
+    CONF_STATISTICS_RETENTION_YEARS,
+    DEFAULT_AUTO_PURGE_ENABLED,
     DEFAULT_CYCLE_PERIODS,
     DEFAULT_RESET_HOLD_THRESHOLD_KWH,
+    DEFAULT_STATISTICS_RETENTION_YEARS,
     DEFAULT_TOKEN_ENABLED,
     DOMAIN,
     PREDICTION_REFRESH_MINUTES,
@@ -986,6 +991,7 @@ class PlnRuntimeData:
         self.entry = entry
         self.sources: dict[str, SourceRuntime] = {}
         self.billing_groups: dict[str, BillingGroupRuntime] = {}
+        self._auto_purge_unsub: CALLBACK_TYPE | None = None
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{STORAGE_KEY}.{entry.entry_id}"
         )
@@ -1037,6 +1043,53 @@ class PlnRuntimeData:
             self.billing_groups[subentry_id] = group
             group.async_start()
 
+    @callback
+    def async_start_auto_purge(self) -> None:
+        """Jadwalkan pembersihan data otomatis, kalau user mengaktifkannya."""
+        if self._auto_purge_unsub is not None:
+            return
+        if not self.entry.options.get(
+            CONF_AUTO_PURGE_ENABLED, DEFAULT_AUTO_PURGE_ENABLED
+        ):
+            return
+        self._auto_purge_unsub = async_track_time_interval(
+            self.hass,
+            self._async_auto_purge,
+            timedelta(hours=AUTO_PURGE_INTERVAL_HOURS),
+        )
+
+    async def _async_auto_purge(self, _now: datetime) -> None:
+        """Bersihkan statistik lama tanpa diminta, sesuai retensi yang dipilih."""
+        from .retention import (  # noqa: PLC0415
+            RetentionUnsupportedError,
+            async_purge_statistics,
+            retention_days,
+        )
+        from .services import our_statistic_ids  # noqa: PLC0415
+
+        days = retention_days(
+            self.entry.options.get(
+                CONF_STATISTICS_RETENTION_YEARS, DEFAULT_STATISTICS_RETENTION_YEARS
+            )
+        )
+        if days is None:
+            return
+
+        cutoff = dt_util.utcnow() - timedelta(days=days)
+        try:
+            await async_purge_statistics(
+                self.hass, our_statistic_ids(self.hass), cutoff
+            )
+        except RetentionUnsupportedError:
+            # Sekali gagal berarti akan gagal terus sampai HA diperbarui lagi;
+            # matikan jadwalnya supaya tidak membanjiri log tiap hari.
+            _LOGGER.exception(
+                "Pembersihan otomatis dimatikan karena struktur recorder tidak dikenali"
+            )
+            if self._auto_purge_unsub is not None:
+                self._auto_purge_unsub()
+                self._auto_purge_unsub = None
+
     async def async_start_predictions(self) -> None:
         """Hitung perkiraan pertama, lalu jadwalkan pembaruan berkala.
 
@@ -1068,6 +1121,9 @@ class PlnRuntimeData:
 
     async def async_shutdown(self) -> None:
         """Hentikan semua runtime dan tulis state terakhir tanpa ditunda."""
+        if self._auto_purge_unsub is not None:
+            self._auto_purge_unsub()
+            self._auto_purge_unsub = None
         for group in self.billing_groups.values():
             group.async_stop()
         for runtime in self.sources.values():

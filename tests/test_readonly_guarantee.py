@@ -196,6 +196,9 @@ async def test_only_bookkeeping_services_are_registered(
         "resolve_ledger_hold",
         # Hanya membaca dan mengembalikan teks YAML; tidak mengubah apa pun.
         "generate_dashboard",
+        # Menghapus riwayat milik integrasi ini saja, tidak pernah menyentuh
+        # perangkat - dijaga terpisah di tests/test_retention.py.
+        "purge_old_data",
     }
     for name in registered:
         assert not any(

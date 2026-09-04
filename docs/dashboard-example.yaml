@@ -175,6 +175,26 @@ views:
     period: day
     days_to_show: 30
     chart_type: bar
+  - type: vertical-stack
+    cards:
+    - type: markdown
+      content: '### Perawatan
+
+
+        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
+        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
+        Assistant Anda tidak tersentuh.'
+    - type: button
+      name: Bersihkan data lama
+      icon: mdi:database-remove
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.purge_old_data
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        confirmation:
+          text: Bersihkan data lama?
 - title: PLN TOKO
   path: pln-toko
   cards:
@@ -323,3 +343,23 @@ views:
     period: day
     days_to_show: 30
     chart_type: bar
+  - type: vertical-stack
+    cards:
+    - type: markdown
+      content: '### Perawatan
+
+
+        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
+        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
+        Assistant Anda tidak tersentuh.'
+    - type: button
+      name: Bersihkan data lama
+      icon: mdi:database-remove
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.purge_old_data
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        confirmation:
+          text: Bersihkan data lama?

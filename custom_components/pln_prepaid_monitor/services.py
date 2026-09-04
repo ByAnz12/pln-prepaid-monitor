@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 
+from datetime import timedelta
+
 from homeassistant.const import ATTR_DEVICE_ID
 from homeassistant.core import (
     HomeAssistant,
@@ -24,12 +26,17 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.helpers import (
+    config_validation as cv,
+    device_registry as dr,
+    entity_registry as er,
+)
 from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_ACTUAL_REMAINING_KWH,
     ATTR_HOLD_ACTION,
+    ATTR_KEEP_YEARS,
     ATTR_KWH_CREDITED,
     ATTR_METER_READING_AFTER,
     ATTR_METER_READING_BEFORE,
@@ -43,6 +50,9 @@ from .const import (
     SERVICE_GENERATE_DASHBOARD,
     SERVICE_DELETE_TOPUP,
     SERVICE_EDIT_TOPUP,
+    CONF_STATISTICS_RETENTION_YEARS,
+    DEFAULT_STATISTICS_RETENTION_YEARS,
+    SERVICE_PURGE_OLD_DATA,
     SERVICE_RESET_TOKEN_LEDGER,
     SERVICE_RESOLVE_LEDGER_HOLD,
 )
@@ -51,6 +61,12 @@ from .engines.token_engine import (
     HOLD_ACTION_CALIBRATE,
     find_preset,
     implausible_kwh_hint,
+)
+from .retention import (
+    RETENTION_OPTIONS,
+    RetentionUnsupportedError,
+    async_purge_statistics,
+    retention_days,
 )
 
 if TYPE_CHECKING:
@@ -104,6 +120,13 @@ RESET_LEDGER_SCHEMA = vol.Schema(
 )
 
 GENERATE_DASHBOARD_SCHEMA = vol.Schema({})
+
+PURGE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(ATTR_KEEP_YEARS): vol.In(RETENTION_OPTIONS),
+    }
+)
 
 RESOLVE_HOLD_SCHEMA = vol.Schema(
     {
@@ -190,6 +213,47 @@ def _resolve_kwh(group: BillingGroupRuntime, call: ServiceCall) -> float:
         )
 
     return float(kwh)
+
+
+def our_statistic_ids(
+    hass: HomeAssistant, subentry_ids: set[str] | None = None
+) -> list[str]:
+    """entity_id milik integrasi ini saja - pagar utama pembersihan data.
+
+    Inilah yang membuat pembersihan tidak akan pernah menyentuh entity, domain,
+    atau data recorder milik user yang lain (spec N.3). Daftarnya dibangun dari
+    entity registry, bukan dari pola nama, sehingga tidak ada cara entity asing
+    ikut terjaring.
+    """
+    registry = er.async_get(hass)
+    return sorted(
+        entry.entity_id
+        for entry in registry.entities.values()
+        if entry.platform == DOMAIN
+        and (subentry_ids is None or entry.config_subentry_id in subentry_ids)
+    )
+
+
+def _resolve_subentry_ids(
+    hass: HomeAssistant, call: ServiceCall
+) -> set[str] | None:
+    """Kelompok tagihan yang dipilih user, atau None untuk semuanya."""
+    device_ids = call.data.get(ATTR_DEVICE_ID)
+    if not device_ids:
+        return None
+
+    device_registry = dr.async_get(hass)
+    subentry_ids = {
+        device.config_subentry_id
+        for device_id in device_ids
+        if (device := device_registry.async_get(device_id)) is not None
+        and device.config_subentry_id is not None
+    }
+    if not subentry_ids:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="no_billing_group_selected"
+        )
+    return subentry_ids
 
 
 def _timestamp(call: ServiceCall) -> str:
@@ -350,6 +414,42 @@ def async_setup_services(hass: HomeAssistant) -> None:
         config = build_dashboard(hass, runtime_data)
         return {"yaml": dump(config), "views": len(config["views"])}
 
+    async def async_purge_old_data(call: ServiceCall) -> ServiceResponse:
+        """Hapus statistik lama milik integrasi ini saja."""
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if not entries:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="no_billing_groups"
+            )
+
+        keep_years = call.data.get(ATTR_KEEP_YEARS) or entries[0].options.get(
+            CONF_STATISTICS_RETENTION_YEARS, DEFAULT_STATISTICS_RETENTION_YEARS
+        )
+        days = retention_days(keep_years)
+        if days is None:
+            # "Simpan selamanya" berarti benar-benar tidak menghapus apa pun -
+            # bukan diam-diam memakai angka bawaan.
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="retention_unlimited"
+            )
+
+        subentry_ids = _resolve_subentry_ids(hass, call)
+        statistic_ids = our_statistic_ids(hass, subentry_ids)
+        cutoff = dt_util.utcnow() - timedelta(days=days)
+
+        try:
+            result = await async_purge_statistics(hass, statistic_ids, cutoff)
+        except RetentionUnsupportedError as err:
+            # Gagal terang-terangan, bukan diam-diam salah hapus (spec N.4).
+            _LOGGER.error("Pembersihan data tidak bisa dijalankan: %s", err)
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="retention_unsupported",
+                translation_placeholders={"reason": str(err)},
+            ) from err
+
+        return result.as_response()
+
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_TOKEN_TOPUP, async_add_topup, schema=ADD_TOPUP_SCHEMA
     )
@@ -384,6 +484,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
         schema=GENERATE_DASHBOARD_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_PURGE_OLD_DATA,
+        async_purge_old_data,
+        schema=PURGE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
 
 @callback
@@ -397,5 +504,6 @@ def async_unload_services(hass: HomeAssistant) -> None:
         SERVICE_RESET_TOKEN_LEDGER,
         SERVICE_RESOLVE_LEDGER_HOLD,
         SERVICE_GENERATE_DASHBOARD,
+        SERVICE_PURGE_OLD_DATA,
     ):
         hass.services.async_remove(DOMAIN, service)

@@ -47,6 +47,13 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "hold_ignore": "Abaikan (meteran diganti)",
         "hold_accept": "Anggap pemakaian nyata",
+                "maint_title": "Perawatan",
+        "maint_note": (
+            "Menghapus riwayat lama milik integrasi ini sesuai batas retensi "
+            "yang Anda atur di **Configure**. Bersifat **permanen**. Entity "
+            "dan data lain di Home Assistant Anda tidak tersentuh."
+        ),
+        "maint_button": "Bersihkan data lama",
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
     },
@@ -74,6 +81,13 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "hold_ignore": "Ignore (meter replaced)",
         "hold_accept": "Treat as real usage",
+                "maint_title": "Maintenance",
+        "maint_note": (
+            "Deletes this integration's old history according to the retention "
+            "limit you set under **Configure**. This is **permanent**. Your "
+            "other entities and data are not touched."
+        ),
+        "maint_button": "Purge old data",
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
     },
@@ -382,6 +396,36 @@ def _history_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any
     return cards
 
 
+def _maintenance_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any]:
+    """Kartu perawatan data, dengan tombol yang wajib dikonfirmasi.
+
+    Ditaruh paling bawah dan dibuat sepolos mungkin: aksinya permanen, jadi
+    tidak pantas duduk berdampingan dengan angka-angka yang dibaca sehari-hari.
+    """
+    cards: list[dict[str, Any]] = [
+        {
+            "type": "markdown",
+            "content": f"### {texts['maint_title']}\n\n{texts['maint_note']}",
+        }
+    ]
+    if view.device_id:
+        cards.append(
+            {
+                "type": "button",
+                "name": texts["maint_button"],
+                "icon": "mdi:database-remove",
+                "show_state": False,
+                "tap_action": {
+                    "action": "perform-action",
+                    "perform_action": f"{DOMAIN}.purge_old_data",
+                    "target": {"device_id": view.device_id},
+                    "confirmation": {"text": f"{texts['maint_button']}?"},
+                },
+            }
+        )
+    return {"type": "vertical-stack", "cards": cards}
+
+
 def build_view(view: GroupView, language: str) -> dict[str, Any]:
     """Susun satu halaman dashboard untuk satu kelompok tagihan."""
     texts = SECTION_TITLES[language]
@@ -401,6 +445,7 @@ def build_view(view: GroupView, language: str) -> dict[str, Any]:
 
     cards.extend(_token_cards(view, texts))
     cards.extend(_history_cards(view, texts))
+    cards.append(_maintenance_card(view, texts))
 
     return {
         "title": view.name,

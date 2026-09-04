@@ -129,6 +129,20 @@ DEFAULT_REPEAT_WHILE_UNRESOLVED: Final = False
 DEFAULT_BYPASS_QUIET_HOURS: Final = True
 DEFAULT_NOTIFY_ON_RECOVERY: Final = True
 
+# --- kunci konfigurasi Retensi Data (options flow entry induk) ----------------
+CONF_STATISTICS_RETENTION_YEARS: Final = "statistics_retention_years"
+CONF_AUTO_PURGE_ENABLED: Final = "auto_purge_enabled"
+
+DEFAULT_STATISTICS_RETENTION_YEARS: Final = "unlimited"
+DEFAULT_AUTO_PURGE_ENABLED: Final = False
+
+# Seberapa sering pembersihan otomatis diperiksa. Harian, bukan bulanan: setelah
+# pembersihan pertama, jalannya nyaris tanpa biaya karena tidak ada lagi yang
+# perlu dihapus, dan user tidak menunggu sebulan untuk melihat efek pengaturan.
+AUTO_PURGE_INTERVAL_HOURS: Final = 24
+
+ATTR_KEEP_YEARS: Final = "keep_years"
+
 # --- nama service --------------------------------------------------------------
 SERVICE_ADD_TOKEN_TOPUP: Final = "add_token_topup"
 SERVICE_CALIBRATE_TOKEN_READING: Final = "calibrate_token_reading"
@@ -137,6 +151,7 @@ SERVICE_DELETE_TOPUP: Final = "delete_topup"
 SERVICE_RESET_TOKEN_LEDGER: Final = "reset_token_ledger"
 SERVICE_RESOLVE_LEDGER_HOLD: Final = "resolve_ledger_hold"
 SERVICE_GENERATE_DASHBOARD: Final = "generate_dashboard"
+SERVICE_PURGE_OLD_DATA: Final = "purge_old_data"
 
 ATTR_KWH_CREDITED: Final = "kwh_credited"
 ATTR_NOMINAL_RP: Final = "nominal_rp"

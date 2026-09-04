@@ -25,10 +25,12 @@ import voluptuous as vol
 
 from homeassistant.config_entries import (
     SOURCE_RECONFIGURE,
+    ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
     ConfigSubentryData,
     ConfigSubentryFlow,
+    OptionsFlow,
     SubentryFlowResult,
 )
 from homeassistant.const import CONF_NAME
@@ -93,7 +95,9 @@ from .const import (
     CONF_RATE_RP_PER_KWH,
     CONF_ROUNDING_MODE,
     CONF_ROUNDING_UNIT_RP,
+    CONF_AUTO_PURGE_ENABLED,
     CONF_SHOW_ALL_SENSORS,
+    CONF_STATISTICS_RETENTION_YEARS,
     CONF_RESET_HOLD_THRESHOLD_KWH,
     CONF_SOURCE_IDS,
     CONF_TARIFF_ID,
@@ -127,6 +131,8 @@ from .const import (
     DEFAULT_RESET_HOLD_THRESHOLD_KWH,
     DEFAULT_ROUNDING_MODE,
     DEFAULT_ROUNDING_UNIT_RP,
+    DEFAULT_AUTO_PURGE_ENABLED,
+    DEFAULT_STATISTICS_RETENTION_YEARS,
     DEFAULT_TOKEN_ENABLED,
     DEFAULT_UNAVAILABLE_GRACE_MINUTES,
     DEFAULT_WEEK_START_DAY,
@@ -142,6 +148,7 @@ from .engines.cost_engine import (
     append_rate_version,
 )
 from .engines.token_engine import format_presets, parse_presets
+from .retention import RETENTION_OPTIONS
 from .engines.normalization import (
     CHANNEL_SPECS,
     SEVERITY_ERROR,
@@ -576,6 +583,12 @@ class PlnPrepaidMonitorConfigFlow(_SourceFlowMixin, ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title="PLN Prepaid Monitor", data={}, subentries=[subentry]
         )
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Pengaturan perawatan data, berlaku untuk seluruh integrasi."""
+        return PlnOptionsFlow()
 
     @classmethod
     @callback
@@ -1351,4 +1364,49 @@ class TariffSubentryFlowHandler(ConfigSubentryFlow):
                     ",", "."
                 )
             },
+        )
+
+
+class PlnOptionsFlow(OptionsFlow):
+    """Pengaturan perawatan data untuk seluruh integrasi.
+
+    Retensi diatur di sini, bukan per kelompok tagihan, karena yang dibersihkan
+    adalah database recorder milik Home Assistant secara keseluruhan - bukan
+    sesuatu yang masuk akal berbeda-beda antar kelompok.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Berapa lama riwayat disimpan, dan apakah dibersihkan otomatis."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        options = self.config_entry.options
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_STATISTICS_RETENTION_YEARS,
+                        default=options.get(
+                            CONF_STATISTICS_RETENTION_YEARS,
+                            DEFAULT_STATISTICS_RETENTION_YEARS,
+                        ),
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(RETENTION_OPTIONS),
+                            translation_key="statistics_retention_years",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_AUTO_PURGE_ENABLED,
+                        default=bool(
+                            options.get(
+                                CONF_AUTO_PURGE_ENABLED, DEFAULT_AUTO_PURGE_ENABLED
+                            )
+                        ),
+                    ): BooleanSelector(),
+                }
+            ),
         )

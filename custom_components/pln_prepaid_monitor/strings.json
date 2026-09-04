@@ -463,6 +463,15 @@
         "median": "Median (recommended)",
         "trim_percent": "Trim the top and bottom"
       }
+    },
+    "statistics_retention_years": {
+      "options": {
+        "1": "1 year",
+        "2": "2 years",
+        "3": "3 years",
+        "5": "5 years",
+        "unlimited": "Forever (never deleted)"
+      }
     }
   },
   "services": {
@@ -577,6 +586,16 @@
     "generate_dashboard": {
       "name": "Generate dashboard",
       "description": "Builds a Lovelace dashboard configuration for all your billing groups with the correct entity ids already filled in. The result is YAML text for you to paste yourself - this action does not change any existing dashboard."
+    },
+    "purge_old_data": {
+      "name": "Purge old data",
+      "description": "Deletes this integration's long-term history older than the retention limit. PERMANENT and cannot be undone. Your other entities and data are not touched.",
+      "fields": {
+        "keep_years": {
+          "name": "Keep history for",
+          "description": "One-off override of the retention setting. Leave empty to use the saved setting."
+        }
+      }
     }
   },
   "exceptions": {
@@ -606,12 +625,34 @@
     },
     "implausible_kwh": {
       "message": "{kwh} kWh is too large for a single top-up. PLN receipts often write kWh in units of 0.01 - did you mean {hint} kWh?"
+    },
+    "retention_unlimited": {
+      "message": "Retention is still set to 'Forever', so nothing was deleted. Change it under Settings -> Devices & Services -> PLN Prepaid Monitor -> Configure, or fill in 'Keep history for' when calling this action."
+    },
+    "retention_unsupported": {
+      "message": "Cleanup cannot run on this Home Assistant version: {reason}. Nothing was deleted. You can delete manually via Developer Tools -> Statistics."
     }
   },
   "issues": {
     "ledger_hold": {
       "title": "Token tracking for {group} is on hold",
       "description": "Meter '{source}' jumped to {reset_to} kWh after its counter reset, so the remaining token for {group} has been frozen to avoid writing it off by mistake.\n\nPlease decide via the **Decide on a token hold** action:\n\n- **Treat as real usage** - if that much electricity really was used.\n- **Ignore** - if the meter was replaced, or the number went wrong for reasons other than usage.\n- **Calibrate** - if you want to enter the remaining kWh shown on the meter."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Data maintenance",
+        "description": "Home Assistant's long-term history is **never purged automatically**. Over years of use, the database can keep growing.\n\nHere you can limit how long this integration's history is kept.\n\n⚠️ **Deletion is permanent and cannot be undone.** Only history belonging to entities created by this integration is removed - your other entities and data are not touched at all.",
+        "data": {
+          "statistics_retention_years": "Keep history for",
+          "auto_purge_enabled": "Clean up automatically"
+        },
+        "data_description": {
+          "statistics_retention_years": "History older than this may be deleted. Pick 'Forever' if you do not want anything deleted - that is the default.",
+          "auto_purge_enabled": "When on, cleanup runs by itself every day following the choice above. When off, cleanup only happens when you run the 'Purge old data' action yourself."
+        }
+      }
     }
   }
 }

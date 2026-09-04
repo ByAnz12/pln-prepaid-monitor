@@ -30,6 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PlnConfigEntry) -> bool:
     # Prediksi butuh entity_id sensor energi grup, yang baru ada setelah
     # platform di atas selesai dipasang.
     await runtime_data.async_start_predictions()
+    runtime_data.async_start_auto_purge()
 
     # Menambah, mengedit, atau menghapus Energy Source memicu update pada
     # config entry induk. Listener ini yang membuat perubahan itu langsung

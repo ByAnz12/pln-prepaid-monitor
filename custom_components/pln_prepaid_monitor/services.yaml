@@ -154,3 +154,21 @@ resolve_ledger_hold:
 
 generate_dashboard:
   fields: {}
+
+purge_old_data:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields:
+    keep_years:
+      required: false
+      selector:
+        select:
+          options:
+            - "1"
+            - "2"
+            - "3"
+            - "5"
+            - unlimited
+          translation_key: statistics_retention_years

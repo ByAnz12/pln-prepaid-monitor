@@ -463,6 +463,15 @@
         "median": "Median (disarankan)",
         "trim_percent": "Buang ujung atas dan bawah"
       }
+    },
+    "statistics_retention_years": {
+      "options": {
+        "1": "1 tahun",
+        "2": "2 tahun",
+        "3": "3 tahun",
+        "5": "5 tahun",
+        "unlimited": "Selamanya (tidak dihapus)"
+      }
     }
   },
   "services": {
@@ -577,6 +586,16 @@
     "generate_dashboard": {
       "name": "Buatkan dashboard",
       "description": "Menyusun konfigurasi dashboard Lovelace untuk seluruh kelompok tagihan Anda, lengkap dengan entity_id yang sudah benar. Hasilnya berupa teks YAML untuk Anda tempelkan sendiri - layanan ini tidak mengubah dashboard yang sudah ada."
+    },
+    "purge_old_data": {
+      "name": "Bersihkan data lama",
+      "description": "Menghapus riwayat jangka panjang milik integrasi ini yang lebih tua dari batas retensi. PERMANEN dan tidak bisa dibatalkan. Entity dan data lain di Home Assistant Anda tidak tersentuh.",
+      "fields": {
+        "keep_years": {
+          "name": "Simpan riwayat selama",
+          "description": "Sekali pakai, menimpa pengaturan retensi. Kosongkan untuk memakai pengaturan yang tersimpan."
+        }
+      }
     }
   },
   "exceptions": {
@@ -606,12 +625,34 @@
     },
     "implausible_kwh": {
       "message": "{kwh} kWh terlalu besar untuk satu kali pengisian. Struk PLN sering menulis kWh dalam satuan 0,01 - apakah yang Anda maksud {hint} kWh?"
+    },
+    "retention_unlimited": {
+      "message": "Retensi masih diatur 'Selamanya', jadi tidak ada yang dihapus. Ubah dulu di Settings -> Devices & Services -> PLN Prepaid Monitor -> Configure, atau isi 'Simpan riwayat selama' saat memanggil layanan ini."
+    },
+    "retention_unsupported": {
+      "message": "Pembersihan data tidak bisa dijalankan di versi Home Assistant ini: {reason}. Tidak ada data yang dihapus. Anda bisa menghapus manual lewat Developer Tools -> Statistics."
     }
   },
   "issues": {
     "ledger_hold": {
       "title": "Pencatatan token {group} sedang ditahan",
       "description": "Meteran '{source}' melompat ke {reset_to} kWh sesudah counter-nya ter-reset, jadi sisa token {group} dibekukan supaya tidak hangus salah.\n\nSilakan putuskan lewat layanan **Putuskan penahanan token**:\n\n- **Anggap pemakaian nyata** - kalau listriknya memang terpakai sebanyak itu.\n- **Abaikan** - kalau meteran diganti, atau angkanya kacau bukan karena pemakaian.\n- **Kalibrasi** - kalau Anda ingin memasukkan sisa kWh yang tertera di layar meteran."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Perawatan data",
+        "description": "Riwayat jangka panjang Home Assistant **tidak pernah dihapus otomatis**. Untuk pemakaian bertahun-tahun, ukuran databasenya bisa terus membesar.\n\nDi sini Anda bisa membatasi berapa lama riwayat milik integrasi ini disimpan.\n\n⚠️ **Penghapusan bersifat permanen dan tidak bisa dibatalkan.** Yang dihapus hanya riwayat milik entity buatan integrasi ini - entity dan data lain di Home Assistant Anda tidak tersentuh sama sekali.",
+        "data": {
+          "statistics_retention_years": "Simpan riwayat selama",
+          "auto_purge_enabled": "Bersihkan otomatis"
+        },
+        "data_description": {
+          "statistics_retention_years": "Riwayat yang lebih tua dari ini boleh dihapus. Pilih 'Selamanya' kalau Anda tidak ingin ada yang dihapus - itu pengaturan bawaannya.",
+          "auto_purge_enabled": "Kalau dinyalakan, pembersihan dijalankan sendiri setiap hari mengikuti pilihan di atas. Kalau dimatikan, pembersihan hanya terjadi saat Anda menjalankannya sendiri lewat layanan 'Bersihkan data lama'."
+        }
+      }
     }
   }
 }
