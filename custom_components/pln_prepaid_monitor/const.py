@@ -77,6 +77,8 @@ DEFAULT_CURRENCY: Final = "IDR"
 # --- kunci konfigurasi Token --------------------------------------------------
 CONF_TOKEN_ENABLED: Final = "token_enabled"
 CONF_RESET_HOLD_THRESHOLD_KWH: Final = "reset_hold_threshold_kwh"
+CONF_TOKEN_PRESETS: Final = "token_presets"
+CONF_TOKEN_PRESETS_TEXT: Final = "token_presets_text"
 
 DEFAULT_TOKEN_ENABLED: Final = False
 DEFAULT_RESET_HOLD_THRESHOLD_KWH: Final = 1.0
@@ -200,6 +202,7 @@ ATTR_TOTAL_CREDITED: Final = "total_credited_kwh"
 ATTR_TOPUP_COUNT: Final = "topup_count"
 ATTR_LAST_TOPUP_AT: Final = "last_topup_at"
 ATTR_TOPUP_HISTORY: Final = "topup_history"
+ATTR_TOKEN_PRESETS: Final = "token_presets"
 ATTR_LEDGER_ON_HOLD: Final = "ledger_on_hold"
 ATTR_HOLD_SINCE: Final = "hold_since"
 ATTR_HOLD_SOURCE: Final = "hold_source"

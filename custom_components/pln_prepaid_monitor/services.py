@@ -46,7 +46,12 @@ from .const import (
     SERVICE_RESET_TOKEN_LEDGER,
     SERVICE_RESOLVE_LEDGER_HOLD,
 )
-from .engines.token_engine import HOLD_ACTIONS, HOLD_ACTION_CALIBRATE
+from .engines.token_engine import (
+    HOLD_ACTIONS,
+    HOLD_ACTION_CALIBRATE,
+    find_preset,
+    implausible_kwh_hint,
+)
 
 if TYPE_CHECKING:
     from .coordinator import BillingGroupRuntime
@@ -58,7 +63,7 @@ TARGET_SCHEMA = {vol.Required(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.strin
 ADD_TOPUP_SCHEMA = vol.Schema(
     {
         **TARGET_SCHEMA,
-        vol.Required(ATTR_KWH_CREDITED): vol.All(vol.Coerce(float), vol.Range(min=0)),
+        vol.Optional(ATTR_KWH_CREDITED): vol.All(vol.Coerce(float), vol.Range(min=0)),
         vol.Optional(ATTR_NOMINAL_RP): vol.All(vol.Coerce(float), vol.Range(min=0)),
         vol.Optional(ATTR_TIMESTAMP): cv.datetime,
         vol.Optional(ATTR_METER_READING_BEFORE): vol.Coerce(float),
@@ -148,6 +153,45 @@ def _require_token_enabled(group: BillingGroupRuntime) -> None:
         )
 
 
+def _resolve_kwh(group: BillingGroupRuntime, call: ServiceCall) -> float:
+    """Tentukan berapa kWh yang masuk: dari isian langsung atau dari preset.
+
+    Alur yang paling sering dipakai user: mereka membeli dengan nominal yang
+    sama setiap kali, dan struknya selalu menghasilkan kWh yang sama. Jadi cukup
+    menyebut nominalnya, dan angka kWh diambil dari preset yang sudah diatur.
+    """
+    kwh = call.data.get(ATTR_KWH_CREDITED)
+    nominal = call.data.get(ATTR_NOMINAL_RP)
+
+    if kwh is None:
+        if nominal is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="topup_needs_kwh_or_nominal",
+            )
+        preset = find_preset(group.token_presets, nominal)
+        if preset is None:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="no_preset_for_nominal",
+                translation_placeholders={"nominal": f"{float(nominal):,.0f}".replace(",", ".")},
+            )
+        kwh = preset.kwh
+
+    if (hint := implausible_kwh_hint(float(kwh))) is not None:
+        # Kasus nyata: struk PLN menulis "82650 KWM" untuk 826,50 kWh.
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="implausible_kwh",
+            translation_placeholders={
+                "kwh": f"{float(kwh):g}",
+                "hint": f"{hint:.2f}".replace(".", ","),
+            },
+        )
+
+    return float(kwh)
+
+
 def _timestamp(call: ServiceCall) -> str:
     """Waktu kejadian: yang diisi user, atau sekarang."""
     given = call.data.get(ATTR_TIMESTAMP)
@@ -167,7 +211,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         for group in _resolve_groups(hass, call):
             _require_token_enabled(group)
             entry = group.ledger.add_topup(
-                kwh_credited=call.data[ATTR_KWH_CREDITED],
+                kwh_credited=_resolve_kwh(group, call),
                 group_total=group.total_kwh,
                 timestamp=_timestamp(call),
                 nominal_rp=call.data.get(ATTR_NOMINAL_RP),

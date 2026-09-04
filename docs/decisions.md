@@ -9,6 +9,58 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-033 · Nilai pengisian siap pakai, dan pagar salah satuan dari struk PLN
+
+**Tanggal**: 3 September 2026 · **Permintaan user, dengan struk nyata**
+
+User selalu membeli token dengan nominal yang sama, dan struknya selalu
+menghasilkan kWh yang sama. Mengetik ulang `826,50` setiap kali adalah pekerjaan
+yang tidak perlu - dan satu kesempatan salah ketik yang tidak perlu.
+
+**Yang dibuat**: daftar nilai siap pakai per kelompok tagihan, ditulis satu baris
+per nilai dalam bentuk `1.000.000 = 826,50`. Nilai itu lalu bisa dipakai tiga
+cara: menyebut nominalnya saja saat memanggil layanan, menekan tombol sekali
+klik di dashboard, atau tetap mengetik kWh manual seperti sebelumnya.
+
+**Kenapa dipetakan dari nominal, bukan sekadar daftar angka kWh**: itu cara user
+benar-benar berpikir. Mereka tidak membeli "826,50 kWh", mereka membeli
+"Rp 1.000.000". Memakai nominal sebagai kunci membuat pencatatannya sama persis
+dengan apa yang terjadi di dunia nyata, dan sekaligus memberi angka nominal itu
+tempat di riwayat untuk audit.
+
+**Kenapa berupa teks banyak baris, bukan form berulang**: HA tidak punya kartu
+form yang bisa menambah baris secara dinamis di config flow. Pilihannya antara
+sub-flow "tambah satu lagi?" yang menjengkelkan saat mengedit, atau satu kotak
+teks yang bisa disunting sekaligus. Kotak teks menang telak untuk daftar
+sependek ini, dan barisan yang salah format **dilaporkan per baris**, tidak
+dibuang diam-diam.
+
+### Pagar salah satuan
+
+Struk PLN menulis jumlah kWh dalam satuan 0,01 kWh: pada struk user tertulis
+**82650 KWM**, yang di layar meteran berarti **826,50 kWh**. Menyalin 82650 apa
+adanya akan membuat sisa token salah 100 kali lipat - dan karena angkanya besar,
+sistem justru akan tampak "aman" selama berbulan-bulan sebelum ketahuan.
+
+Karena itu ada batas kewajaran satu kali pengisian (20.000 kWh). Angka di
+atasnya ditolak dengan saran yang menyebut angka bagi-100-nya:
+
+> *82650 kWh terlalu besar untuk satu kali pengisian. Struk PLN sering menulis
+> kWh dalam satuan 0,01 - apakah yang Anda maksud 826,50 kWh?*
+
+Batas ini pagar salah ketik, bukan kebijakan: pembelian Rp 10 juta sekalipun
+hanya menghasilkan sekitar 8.000 kWh, jadi ambangnya lapang.
+
+### Akibatnya untuk D-032
+
+[D-032](#d-032--tombol-catat-pengisian-tidak-dibuat-satu-klik) menyimpulkan
+tombol pengisian tidak bisa dibuat karena angkanya berbeda setiap kali. Dengan
+nilai siap pakai, premis itu tidak lagi berlaku untuk pembelian rutin: angkanya
+memang sudah pasti, jadi tombolnya kini ada - satu tombol per nilai, dengan
+dialog konfirmasi. Mengetik angka bebas tetap lewat Developer Tools.
+
+---
+
 ## D-032 · Tombol "catat pengisian" tidak dibuat satu klik
 
 **Tanggal**: 3 September 2026 · **Milestone 7**
@@ -34,6 +86,11 @@ Tiga jalan yang dipertimbangkan:
 Yang **memang** dibuat sebagai tombol: dua keputusan penahanan ledger
 (`abaikan` dan `anggap pemakaian nyata`), karena keduanya tidak butuh isian
 angka. Keduanya memakai dialog konfirmasi dan hanya muncul saat sedang ditahan.
+
+**Diperbarui**: sejak [D-033](#d-033--nilai-pengisian-siap-pakai-dan-pagar-salah-satuan-dari-struk-pln),
+pembelian rutin **sudah punya tombol** - karena dengan nilai siap pakai,
+angkanya memang tidak lagi berbeda setiap kali. Yang tetap lewat Developer Tools
+hanyalah pengisian dengan angka bebas.
 
 ---
 

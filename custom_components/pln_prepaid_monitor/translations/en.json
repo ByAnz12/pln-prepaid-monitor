@@ -140,7 +140,8 @@
         "name_duplicate": "A billing group with that name already exists. Use a different name.",
         "no_sources_selected": "Pick at least one energy source for this group.",
         "no_periods_selected": "Pick at least one period. Without one, no usage counter is created.",
-        "thresholds_out_of_order": "The thresholds must decrease in order: warning greater than critical, and critical greater than very critical."
+        "thresholds_out_of_order": "The thresholds must decrease in order: warning greater than critical, and critical greater than very critical.",
+        "preset_format_invalid": "Some lines are not in the right format. Each line must look like 'amount = kWh', for example 1.000.000 = 826,50."
       },
       "initiate_flow": {
         "reconfigure": "Reconfigure billing group",
@@ -196,11 +197,13 @@
           "description": "Turn this on if this billing group runs on **prepaid (token)** electricity and you want the system to track the remaining kWh.\n\nThe system cannot read your remaining token from PLN - there is no official service for that. What it does instead: each time you top up, you record how many kWh went in, and the system subtracts your real usage as measured by your meter.\n\nThe result is a token record that **stands on its own**, and does not break when your meter's built-in counter misbehaves.",
           "data": {
             "token_enabled": "Track remaining token for this group",
-            "reset_hold_threshold_kwh": "Hold threshold when the meter resets (kWh)"
+            "reset_hold_threshold_kwh": "Hold threshold when the meter resets (kWh)",
+            "token_presets_text": "Ready-made top-up values"
           },
           "data_description": {
             "token_enabled": "Leave off if this group is on postpaid electricity, or if you only want usage monitoring without token tracking.",
-            "reset_hold_threshold_kwh": "A safeguard for a rare event: if the meter resets and the first reading afterwards is larger than this, the system **freezes** the remaining-token figure and asks you first, instead of silently subtracting it from your balance. An ordinary firmware reset drops to nearly zero and will not trigger this. The default of 1 kWh is safe for most cases."
+            "reset_hold_threshold_kwh": "A safeguard for a rare event: if the meter resets and the first reading afterwards is larger than this, the system **freezes** the remaining-token figure and asks you first, instead of silently subtracting it from your balance. An ordinary firmware reset drops to nearly zero and will not trigger this. The default of 1 kWh is safe for most cases.",
+            "token_presets_text": "If you always buy the same amount, list it here so you do not have to retype the kWh figure every time.\n\nOne value per line, in the form **amount = kWh**:\n\n`1.000.000 = 826,50`\n`500.000 = 413,25`\n\nThe kWh figure comes from the purchase receipt, the **Jumlah Kwh** line. Note that receipts often write it in units of 0.01 kWh - **82650 KWM** on the receipt means **826.50 kWh** on the meter. Divide by 100 if the number looks too large.\n\nThese values later appear as one-click buttons on the dashboard, and can be used by naming just the amount when calling the action. Leave empty if you prefer always typing the kWh figure yourself."
           }
         },
         "prediction": {
@@ -469,11 +472,11 @@
       "fields": {
         "kwh_credited": {
           "name": "kWh added",
-          "description": "How many kWh actually went into the meter, as shown on the receipt or on the meter display after entering the token. Not the rupiah amount."
+          "description": "How many kWh actually went into the meter, as shown on the receipt or the meter display. May be left empty if you fill in the purchase amount below and that amount has a ready-made value."
         },
         "nominal_rp": {
           "name": "Amount paid (Rp)",
-          "description": "How much you paid. For your own records only; not used to calculate the remaining token."
+          "description": "How much you paid. If this amount is registered as a ready-made value, the kWh figure is taken from it automatically - you do not need to fill in kWh above."
         },
         "timestamp": {
           "name": "Top-up time",
@@ -594,6 +597,15 @@
     },
     "no_billing_groups": {
       "message": "There are no billing groups yet, so there is nothing to build a dashboard for."
+    },
+    "topup_needs_kwh_or_nominal": {
+      "message": "Enter the kWh amount, or enter a purchase amount that has a ready-made value."
+    },
+    "no_preset_for_nominal": {
+      "message": "There is no ready-made value for Rp {nominal}. Add one under Reconfigure billing group -> PLN token tracking, or enter the kWh amount yourself."
+    },
+    "implausible_kwh": {
+      "message": "{kwh} kWh is too large for a single top-up. PLN receipts often write kWh in units of 0.01 - did you mean {hint} kWh?"
     }
   },
   "issues": {

@@ -406,6 +406,44 @@ Pengisian bersifat **menambah**. Kalau sisa Anda masih 30 kWh lalu Anda isi 40
 kWh, sisanya jadi 70 kWh — bukan 40. Ini sudah dicocokkan dengan perilaku meteran
 fisik.
 
+### Nilai pengisian siap pakai
+
+Kalau Anda selalu membeli token dengan nominal yang sama, daftarkan sekali dan
+Anda tidak perlu mengetik ulang angka kWh setiap kali.
+
+Buka **Ubah kelompok tagihan → Pencatatan token PLN**, lalu isi kotak **Nilai
+pengisian siap pakai**, satu baris satu nilai:
+
+```
+1.000.000 = 826,50
+500.000 = 413,25
+```
+
+Angka kWh diambil dari struk pembelian, bagian **Jumlah Kwh**.
+
+> ### ⚠️ Perhatikan satuan di struk
+>
+> Struk PLN menulis jumlah kWh dalam satuan **0,01 kWh**. Struk yang tertulis
+> **82650 KWM** berarti **826,50 kWh** di layar meteran — bagi 100.
+>
+> Kalau Anda terlanjur memasukkan 82650, sistem akan menolaknya dan menyarankan
+> angka yang benar. Batas kewajarannya 20.000 kWh sekali isi, jadi pembelian
+> sebesar apa pun yang wajar tetap lolos.
+
+Setelah didaftarkan, ada **tiga cara** mencatat pengisian:
+
+| Cara | Kapan dipakai |
+|---|---|
+| **Tombol di dashboard** | Pembelian rutin — sekali klik, ada konfirmasi |
+| **Sebut nominalnya saja** | Lewat Developer Tools: isi *Nominal pembelian* `1000000`, biarkan kWh kosong |
+| **Ketik kWh manual** | Pembelian dengan nominal tidak biasa |
+
+Kalau Anda mengisi keduanya, angka kWh yang Anda ketik yang dipakai — isian
+manual selalu menang atas preset.
+
+Nominal yang belum terdaftar akan ditolak dengan pesan jelas, bukan diam-diam
+mencatat nol kWh.
+
 ### Kalau salah ketik
 
 Semua bisa dikoreksi, dan sisa token langsung dihitung ulang dari seluruh
@@ -639,11 +677,15 @@ Dua hal yang mungkin ingin Anda sesuaikan setelah menempel:
 
 ### Mencatat pengisian token dari dashboard
 
-Kartu **Cara mencatat pengisian token** di halaman itu menjelaskan langkahnya.
-Pencatatan sendiri dilakukan lewat **Developer Tools → Actions**, bukan tombol
-di dashboard — Home Assistant tidak punya kartu bawaan yang bisa menampilkan
-form berisi angka lalu memanggil layanan dengan isian itu, dan setiap pengisian
-token nilainya berbeda.
+Kalau Anda sudah mendaftarkan [nilai pengisian siap
+pakai](#nilai-pengisian-siap-pakai), dashboard menampilkan **tombol sekali
+klik** untuk tiap nilai — misalnya "Rp 1.000.000 (826,50 kWh)". Tombolnya
+meminta konfirmasi dulu sebelum mencatat.
+
+Untuk pengisian dengan angka bebas, kartu **Cara mencatat pengisian token**
+menjelaskan langkahnya lewat **Developer Tools → Actions**. Home Assistant tidak
+punya kartu bawaan yang bisa menampilkan form berisi angka lalu memanggil
+layanan dengan isian itu, jadi angka bebas memang perlu lewat sana.
 
 ---
 

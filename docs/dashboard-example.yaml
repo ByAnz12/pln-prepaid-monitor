@@ -118,6 +118,34 @@ views:
               action: accept
             confirmation:
               text: Anggap pemakaian nyata?
+  - type: horizontal-stack
+    cards:
+    - type: button
+      name: Rp 1.000.000 (826,50 kWh)
+      icon: mdi:cash-plus
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.add_token_topup
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        data:
+          nominal_rp: 1000000.0
+        confirmation:
+          text: Rp 1.000.000 (826,50 kWh)?
+    - type: button
+      name: Rp 500.000 (413,25 kWh)
+      icon: mdi:cash-plus
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.add_token_topup
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        data:
+          nominal_rp: 500000.0
+        confirmation:
+          text: Rp 500.000 (413,25 kWh)?
   - type: markdown
     content: '### Cara mencatat pengisian token
 
@@ -238,6 +266,34 @@ views:
               action: accept
             confirmation:
               text: Anggap pemakaian nyata?
+  - type: horizontal-stack
+    cards:
+    - type: button
+      name: Rp 1.000.000 (826,50 kWh)
+      icon: mdi:cash-plus
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.add_token_topup
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        data:
+          nominal_rp: 1000000.0
+        confirmation:
+          text: Rp 1.000.000 (826,50 kWh)?
+    - type: button
+      name: Rp 500.000 (413,25 kWh)
+      icon: mdi:cash-plus
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.add_token_topup
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        data:
+          nominal_rp: 500000.0
+        confirmation:
+          text: Rp 500.000 (413,25 kWh)?
   - type: markdown
     content: '### Cara mencatat pengisian token
 

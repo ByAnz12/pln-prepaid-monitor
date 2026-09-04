@@ -97,6 +97,7 @@ class GroupView:
     periods: list[str]
     has_cost: bool
     token_enabled: bool
+    presets: list[Any] = field(default_factory=list)
     entities: dict[str, str] = field(default_factory=dict)
     sources: list[SourceView] = field(default_factory=list)
 
@@ -165,6 +166,7 @@ def collect_views(hass: HomeAssistant, runtime_data: Any) -> list[GroupView]:
                 periods=list(group.periods),
                 has_cost=group.has_cost,
                 token_enabled=group.token_enabled,
+                presets=list(group.token_presets),
                 entities=_resolve(hass, subentry_id, keys),
                 sources=[
                     SourceView(
@@ -292,6 +294,18 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
             }
         )
 
+    if view.presets and view.device_id:
+        # Nilai yang sering dipakai jadi tombol satu klik: user membeli dengan
+        # nominal yang sama setiap kali, jadi angkanya memang sudah pasti.
+        cards.append(
+            {
+                "type": "horizontal-stack",
+                "cards": [
+                    _topup_button(view, preset) for preset in view.presets[:4]
+                ],
+            }
+        )
+
     cards.append(
         {
             "type": "markdown",
@@ -299,6 +313,23 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
         }
     )
     return cards
+
+
+def _topup_button(view: GroupView, preset: Any) -> dict[str, Any]:
+    """Tombol satu klik untuk mencatat pengisian dengan nilai siap pakai."""
+    return {
+        "type": "button",
+        "name": preset.label,
+        "icon": "mdi:cash-plus",
+        "show_state": False,
+        "tap_action": {
+            "action": "perform-action",
+            "perform_action": f"{DOMAIN}.add_token_topup",
+            "target": {"device_id": view.device_id},
+            "data": {"nominal_rp": preset.nominal_rp},
+            "confirmation": {"text": f"{preset.label}?"},
+        },
+    }
 
 
 def _hold_button(view: GroupView, name: str, action: str, icon: str) -> dict[str, Any]:

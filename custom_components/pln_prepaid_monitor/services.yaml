@@ -5,8 +5,8 @@ add_token_topup:
       model: Billing Group
   fields:
     kwh_credited:
-      required: true
-      example: 32.5
+      required: false
+      example: 826.5
       selector:
         number:
           min: 0

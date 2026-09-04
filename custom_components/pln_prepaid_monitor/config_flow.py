@@ -36,6 +36,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
+    TextSelectorConfig,
+    TextSelectorType,
     DeviceSelector,
     DeviceSelectorConfig,
     EntitySelector,
@@ -96,6 +98,8 @@ from .const import (
     CONF_SOURCE_IDS,
     CONF_TARIFF_ID,
     CONF_TOKEN_ENABLED,
+    CONF_TOKEN_PRESETS,
+    CONF_TOKEN_PRESETS_TEXT,
     CONF_UNAVAILABLE_GRACE_MINUTES,
     CONF_WEEK_START_DAY,
     CONF_YEAR_START_MONTH,
@@ -137,6 +141,7 @@ from .engines.cost_engine import (
     ROUNDING_MODES,
     append_rate_version,
 )
+from .engines.token_engine import format_presets, parse_presets
 from .engines.normalization import (
     CHANNEL_SPECS,
     SEVERITY_ERROR,
@@ -859,35 +864,63 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         """Langkah 3: apakah sisa token PLN ikut dicatat untuk kelompok ini."""
+        errors: dict[str, str] = {}
+        defaults = self._group_input
+
         if user_input is not None:
-            self._group_input[CONF_TOKEN_ENABLED] = bool(
-                user_input.get(CONF_TOKEN_ENABLED, DEFAULT_TOKEN_ENABLED)
+            presets, bad_lines = parse_presets(
+                user_input.get(CONF_TOKEN_PRESETS_TEXT)
             )
-            self._group_input[CONF_RESET_HOLD_THRESHOLD_KWH] = float(
-                user_input.get(
-                    CONF_RESET_HOLD_THRESHOLD_KWH, DEFAULT_RESET_HOLD_THRESHOLD_KWH
+            if bad_lines:
+                # Ditolak dengan menyebut baris mana yang salah, bukan diam-diam
+                # membuang baris itu.
+                errors["base"] = "preset_format_invalid"
+                defaults = {**defaults, **user_input}
+            else:
+                self._group_input[CONF_TOKEN_ENABLED] = bool(
+                    user_input.get(CONF_TOKEN_ENABLED, DEFAULT_TOKEN_ENABLED)
                 )
-            )
-            if self._group_input[CONF_TOKEN_ENABLED]:
-                return await self.async_step_prediction()
-            return await self.async_step_cycles()
+                self._group_input[CONF_RESET_HOLD_THRESHOLD_KWH] = float(
+                    user_input.get(
+                        CONF_RESET_HOLD_THRESHOLD_KWH,
+                        DEFAULT_RESET_HOLD_THRESHOLD_KWH,
+                    )
+                )
+                self._group_input[CONF_TOKEN_PRESETS] = [
+                    preset.as_dict() for preset in presets
+                ]
+                self._group_input.pop(CONF_TOKEN_PRESETS_TEXT, None)
+                if self._group_input[CONF_TOKEN_ENABLED]:
+                    return await self.async_step_prediction()
+                return await self.async_step_cycles()
+
+        presets_text = defaults.get(CONF_TOKEN_PRESETS_TEXT)
+        if presets_text is None:
+            presets_text = format_presets(defaults.get(CONF_TOKEN_PRESETS))
 
         return self.async_show_form(
             step_id="token",
+            errors=errors,
             data_schema=vol.Schema(
                 {
                     vol.Required(
                         CONF_TOKEN_ENABLED,
                         default=bool(
-                            self._group_input.get(
-                                CONF_TOKEN_ENABLED, DEFAULT_TOKEN_ENABLED
-                            )
+                            defaults.get(CONF_TOKEN_ENABLED, DEFAULT_TOKEN_ENABLED)
                         ),
                     ): BooleanSelector(),
+                    vol.Optional(
+                        CONF_TOKEN_PRESETS_TEXT,
+                        description={"suggested_value": presets_text},
+                    ): TextSelector(
+                        TextSelectorConfig(
+                            multiline=True, type=TextSelectorType.TEXT
+                        )
+                    ),
                     vol.Required(
                         CONF_RESET_HOLD_THRESHOLD_KWH,
                         default=float(
-                            self._group_input.get(
+                            defaults.get(
                                 CONF_RESET_HOLD_THRESHOLD_KWH,
                                 DEFAULT_RESET_HOLD_THRESHOLD_KWH,
                             )

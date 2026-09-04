@@ -44,6 +44,7 @@ from .const import (
     CONF_RATE_HISTORY,
     CONF_RESET_HOLD_THRESHOLD_KWH,
     CONF_SOURCE_IDS,
+    CONF_TOKEN_PRESETS,
     CONF_TARIFF_ID,
     CONF_TOKEN_ENABLED,
     CONF_UNAVAILABLE_GRACE_MINUTES,
@@ -91,7 +92,12 @@ from .engines.prediction_engine import (
     determine_status,
     predict,
 )
-from .engines.token_engine import TokenLedger, TokenLedgerState
+from .engines.token_engine import (
+    TokenLedger,
+    TokenLedgerState,
+    TokenPreset,
+    load_presets,
+)
 from .statistics_helper import async_fetch_window_samples
 from .engines.period import ALL_PERIODS, CycleConfig, next_cycle_start
 
@@ -801,6 +807,11 @@ class BillingGroupRuntime:
         if not self.token_enabled:
             return None
         return self.ledger.consumed_kwh(self.total_kwh)
+
+    @property
+    def token_presets(self) -> list[TokenPreset]:
+        """Nilai pengisian siap pakai yang diatur user untuk kelompok ini."""
+        return load_presets(self.config.get(CONF_TOKEN_PRESETS))
 
     @property
     def reset_hold_threshold_kwh(self) -> float:

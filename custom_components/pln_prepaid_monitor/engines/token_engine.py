@@ -328,3 +328,136 @@ class TokenLedger:
 
         self.state.hold = None
         return True
+
+
+# --- nilai pengisian siap pakai ----------------------------------------------
+
+# Batas kewajaran satu kali pengisian token. Ini bukan kebijakan, melainkan
+# pagar salah ketik: pembelian Rp 1 juta pada golongan rumah tangga menghasilkan
+# ratusan kWh, jadi angka di atas ini hampir pasti salah satuan.
+#
+# Kasus yang benar-benar terjadi: struk PLN menulis jumlah kWh dalam satuan
+# 0,01 kWh - "82650 KWM" di struk berarti 826,50 kWh di layar meteran. User yang
+# menyalin 82650 apa adanya akan tertahan di sini, lengkap dengan saran
+# pembagian 100.
+MAX_PLAUSIBLE_TOPUP_KWH = 20000.0
+KWM_PER_KWH = 100
+
+
+@dataclass(frozen=True)
+class TokenPreset:
+    """Satu nilai pengisian yang sering dipakai user."""
+
+    nominal_rp: float
+    kwh: float
+
+    def as_dict(self) -> dict[str, Any]:
+        """Bentuk yang disimpan di subentry."""
+        return {"nominal_rp": self.nominal_rp, "kwh": self.kwh}
+
+    @property
+    def label(self) -> str:
+        """Label ringkas untuk tombol dashboard."""
+        nominal = f"{self.nominal_rp:,.0f}".replace(",", ".")
+        kwh = f"{self.kwh:,.2f}".replace(",", "\x00").replace(".", ",")
+        kwh = kwh.replace("\x00", ".")
+        return f"Rp {nominal} ({kwh} kWh)"
+
+
+def parse_rupiah(text: str) -> float | None:
+    """Baca nominal rupiah. Selalu bilangan bulat, jadi cukup ambil angkanya."""
+    digits = "".join(char for char in str(text) if char.isdigit())
+    if not digits:
+        return None
+    return float(digits)
+
+
+def parse_kwh(text: str) -> float | None:
+    """Baca angka kWh, menerima gaya Indonesia maupun Inggris.
+
+    ``826,50`` dan ``826.50`` sama-sama diterima. Kalau ada koma, titik
+    dianggap pemisah ribuan - jadi ``1.234,56`` juga terbaca benar.
+    """
+    cleaned = str(text).strip().replace(" ", "")
+    if not cleaned:
+        return None
+    if "," in cleaned:
+        cleaned = cleaned.replace(".", "").replace(",", ".")
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def parse_presets(text: str | None) -> tuple[list[TokenPreset], list[str]]:
+    """Baca daftar preset dari teks, satu baris satu nilai.
+
+    Bentuk tiap baris: ``nominal = kwh``, misalnya ``1.000.000 = 826,50``.
+    Mengembalikan pasangan (preset yang berhasil dibaca, baris yang gagal).
+    """
+    presets: list[TokenPreset] = []
+    bad_lines: list[str] = []
+
+    for raw_line in (text or "").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        left, separator, right = line.partition("=")
+        if not separator:
+            bad_lines.append(line)
+            continue
+
+        nominal = parse_rupiah(left)
+        kwh = parse_kwh(right)
+        if nominal is None or kwh is None or nominal <= 0 or kwh <= 0:
+            bad_lines.append(line)
+            continue
+
+        presets.append(TokenPreset(nominal_rp=nominal, kwh=kwh))
+
+    return presets, bad_lines
+
+
+def format_presets(presets: list[dict[str, Any]] | None) -> str:
+    """Tulis kembali daftar preset jadi teks untuk ditampilkan di form."""
+    lines = []
+    for preset in presets or []:
+        nominal = f"{float(preset['nominal_rp']):,.0f}".replace(",", ".")
+        kwh = f"{float(preset['kwh']):.2f}".replace(".", ",")
+        lines.append(f"{nominal} = {kwh}")
+    return "\n".join(lines)
+
+
+def load_presets(data: list[dict[str, Any]] | None) -> list[TokenPreset]:
+    """Baca preset dari data subentry."""
+    presets: list[TokenPreset] = []
+    for entry in data or []:
+        try:
+            presets.append(
+                TokenPreset(
+                    nominal_rp=float(entry["nominal_rp"]), kwh=float(entry["kwh"])
+                )
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    return presets
+
+
+def find_preset(
+    presets: list[TokenPreset], nominal_rp: float | None
+) -> TokenPreset | None:
+    """Cari preset yang cocok dengan nominal pembelian."""
+    if nominal_rp is None:
+        return None
+    for preset in presets:
+        if abs(preset.nominal_rp - nominal_rp) < 0.01:
+            return preset
+    return None
+
+
+def implausible_kwh_hint(kwh: float) -> float | None:
+    """Kalau angkanya tidak masuk akal, tebak maksud user (satuan KWM struk)."""
+    if kwh <= MAX_PLAUSIBLE_TOPUP_KWH:
+        return None
+    return kwh / KWM_PER_KWH
