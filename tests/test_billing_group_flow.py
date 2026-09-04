@@ -13,7 +13,9 @@ from custom_components.pln_prepaid_monitor.const import (
     CONF_ENERGY_ENTITY_ID,
     CONF_MONTH_START_DAY,
     CONF_POWER_ENTITY_ID,
+    CONF_RESET_HOLD_THRESHOLD_KWH,
     CONF_SOURCE_IDS,
+    CONF_TOKEN_ENABLED,
     CONF_WEEK_START_DAY,
     CONF_YEAR_START_MONTH,
     DOMAIN,
@@ -25,6 +27,11 @@ from .conftest import apply_states, MCB_RUMAH, MCB_TOKO
 
 RUMAH_ID = "src_rumah"
 TOKO_ID = "src_toko"
+
+TOKEN_INPUT = {
+    CONF_TOKEN_ENABLED: False,
+    CONF_RESET_HOLD_THRESHOLD_KWH: 1.0,
+}
 
 CYCLES_INPUT = {
     CONF_CYCLE_PERIODS: ["day", "month"],
@@ -83,6 +90,11 @@ async def test_create_billing_group(hass: HomeAssistant) -> None:
 
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {"name": "PLN RUMAH", CONF_SOURCE_IDS: [RUMAH_ID]}
+    )
+    assert result["step_id"] == "token"
+
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], dict(TOKEN_INPUT)
     )
     assert result["step_id"] == "cycles"
 
@@ -150,6 +162,9 @@ async def test_requires_at_least_one_period(hass: HomeAssistant) -> None:
         result["flow_id"], {"name": "PLN RUMAH", CONF_SOURCE_IDS: [RUMAH_ID]}
     )
     result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], dict(TOKEN_INPUT)
+    )
+    result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], dict(CYCLES_INPUT) | {CONF_CYCLE_PERIODS: []}
     )
 
@@ -210,6 +225,9 @@ async def test_overlapping_source_gives_warning_not_block(
         {"name": "PLN SEMUA", CONF_SOURCE_IDS: [RUMAH_ID, TOKO_ID]},
     )
     result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], dict(TOKEN_INPUT)
+    )
+    result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], dict(CYCLES_INPUT)
     )
 
@@ -255,6 +273,9 @@ async def test_reconfigure_billing_group(hass: HomeAssistant) -> None:
         {"name": "PLN RUMAH", CONF_SOURCE_IDS: [RUMAH_ID, TOKO_ID]},
     )
     result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], dict(TOKEN_INPUT)
+    )
+    result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], dict(CYCLES_INPUT) | {CONF_CYCLE_PERIODS: ["day", "year"]}
     )
     result = await hass.config_entries.subentries.async_configure(
@@ -277,6 +298,9 @@ async def test_custom_cycle_boundaries_are_saved(hass: HomeAssistant) -> None:
     result = await _start_flow(hass, entry)
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {"name": "PLN TOKO", CONF_SOURCE_IDS: [TOKO_ID]}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], dict(TOKEN_INPUT)
     )
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"],

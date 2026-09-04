@@ -16,8 +16,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .coordinator import PlnRuntimeData, SourceRuntime
-from .entity import PlnSourceEntity
+from .const import (
+    ATTR_HOLD_RESET_FROM,
+    ATTR_HOLD_RESET_TO,
+    ATTR_HOLD_SINCE,
+    ATTR_HOLD_SOURCE,
+)
+from .coordinator import BillingGroupRuntime, PlnRuntimeData, SourceRuntime
+from .entity import PlnBillingGroupEntity, PlnSourceEntity
 
 CHANNEL_AVAILABLE = "available"
 
@@ -34,6 +40,13 @@ async def async_setup_entry(
             [PlnSourceAvailableBinarySensor(runtime)],
             config_subentry_id=subentry_id,
         )
+
+    for subentry_id, group in runtime_data.billing_groups.items():
+        if group.token_enabled:
+            async_add_entities(
+                [PlnGroupLedgerHoldBinarySensor(group)],
+                config_subentry_id=subentry_id,
+            )
 
 
 class PlnSourceAvailableBinarySensor(PlnSourceEntity, BinarySensorEntity):
@@ -54,3 +67,39 @@ class PlnSourceAvailableBinarySensor(PlnSourceEntity, BinarySensorEntity):
     def available(self) -> bool:
         """Selalu tersedia: entity inilah yang melaporkan status sumber."""
         return True
+
+
+class PlnGroupLedgerHoldBinarySensor(PlnBillingGroupEntity, BinarySensorEntity):
+    """Menyala saat pencatatan token dibekukan menunggu keputusan Anda.
+
+    Ini terjadi kalau meteran ter-reset dan pembacaan pertama sesudahnya cukup
+    besar untuk merusak hitungan sisa token. Daripada diam-diam memotong sisa
+    token Anda, sistem berhenti dan bertanya lebih dulu - lihat
+    docs/decisions.md D-007.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor penahanan ledger."""
+        super().__init__(group, "ledger_hold")
+
+    @property
+    def is_on(self) -> bool:
+        """True selama ledger masih ditahan."""
+        return self._group.ledger.on_hold
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Detail reset yang memicu penahanan, supaya user bisa memutuskan."""
+        attributes = super().extra_state_attributes
+        hold = self._group.ledger.state.hold or {}
+        attributes.update(
+            {
+                ATTR_HOLD_SINCE: hold.get("since"),
+                ATTR_HOLD_SOURCE: hold.get("source_name"),
+                ATTR_HOLD_RESET_FROM: hold.get("reset_from"),
+                ATTR_HOLD_RESET_TO: hold.get("reset_to"),
+            }
+        )
+        return attributes

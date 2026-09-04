@@ -22,11 +22,12 @@ kapan token habis, dan mengingatkan Anda sebelum listrik padam.
 5. [Entity yang Anda dapatkan](#entity-yang-anda-dapatkan)
 6. [Membuat kelompok tagihan](#membuat-kelompok-tagihan)
 7. [Mengatur tarif dan menghitung biaya](#mengatur-tarif-dan-menghitung-biaya)
-8. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
-9. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
-10. [Troubleshooting](#troubleshooting)
-11. [Untuk pengembang](#untuk-pengembang)
-12. [Rencana pengembangan](#rencana-pengembangan)
+8. [Mencatat token PLN](#mencatat-token-pln)
+9. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
+10. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
+11. [Troubleshooting](#troubleshooting)
+12. [Untuk pengembang](#untuk-pengembang)
+13. [Rencana pengembangan](#rencana-pengembangan)
 
 ---
 
@@ -45,9 +46,12 @@ Integrasi ini dibangun bertahap. Yang **sudah selesai dan bisa dipakai**:
   siap dipakai kartu grafik bawaan dan Energy Dashboard.
 - **Perhitungan biaya dalam Rupiah**, dengan tarif yang bisa dipakai bersama
   beberapa kelompok tagihan dan riwayat perubahannya tersimpan.
+- **Pencatatan sisa token PLN** yang berdiri sendiri: Anda catat tiap
+  pengisian, sistem mengurangi sesuai pemakaian nyata, lengkap dengan koreksi
+  salah input dan pengaman saat meteran ter-reset.
 
-Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): pencatatan
-token, prediksi hari tersisa, notifikasi Telegram, dan dashboard siap pakai.
+Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): prediksi
+hari tersisa, notifikasi Telegram, dan dashboard siap pakai.
 
 ---
 
@@ -351,6 +355,104 @@ ditangani terpisah di tahap berikutnya.
 
 ---
 
+## Mencatat token PLN
+
+Tidak ada layanan resmi PLN yang bisa dibaca untuk mengetahui sisa token Anda.
+Jadi sistem ini memakai cara yang tidak bergantung pada siapa pun:
+
+1. Setiap kali Anda mengisi token, Anda catat **berapa kWh yang masuk**.
+2. Sistem mengurangi angka itu sesuai **pemakaian nyata** yang terbaca dari
+   meteran Anda sendiri.
+
+Hasilnya adalah catatan sisa token yang **berdiri sendiri** — tetap benar
+walaupun penghitung token bawaan meteran Anda bermasalah.
+
+### Mengaktifkan
+
+Saat membuat atau mengubah kelompok tagihan, ada langkah **Pencatatan token
+PLN**. Centang untuk mengaktifkan. Di situ juga ada satu pengaman yang
+dijelaskan di bawah.
+
+Setelah aktif, kelompok itu mendapat entity berikut:
+
+| Entity | Isinya |
+|---|---|
+| `sensor.pln_rumah_token_remaining` | Sisa token dalam kWh |
+| `sensor.pln_rumah_token_consumed` | Sudah terpakai berapa kWh dari token |
+| `sensor.pln_rumah_token_remaining_value` | Perkiraan nilai sisa dalam Rupiah |
+| `binary_sensor.pln_rumah_token_ledger_hold` | Menyala kalau perhitungan sedang dibekukan |
+
+### Mencatat pengisian token
+
+Buka **Developer Tools → Actions**, cari **Catat pengisian token**, pilih
+perangkat kelompok tagihannya, lalu isi:
+
+- **kWh yang masuk** — angka kWh yang benar-benar masuk ke meteran, seperti di
+  struk atau di layar meteran sesudah token dimasukkan. **Bukan** nominal
+  rupiahnya.
+- **Nominal pembelian** (opsional) — hanya untuk catatan Anda.
+- Angka meteran sebelum/sesudah (opsional) — untuk pencocokan.
+
+Pengisian bersifat **menambah**. Kalau sisa Anda masih 30 kWh lalu Anda isi 40
+kWh, sisanya jadi 70 kWh — bukan 40. Ini sudah dicocokkan dengan perilaku meteran
+fisik.
+
+### Kalau salah ketik
+
+Semua bisa dikoreksi, dan sisa token langsung dihitung ulang dari seluruh
+riwayat:
+
+| Kalau… | Pakai layanan |
+|---|---|
+| Angka kWh salah ketik | **Perbaiki catatan pengisian** |
+| Satu pengisian tercatat dua kali | **Hapus catatan pengisian** |
+| Angka sistem melenceng dari layar meteran | **Samakan dengan angka meteran** |
+| Meteran fisik diganti | **Mulai pencatatan token dari nol** |
+
+Kode entri (`topup_id`) yang dibutuhkan untuk memperbaiki atau menghapus bisa
+dilihat di atribut `topup_history` pada sensor sisa token, lewat
+**Developer Tools → States**.
+
+### Pengaman saat meteran ter-reset
+
+Ini bagian yang dirancang khusus untuk masalah yang Anda alami.
+
+Kalau meteran ter-reset dan angka pertama sesudahnya **besar** — misalnya karena
+meteran diganti dan meteran barunya sudah menunjukkan ribuan kWh — angka itu akan
+terbaca sebagai "pemakaian baru" yang sangat besar. Kalau dibiarkan, sisa token
+Anda bisa langsung terbaca habis padahal sebenarnya masih banyak.
+
+Karena itu sistem **berhenti dan bertanya** alih-alih menebak:
+
+1. `binary_sensor.<kelompok>_token_ledger_hold` menyala.
+2. Sisa token **dibekukan** di angka terakhir sebelum kejadian — tidak ikut
+   hangus.
+3. Atributnya menunjukkan dari sumber mana, kapan, dan dari angka berapa ke
+   angka berapa.
+
+Anda lalu memutuskan lewat layanan **Putuskan penahanan token**:
+
+| Pilihan | Kapan dipakai |
+|---|---|
+| **Anggap pemakaian nyata** | Listriknya memang terpakai sebanyak itu |
+| **Abaikan** | Meteran diganti, atau angkanya kacau bukan karena pemakaian |
+| **Kalibrasi dari angka meteran** | Anda ingin memasukkan sisa kWh yang tertera di layar |
+
+Reset firmware biasa — yang jatuh ke hampir nol — **tidak** memicu ini, jadi Anda
+tidak akan diganggu untuk hal sepele. Ambangnya bisa Anda atur di langkah
+Pencatatan token PLN (bawaan: 1 kWh).
+
+### Catatan penting soal nilai Rupiah-nya
+
+`token_remaining_value` = sisa kWh × tarif. Itu perkiraan **nilai** sisa token
+Anda.
+
+Itu **bukan** jumlah uang untuk membeli kWh sebanyak itu. Saat beli token,
+nominal Anda dipotong biaya admin dan PPJ dulu, jadi uang yang keluar selalu
+lebih besar.
+
+---
+
 ## Kenapa angkanya beda dengan aplikasi meteran?
 
 Sensor `..._energy` buatan integrasi ini **dimulai dari angka yang sama** dengan
@@ -499,7 +601,7 @@ sensor yang sama.
 | 1 | Pembacaan & penyeragaman sumber + config flow | **Selesai** |
 | 2 | Kelompok tagihan + penghitung per periode + statistik jangka panjang | **Selesai** |
 | 3 | Perhitungan biaya rupiah (tarif bisa diatur penuh) | **Selesai** |
-| 4 | Pencatatan token: isi ulang, sisa kWh, kalibrasi manual | Belum |
+| 4 | Pencatatan token: isi ulang, sisa kWh, kalibrasi manual | **Selesai** |
 | 5 | Prediksi hari tersisa & tanggal habis | Belum |
 | 6 | Notifikasi Telegram bertingkat | Belum |
 | 7 | Dashboard | Belum |

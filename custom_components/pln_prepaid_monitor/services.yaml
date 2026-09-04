@@ -1,0 +1,153 @@
+add_token_topup:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields:
+    kwh_credited:
+      required: true
+      example: 32.5
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+          unit_of_measurement: kWh
+    nominal_rp:
+      required: false
+      example: 50000
+      selector:
+        number:
+          min: 0
+          step: 100
+          mode: box
+    timestamp:
+      required: false
+      selector:
+        datetime:
+    meter_reading_before:
+      required: false
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+          unit_of_measurement: kWh
+    meter_reading_after:
+      required: false
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+          unit_of_measurement: kWh
+    note:
+      required: false
+      selector:
+        text:
+
+calibrate_token_reading:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields:
+    actual_remaining_kwh:
+      required: true
+      example: 18.4
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+          unit_of_measurement: kWh
+    note:
+      required: false
+      selector:
+        text:
+
+edit_topup:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields:
+    topup_id:
+      required: true
+      example: a1b2c3d4e5f6
+      selector:
+        text:
+    kwh_credited:
+      required: false
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+          unit_of_measurement: kWh
+    nominal_rp:
+      required: false
+      selector:
+        number:
+          min: 0
+          step: 100
+          mode: box
+    timestamp:
+      required: false
+      selector:
+        datetime:
+    note:
+      required: false
+      selector:
+        text:
+
+delete_topup:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields:
+    topup_id:
+      required: true
+      example: a1b2c3d4e5f6
+      selector:
+        text:
+
+reset_token_ledger:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields:
+    note:
+      required: false
+      selector:
+        text:
+
+resolve_ledger_hold:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields:
+    action:
+      required: true
+      selector:
+        select:
+          options:
+            - accept
+            - ignore
+            - calibrate
+          translation_key: hold_action
+    actual_remaining_kwh:
+      required: false
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+          unit_of_measurement: kWh
+    note:
+      required: false
+      selector:
+        text:

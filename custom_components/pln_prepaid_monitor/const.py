@@ -74,6 +74,31 @@ DEFAULT_ROUNDING_MODE: Final = "nearest"
 DEFAULT_ROUNDING_UNIT_RP: Final = 1.0
 DEFAULT_CURRENCY: Final = "IDR"
 
+# --- kunci konfigurasi Token --------------------------------------------------
+CONF_TOKEN_ENABLED: Final = "token_enabled"
+CONF_RESET_HOLD_THRESHOLD_KWH: Final = "reset_hold_threshold_kwh"
+
+DEFAULT_TOKEN_ENABLED: Final = False
+DEFAULT_RESET_HOLD_THRESHOLD_KWH: Final = 1.0
+
+# --- nama service --------------------------------------------------------------
+SERVICE_ADD_TOKEN_TOPUP: Final = "add_token_topup"
+SERVICE_CALIBRATE_TOKEN_READING: Final = "calibrate_token_reading"
+SERVICE_EDIT_TOPUP: Final = "edit_topup"
+SERVICE_DELETE_TOPUP: Final = "delete_topup"
+SERVICE_RESET_TOKEN_LEDGER: Final = "reset_token_ledger"
+SERVICE_RESOLVE_LEDGER_HOLD: Final = "resolve_ledger_hold"
+
+ATTR_KWH_CREDITED: Final = "kwh_credited"
+ATTR_NOMINAL_RP: Final = "nominal_rp"
+ATTR_TIMESTAMP: Final = "timestamp"
+ATTR_METER_READING_BEFORE: Final = "meter_reading_before"
+ATTR_METER_READING_AFTER: Final = "meter_reading_after"
+ATTR_NOTE: Final = "note"
+ATTR_TOPUP_ID: Final = "topup_id"
+ATTR_ACTUAL_REMAINING_KWH: Final = "actual_remaining_kwh"
+ATTR_HOLD_ACTION: Final = "action"
+
 # --- peran kanal (channel) kanonik -------------------------------------------
 CHANNEL_ENERGY: Final = "energy"
 CHANNEL_POWER: Final = "power"
@@ -124,3 +149,12 @@ ATTR_ACTIVE_RATE: Final = "active_rate_rp_per_kwh"
 ATTR_RATE_HISTORY: Final = "rate_history"
 ATTR_FIXED_CHARGE_INCLUDED: Final = "fixed_charge_included_rp"
 ATTR_ENERGY_COST_ONLY: Final = "energy_cost_only_rp"
+ATTR_TOTAL_CREDITED: Final = "total_credited_kwh"
+ATTR_TOPUP_COUNT: Final = "topup_count"
+ATTR_LAST_TOPUP_AT: Final = "last_topup_at"
+ATTR_TOPUP_HISTORY: Final = "topup_history"
+ATTR_LEDGER_ON_HOLD: Final = "ledger_on_hold"
+ATTR_HOLD_SINCE: Final = "hold_since"
+ATTR_HOLD_SOURCE: Final = "hold_source"
+ATTR_HOLD_RESET_FROM: Final = "hold_reset_from_kwh"
+ATTR_HOLD_RESET_TO: Final = "hold_reset_to_kwh"

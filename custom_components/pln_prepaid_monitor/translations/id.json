@@ -189,6 +189,18 @@
           "data_description": {
             "tariff_id": "Kalau tarif yang Anda butuhkan belum ada, tutup dulu form ini, tambahkan tarif dari halaman integrasi, lalu ulangi."
           }
+        },
+        "token": {
+          "title": "Pencatatan token PLN",
+          "description": "Aktifkan kalau kelompok tagihan ini memakai listrik **prabayar (token)** dan Anda ingin sistem mencatat sisa kWh-nya.\n\nSistem ini tidak bisa membaca sisa token dari PLN - tidak ada layanan resmi untuk itu. Yang dilakukan sistem: setiap kali Anda mengisi token, Anda catat berapa kWh yang masuk, lalu sistem mengurangi angka itu sesuai pemakaian nyata dari meteran Anda.\n\nHasilnya adalah catatan sisa token yang **berdiri sendiri**, tidak ikut rusak kalau penghitung bawaan meteran Anda bermasalah.",
+          "data": {
+            "token_enabled": "Catat sisa token untuk kelompok ini",
+            "reset_hold_threshold_kwh": "Ambang penahanan saat meteran ter-reset (kWh)"
+          },
+          "data_description": {
+            "token_enabled": "Biarkan mati kalau listrik kelompok ini pascabayar, atau kalau Anda hanya ingin memantau pemakaian tanpa mencatat token.",
+            "reset_hold_threshold_kwh": "Pengaman untuk kejadian langka: kalau meteran ter-reset dan angka pertama sesudahnya lebih besar dari ini, sistem **membekukan** hitungan sisa token dan bertanya dulu ke Anda, alih-alih diam-diam memotong sisa token Anda. Reset firmware biasa jatuh ke hampir nol dan tidak akan memicu ini. Nilai bawaan 1 kWh aman untuk kebanyakan kasus."
+          }
         }
       }
     },
@@ -234,6 +246,9 @@
     "binary_sensor": {
       "available": {
         "name": "Status koneksi"
+      },
+      "ledger_hold": {
+        "name": "Penahanan catatan token"
       }
     },
     "sensor": {
@@ -287,6 +302,15 @@
       },
       "cost_this_year": {
         "name": "Biaya tahun ini"
+      },
+      "token_remaining": {
+        "name": "Sisa token"
+      },
+      "token_remaining_value": {
+        "name": "Nilai sisa token"
+      },
+      "token_consumed": {
+        "name": "Token terpakai"
       }
     }
   },
@@ -339,6 +363,140 @@
         "up": "Selalu ke atas",
         "down": "Selalu ke bawah"
       }
+    },
+    "hold_action": {
+      "options": {
+        "accept": "Anggap pemakaian nyata",
+        "ignore": "Abaikan (meteran diganti/reset palsu)",
+        "calibrate": "Kalibrasi dari angka meteran"
+      }
+    }
+  },
+  "services": {
+    "add_token_topup": {
+      "name": "Catat pengisian token",
+      "description": "Catat token listrik yang baru Anda beli. Angkanya ditambahkan ke sisa yang lama, bukan menggantikannya.",
+      "fields": {
+        "kwh_credited": {
+          "name": "kWh yang masuk",
+          "description": "Jumlah kWh yang benar-benar masuk ke meteran, seperti tertera di struk atau di layar meteran sesudah token dimasukkan. Bukan nominal rupiahnya."
+        },
+        "nominal_rp": {
+          "name": "Nominal pembelian (Rp)",
+          "description": "Berapa rupiah yang Anda bayar. Hanya untuk catatan Anda sendiri; tidak dipakai menghitung sisa token."
+        },
+        "timestamp": {
+          "name": "Waktu pengisian",
+          "description": "Kosongkan untuk memakai waktu sekarang. Isi kalau Anda mencatat token yang dibeli beberapa waktu lalu."
+        },
+        "meter_reading_before": {
+          "name": "Angka meteran sebelum diisi",
+          "description": "Opsional, untuk pencocokan. Angka sisa kWh di layar meteran sebelum token dimasukkan."
+        },
+        "meter_reading_after": {
+          "name": "Angka meteran sesudah diisi",
+          "description": "Opsional, untuk pencocokan. Angka sisa kWh di layar meteran sesudah token dimasukkan."
+        },
+        "note": {
+          "name": "Catatan",
+          "description": "Catatan bebas, misalnya tempat pembelian atau nomor token."
+        }
+      }
+    },
+    "calibrate_token_reading": {
+      "name": "Samakan dengan angka meteran",
+      "description": "Samakan hitungan sistem dengan angka sisa kWh yang tertera di layar meteran fisik Anda. Pakai ini kalau kedua angka mulai melenceng.",
+      "fields": {
+        "actual_remaining_kwh": {
+          "name": "Sisa kWh di layar meteran",
+          "description": "Angka yang benar-benar Anda lihat di layar meteran saat ini. Mulai detik itu, hitungan sistem dimulai lagi dari angka tersebut."
+        },
+        "note": {
+          "name": "Catatan",
+          "description": "Alasan kalibrasi, supaya riwayatnya jelas saat dibaca lagi nanti."
+        }
+      }
+    },
+    "edit_topup": {
+      "name": "Perbaiki catatan pengisian",
+      "description": "Perbaiki entri pengisian token yang salah ketik. Sisa token langsung dihitung ulang dari seluruh riwayat.",
+      "fields": {
+        "topup_id": {
+          "name": "ID entri",
+          "description": "Kode entri yang mau diperbaiki. Bisa dilihat di atribut riwayat pada sensor sisa token."
+        },
+        "kwh_credited": {
+          "name": "kWh yang masuk",
+          "description": "Isi hanya kalau angka ini yang mau diubah."
+        },
+        "nominal_rp": {
+          "name": "Nominal pembelian (Rp)",
+          "description": "Isi hanya kalau angka ini yang mau diubah."
+        },
+        "timestamp": {
+          "name": "Waktu pengisian",
+          "description": "Isi hanya kalau waktunya yang mau diubah."
+        },
+        "note": {
+          "name": "Catatan",
+          "description": "Catatan pengganti."
+        }
+      }
+    },
+    "delete_topup": {
+      "name": "Hapus catatan pengisian",
+      "description": "Hapus entri pengisian token yang seharusnya tidak ada, misalnya karena tercatat dua kali.",
+      "fields": {
+        "topup_id": {
+          "name": "ID entri",
+          "description": "Kode entri yang mau dihapus. Bisa dilihat di atribut riwayat pada sensor sisa token."
+        }
+      }
+    },
+    "reset_token_ledger": {
+      "name": "Mulai pencatatan token dari nol",
+      "description": "Hapus perhitungan sisa token dan mulai lagi dari nol. Pakai ini kalau meteran fisik Anda diganti. Riwayat lama tetap tersimpan sebagai catatan.",
+      "fields": {
+        "note": {
+          "name": "Catatan",
+          "description": "Alasan reset, misalnya 'meteran diganti 3 September'."
+        }
+      }
+    },
+    "resolve_ledger_hold": {
+      "name": "Putuskan penahanan token",
+      "description": "Lepaskan pembekuan hitungan sisa token setelah sistem mendeteksi meteran ter-reset besar.",
+      "fields": {
+        "action": {
+          "name": "Keputusan",
+          "description": "Pilih 'Anggap pemakaian nyata' kalau listriknya memang terpakai sebanyak itu; 'Abaikan' kalau meteran diganti atau angkanya kacau bukan karena pemakaian; 'Kalibrasi' kalau Anda ingin memasukkan angka sisa yang tertera di layar meteran."
+        },
+        "actual_remaining_kwh": {
+          "name": "Sisa kWh di layar meteran",
+          "description": "Wajib diisi kalau Anda memilih 'Kalibrasi'."
+        },
+        "note": {
+          "name": "Catatan",
+          "description": "Catatan bebas."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "no_billing_group_selected": {
+      "message": "Tidak ada kelompok tagihan yang dipilih. Pilih perangkat kelompok tagihan sebagai target layanan ini."
+    },
+    "token_not_enabled": {
+      "message": "Pencatatan token belum diaktifkan untuk '{group}'. Aktifkan lewat Ubah kelompok tagihan, langkah Pencatatan token PLN."
+    },
+    "topup_not_found": {
+      "message": "Tidak ada entri pengisian dengan kode '{topup_id}'. Cek atribut riwayat pada sensor sisa token."
+    },
+    "ledger_not_on_hold": {
+      "message": "Pencatatan token '{group}' sedang tidak ditahan, jadi tidak ada yang perlu diputuskan."
+    },
+    "calibration_needs_reading": {
+      "message": "Pilihan 'Kalibrasi' membutuhkan angka sisa kWh yang tertera di layar meteran."
     }
   }
 }

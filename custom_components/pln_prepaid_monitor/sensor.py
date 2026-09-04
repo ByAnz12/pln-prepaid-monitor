@@ -40,6 +40,15 @@ from .const import (
     ATTR_ACCUMULATOR_ZERO_POINT,
     ATTR_ACTIVE_RATE,
     ATTR_CONSUMED_SINCE_START,
+    ATTR_HOLD_RESET_FROM,
+    ATTR_HOLD_RESET_TO,
+    ATTR_HOLD_SINCE,
+    ATTR_HOLD_SOURCE,
+    ATTR_LAST_TOPUP_AT,
+    ATTR_LEDGER_ON_HOLD,
+    ATTR_TOPUP_COUNT,
+    ATTR_TOPUP_HISTORY,
+    ATTR_TOTAL_CREDITED,
     ATTR_CYCLE_START,
     ATTR_DIPS_DETECTED,
     ATTR_ENERGY_COST_ONLY,
@@ -130,6 +139,12 @@ async def async_setup_entry(
                 PlnGroupPeriodCostSensor(group, period, currency)
                 for period in group.periods
             )
+        # Sensor token hanya dibuat kalau pencatatan token diaktifkan.
+        if group.token_enabled:
+            group_entities.append(PlnGroupTokenRemainingSensor(group))
+            group_entities.append(PlnGroupTokenConsumedSensor(group))
+            if group.has_cost:
+                group_entities.append(PlnGroupTokenValueSensor(group, currency))
         async_add_entities(group_entities, config_subentry_id=subentry_id)
 
 
@@ -415,3 +430,120 @@ class PlnGroupPeriodCostSensor(PlnBillingGroupEntity, SensorEntity):
         )
         attributes[ATTR_ACTIVE_RATE] = self._group.active_rate
         return attributes
+
+
+class PlnGroupTokenRemainingSensor(PlnBillingGroupEntity, SensorEntity):
+    """Sisa token dalam kWh.
+
+    Memakai ``device_class: energy_storage`` dan bukan ``energy``: di Home
+    Assistant Core 2026.8.3, ``energy`` hanya menerima state_class ``total`` /
+    ``total_increasing``, sedangkan sisa token justru **berkurang**.
+    ``energy_storage`` berarti "energi yang sedang tersedia", yang justru persis
+    menggambarkan sisa token, dan sah dipasangkan dengan ``measurement``.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENERGY_STORAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor sisa token."""
+        super().__init__(group, "token_remaining")
+
+    @property
+    def native_value(self) -> float | None:
+        """Sisa token dalam kWh."""
+        return self._group.token_remaining_kwh
+
+    @property
+    def available(self) -> bool:
+        """Tersedia begitu pencatatan token dimulai (top-up pertama)."""
+        return self._group.token_remaining_kwh is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Riwayat pengisian dan status penahanan ledger."""
+        ledger = self._group.ledger
+        attributes = super().extra_state_attributes
+        active = ledger.active_topups
+        attributes.update(
+            {
+                ATTR_TOTAL_CREDITED: ledger.total_credited_kwh,
+                ATTR_TOPUP_COUNT: len(active),
+                ATTR_LAST_TOPUP_AT: active[-1]["timestamp"] if active else None,
+                ATTR_TOPUP_HISTORY: ledger.state.entries,
+                ATTR_LEDGER_ON_HOLD: ledger.on_hold,
+            }
+        )
+        if ledger.state.hold:
+            attributes.update(
+                {
+                    ATTR_HOLD_SINCE: ledger.state.hold.get("since"),
+                    ATTR_HOLD_SOURCE: ledger.state.hold.get("source_name"),
+                    ATTR_HOLD_RESET_FROM: ledger.state.hold.get("reset_from"),
+                    ATTR_HOLD_RESET_TO: ledger.state.hold.get("reset_to"),
+                }
+            )
+        return attributes
+
+
+class PlnGroupTokenValueSensor(PlnBillingGroupEntity, SensorEntity):
+    """Perkiraan nilai sisa token dalam Rupiah.
+
+    Sengaja **tanpa** state_class: angka ini naik-turun dan tidak masuk akal
+    dijumlahkan sepanjang waktu, jadi tidak perlu masuk statistik jangka
+    panjang. ``monetary`` di Core 2026.8.3 juga hanya menerima ``total``, yang
+    salah artinya untuk angka yang berkurang.
+    """
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, group: BillingGroupRuntime, currency: str) -> None:
+        """Siapkan sensor nilai sisa token."""
+        super().__init__(group, "token_remaining_value")
+        self._attr_native_unit_of_measurement = currency
+
+    @property
+    def native_value(self) -> float | None:
+        """Sisa kWh dikali tarif yang berlaku."""
+        return apply_rounding(
+            self._group.token_remaining_value_rp, self._group.tariff
+        )
+
+    @property
+    def available(self) -> bool:
+        """Butuh sisa token sekaligus tarif."""
+        return self._group.token_remaining_value_rp is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Ingatkan bahwa ini bukan harga isi ulang."""
+        attributes = super().extra_state_attributes
+        attributes[ATTR_ACTIVE_RATE] = self._group.active_rate
+        attributes["excludes_admin_fee_and_ppj"] = True
+        return attributes
+
+
+class PlnGroupTokenConsumedSensor(PlnBillingGroupEntity, SensorEntity):
+    """Pemakaian sejak titik awal ledger token."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor pemakaian sejak titik awal."""
+        super().__init__(group, "token_consumed")
+
+    @property
+    def native_value(self) -> float | None:
+        """kWh yang sudah terpakai dari token."""
+        return self._group.token_consumed_kwh
+
+    @property
+    def available(self) -> bool:
+        """Tersedia begitu pencatatan token dimulai."""
+        return self._group.token_consumed_kwh is not None

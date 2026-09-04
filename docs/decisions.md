@@ -9,6 +9,99 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-020 · `token_status` ditunda ke Milestone 5
+
+**Tanggal**: 3 September 2026 · **Milestone 4**
+
+Spec D.2 mendaftarkan `sensor.<mu>_token_status` (normal/warning/critical/
+very_critical). Tapi aturan penentuannya di spec I.1 bertumpu pada
+`estimated_days_remaining`, yang baru ada setelah Prediction Engine (Milestone
+5). Membuatnya sekarang berarti mengirim sensor yang perilakunya berubah besar
+milestone depan.
+
+Sebagai gantinya, Milestone 4 mengirim `binary_sensor.<mu>_token_ledger_hold`
+untuk keadaan yang memang sudah bisa ditentukan sekarang: ledger sedang
+dibekukan menunggu keputusan user.
+
+---
+
+## D-019 · State ledger disimpan di `.storage`, bukan di data config entry
+
+**Tanggal**: 3 September 2026 · **Milestone 4**
+
+Riwayat top-up dan titik awal ledger disimpan lewat `helpers.storage.Store`,
+di tempat yang sama dengan state akumulator - bukan di dalam data subentry.
+
+Alasannya bukan selera: integrasi ini memasang *update listener* yang memuat
+ulang seluruh entry setiap kali config entry berubah (itu yang membuat
+penambahan sumber langsung berlaku tanpa restart). Kalau setiap pencatatan
+top-up menulis ke data subentry, setiap top-up akan **me-restart seluruh
+integrasi**. Menyimpan ke `.storage` menghindari itu sepenuhnya.
+
+Konfigurasi (aktif/tidak, ambang penahanan) tetap di subentry, karena memang
+diubah lewat form dan memang seharusnya memicu muat ulang.
+
+---
+
+## D-018 · Pencatatan token jadi langkah di alur kelompok tagihan, bukan objek tersendiri
+
+**Tanggal**: 3 September 2026 · **Milestone 4**
+
+Spec D.1 mendefinisikan `TokenAccount` sebagai objek dengan id sendiri. Yang
+diimplementasikan: **satu langkah di alur kelompok tagihan**.
+
+Alasannya sejalan dengan [D-011](#d-011--billing-group-menerima-beberapa-sumber-langsung-objek-aggregate-ditunda)
+dan [D-014](#d-014--tarif-dibuat-sebagai-objek-tersendiri-berbeda-dari-keputusan-aggregate):
+objek tersendiri hanya berguna kalau bisa dipakai bersama. Tarif memang bisa
+(rumah dan toko sering segolongan), tapi **token tidak pernah** - tiap meteran
+prabayar punya salda sendiri, hubungannya selalu satu-ke-satu dengan kelompok
+tagihan. Memisahkannya hanya menambah satu konsep tanpa satu pun manfaat.
+
+---
+
+## D-017 · Nilai sisa token dalam Rupiah sengaja tanpa `state_class`
+
+**Tanggal**: 3 September 2026 · **Milestone 4**
+
+`sensor.<mu>_token_remaining_value` memakai `device_class: monetary` **tanpa**
+`state_class` sama sekali.
+
+Spec D.2 memberinya `measurement`, tapi `monetary` di Core 2026.8.3 hanya
+menerima `total` (lihat [D-012](#d-012--monetary-hanya-menerima-state_class-total-koreksi-spec-d2)),
+dan `total` salah artinya untuk angka yang **berkurang**: statistiknya akan
+menjumlahkan penurunan sebagai angka negatif.
+
+Tanpa `state_class`, Home Assistant tidak membuat statistik jangka panjang untuk
+sensor ini - dan memang tidak seharusnya: "nilai sisa saat ini" bukan besaran
+yang masuk akal dijumlahkan sepanjang waktu. Angkanya tetap tampil normal di
+dashboard.
+
+---
+
+## D-016 · Sisa token memakai `energy_storage`, bukan `energy` (koreksi spec D.2)
+
+**Tanggal**: 3 September 2026 · **Milestone 4** · **Status: VERIFIED**
+
+Spec D.2 memberi `token_remaining_kwh` kombinasi `device_class: energy` +
+`state_class: measurement`. Diverifikasi ke source Core 2026.8.3
+(`components/sensor/const.py`), kombinasi itu tidak sah:
+
+```python
+SensorDeviceClass.ENERGY: {SensorStateClass.TOTAL, SensorStateClass.TOTAL_INCREASING},
+```
+
+`energy` mengasumsikan angka yang naik, sedangkan sisa token justru **turun**.
+
+Yang dipakai: **`device_class: energy_storage`** dengan `state_class:
+measurement`. Ini bukan akal-akalan agar lolos validasi - `energy_storage`
+berarti "energi yang sedang tersedia", yang justru persis menggambarkan sisa
+token, dan Core memang mengizinkannya dengan `measurement`. Bonusnya, sisa token
+jadi punya statistik jangka panjang sehingga bisa digrafikkan.
+
+**Catatan**: `spec.md` Bagian D.2 sebaiknya diperbarui mengikuti ini.
+
+---
+
 ## D-015 · Biaya beban disebar per hari, bukan ditagihkan sekaligus di awal siklus
 
 **Tanggal**: 3 September 2026 · **Milestone 3**
@@ -288,9 +381,9 @@ dan `..._small_dip` di `tests/test_accumulator.py`.
 
 ---
 
-## D-007 · Pengaman ledger token saat reset besar (rancangan Milestone 4)
+## D-007 · Pengaman ledger token saat reset besar
 
-**Tanggal**: 3 September 2026 · **Disetujui user** · **Belum diimplementasikan**
+**Tanggal**: 3 September 2026 · **Disetujui user** · **Terpasang di Milestone 4**
 
 **Masalah**: karena kita mengikuti HA Core (D-003), pembacaan pertama sesudah
 reset dihitung penuh sebagai konsumsi. Untuk reset firmware biasa (jatuh ke

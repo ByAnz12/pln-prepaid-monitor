@@ -41,10 +41,14 @@ from .const import (
     CONF_CYCLE_PERIODS,
     CONF_ENABLED,
     CONF_RATE_HISTORY,
+    CONF_RESET_HOLD_THRESHOLD_KWH,
     CONF_SOURCE_IDS,
     CONF_TARIFF_ID,
+    CONF_TOKEN_ENABLED,
     CONF_UNAVAILABLE_GRACE_MINUTES,
     DEFAULT_CYCLE_PERIODS,
+    DEFAULT_RESET_HOLD_THRESHOLD_KWH,
+    DEFAULT_TOKEN_ENABLED,
     DEFAULT_UNAVAILABLE_GRACE_MINUTES,
     SOURCE_OF_TRUTH_CUMULATIVE,
     SOURCE_OF_TRUTH_INTEGRATED,
@@ -75,6 +79,7 @@ from .engines.energy_calc import (
     PeriodCounterState,
 )
 from .engines.normalization import CHANNEL_SPECS, conversion_factor
+from .engines.token_engine import TokenLedger, TokenLedgerState
 from .engines.period import ALL_PERIODS, CycleConfig, next_cycle_start
 
 _LOGGER = logging.getLogger(__name__)
@@ -523,6 +528,8 @@ class BillingGroupRuntime:
             for period in self.periods
         }
 
+        self.ledger = TokenLedger(TokenLedgerState.from_dict(stored.get("token")))
+
         self._member_unsubs: list[CALLBACK_TYPE] = []
         self._timer_unsubs: dict[str, CALLBACK_TYPE] = {}
         self._listeners: list[CALLBACK_TYPE] = []
@@ -687,6 +694,10 @@ class BillingGroupRuntime:
     def _refresh(self) -> None:
         """Hitung ulang total gabungan dan seluruh penghitung periode."""
         now = dt_util.now()
+        # Dicatat sebelum diperbarui: kalau ternyata ada reset counter besar,
+        # inilah titik yang dipakai membekukan ledger token - bukan angka
+        # sesudahnya, yang sudah menyerap lonjakannya.
+        total_before_update = self.group_total.state.total
         total = self.group_total.update(
             {
                 source_id: runtime.energy_kwh
@@ -700,6 +711,8 @@ class BillingGroupRuntime:
                     period,
                     self.name,
                 )
+
+        self._check_for_ledger_hold(total_before_update)
 
         if self.tariff is None:
             return
@@ -732,6 +745,113 @@ class BillingGroupRuntime:
         )
 
     # ------------------------------------------------------------------
+    # token
+    # ------------------------------------------------------------------
+
+    @property
+    def token_enabled(self) -> bool:
+        """Apakah pencatatan token diaktifkan untuk kelompok ini."""
+        return bool(self.config.get(CONF_TOKEN_ENABLED, DEFAULT_TOKEN_ENABLED))
+
+    @property
+    def token_remaining_kwh(self) -> float | None:
+        """Sisa token dalam kWh."""
+        if not self.token_enabled:
+            return None
+        return self.ledger.remaining_kwh(self.total_kwh)
+
+    @property
+    def token_remaining_value_rp(self) -> float | None:
+        """Perkiraan nilai sisa token dalam Rupiah.
+
+        Ini **bukan** jumlah uang yang perlu dibayar untuk membeli kWh sebanyak
+        itu: pembelian token baru akan dipotong biaya admin dan PPJ dulu
+        (spec F.3 dan B.2).
+        """
+        remaining = self.token_remaining_kwh
+        if remaining is None or self.tariff is None:
+            return None
+        return remaining * self.tariff.rate_rp_per_kwh
+
+    @property
+    def token_consumed_kwh(self) -> float | None:
+        """Pemakaian sejak titik awal ledger token."""
+        if not self.token_enabled:
+            return None
+        return self.ledger.consumed_kwh(self.total_kwh)
+
+    @property
+    def reset_hold_threshold_kwh(self) -> float:
+        """Ambang pembacaan pasca-reset yang memicu penahanan ledger."""
+        try:
+            return float(
+                self.config.get(
+                    CONF_RESET_HOLD_THRESHOLD_KWH, DEFAULT_RESET_HOLD_THRESHOLD_KWH
+                )
+            )
+        except (TypeError, ValueError):
+            return DEFAULT_RESET_HOLD_THRESHOLD_KWH
+
+    @callback
+    def _check_for_ledger_hold(self, total_before_update: float | None) -> None:
+        """Tahan ledger kalau ada reset counter yang cukup besar (lihat D-007).
+
+        Yang menentukan bahaya bukan sedalam apa angkanya jatuh, melainkan
+        **berapa nilai pembacaan pertama sesudah reset** - karena angka itulah
+        yang akan langsung terhitung penuh sebagai pemakaian baru.
+        """
+        if not self.token_enabled or not self.ledger.started:
+            return
+
+        threshold = self.reset_hold_threshold_kwh
+        for source_id, runtime in self.members.items():
+            state = runtime.accumulator.state
+            seen = self.ledger.state.seen_resets.get(source_id, 0)
+            if state.resets_detected <= seen:
+                continue
+
+            self.ledger.state.seen_resets[source_id] = state.resets_detected
+            reset_to = state.last_reset_to
+            if reset_to is None or reset_to <= threshold:
+                # Reset firmware biasa yang jatuh ke hampir nol: dampaknya bisa
+                # diabaikan, ledger jalan terus tanpa mengganggu user.
+                _LOGGER.info(
+                    "Reset kecil pada '%s' (%s kWh) tidak menahan ledger token '%s'",
+                    runtime.name,
+                    reset_to,
+                    self.name,
+                )
+                continue
+
+            _LOGGER.warning(
+                "Ledger token '%s' ditahan: sumber '%s' melompat ke %s kWh sesudah "
+                "reset counter, melebihi ambang %s kWh. Sisa token dibekukan sampai "
+                "Anda memutuskan lewat layanan resolve_ledger_hold",
+                self.name,
+                runtime.name,
+                reset_to,
+                threshold,
+            )
+            self.ledger.engage_hold(
+                source_name=runtime.name,
+                reset_from=state.last_reset_from,
+                reset_to=reset_to,
+                group_total=(
+                    total_before_update
+                    if total_before_update is not None
+                    else self.total_kwh
+                ),
+                timestamp=dt_util.now().isoformat(),
+            )
+            return
+
+    @callback
+    def async_ledger_changed(self) -> None:
+        """Dipanggil sesudah layanan token mengubah ledger."""
+        self._async_notify()
+        self._on_persist()
+
+    # ------------------------------------------------------------------
     # persistensi
     # ------------------------------------------------------------------
 
@@ -748,6 +868,7 @@ class BillingGroupRuntime:
                 period: counter.state.as_dict()
                 for period, counter in self.cost_counters.items()
             },
+            "token": self.ledger.state.as_dict(),
         }
 
 

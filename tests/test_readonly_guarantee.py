@@ -116,11 +116,31 @@ async def test_relay_entities_are_untouched_after_setup(
     assert after == before
 
 
-async def test_integration_creates_no_services(hass: HomeAssistant) -> None:
-    """Milestone 1 belum mendaftarkan service apa pun."""
+async def test_only_bookkeeping_services_are_registered(
+    hass: HomeAssistant,
+) -> None:
+    """Daftar layanan dikunci: semuanya hanya mengubah catatan token.
+
+    Tidak ada satu pun yang menyentuh perangkat. Kalau suatu saat ada layanan
+    baru yang ditambahkan, test ini akan gagal dan memaksa keputusan itu ditinjau
+    ulang secara sadar.
+    """
     entry = MockConfigEntry(domain=DOMAIN, data={})
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.services.async_services().get(DOMAIN, {}) == {}
+    registered = set(hass.services.async_services().get(DOMAIN, {}))
+
+    assert registered == {
+        "add_token_topup",
+        "calibrate_token_reading",
+        "edit_topup",
+        "delete_topup",
+        "reset_token_ledger",
+        "resolve_ledger_hold",
+    }
+    for name in registered:
+        assert not any(
+            word in name for word in ("turn", "switch", "toggle", "power", "breaker")
+        )

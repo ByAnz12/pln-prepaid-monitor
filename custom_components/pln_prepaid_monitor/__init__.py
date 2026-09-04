@@ -11,8 +11,9 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import PLATFORMS
+from .const import DOMAIN, PLATFORMS
 from .coordinator import PlnRuntimeData
+from .services import async_setup_services, async_unload_services
 
 type PlnConfigEntry = ConfigEntry[PlnRuntimeData]
 
@@ -25,6 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: PlnConfigEntry) -> bool:
     entry.runtime_data = runtime_data
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    async_setup_services(hass)
 
     # Menambah, mengedit, atau menghapus Energy Source memicu update pada
     # config entry induk. Listener ini yang membuat perubahan itu langsung
@@ -38,6 +40,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: PlnConfigEntry) -> bool
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         await entry.runtime_data.async_shutdown()
+        if len(hass.config_entries.async_entries(DOMAIN)) <= 1:
+            async_unload_services(hass)
     return unloaded
 
 

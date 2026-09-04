@@ -74,8 +74,10 @@ from .const import (
     CONF_ROUNDING_MODE,
     CONF_ROUNDING_UNIT_RP,
     CONF_SHOW_ALL_SENSORS,
+    CONF_RESET_HOLD_THRESHOLD_KWH,
     CONF_SOURCE_IDS,
     CONF_TARIFF_ID,
+    CONF_TOKEN_ENABLED,
     CONF_UNAVAILABLE_GRACE_MINUTES,
     CONF_WEEK_START_DAY,
     CONF_YEAR_START_MONTH,
@@ -85,8 +87,10 @@ from .const import (
     DEFAULT_FIXED_CHARGE_RP,
     DEFAULT_MONTH_START_DAY,
     DEFAULT_RATE_RP_PER_KWH,
+    DEFAULT_RESET_HOLD_THRESHOLD_KWH,
     DEFAULT_ROUNDING_MODE,
     DEFAULT_ROUNDING_UNIT_RP,
+    DEFAULT_TOKEN_ENABLED,
     DEFAULT_UNAVAILABLE_GRACE_MINUTES,
     DEFAULT_WEEK_START_DAY,
     DEFAULT_YEAR_START_MONTH,
@@ -789,11 +793,11 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
         tariffs = self._available_tariffs()
         if not tariffs:
             self._group_input.setdefault(CONF_TARIFF_ID, None)
-            return await self.async_step_cycles()
+            return await self.async_step_token()
 
         if user_input is not None:
             self._group_input[CONF_TARIFF_ID] = user_input.get(CONF_TARIFF_ID)
-            return await self.async_step_cycles()
+            return await self.async_step_token()
 
         options = [
             SelectOptionDict(value=tariff_id, label=name)
@@ -817,10 +821,54 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
             ),
         )
 
+    async def async_step_token(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Langkah 3: apakah sisa token PLN ikut dicatat untuk kelompok ini."""
+        if user_input is not None:
+            self._group_input[CONF_TOKEN_ENABLED] = bool(
+                user_input.get(CONF_TOKEN_ENABLED, DEFAULT_TOKEN_ENABLED)
+            )
+            self._group_input[CONF_RESET_HOLD_THRESHOLD_KWH] = float(
+                user_input.get(
+                    CONF_RESET_HOLD_THRESHOLD_KWH, DEFAULT_RESET_HOLD_THRESHOLD_KWH
+                )
+            )
+            return await self.async_step_cycles()
+
+        return self.async_show_form(
+            step_id="token",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_TOKEN_ENABLED,
+                        default=bool(
+                            self._group_input.get(
+                                CONF_TOKEN_ENABLED, DEFAULT_TOKEN_ENABLED
+                            )
+                        ),
+                    ): BooleanSelector(),
+                    vol.Required(
+                        CONF_RESET_HOLD_THRESHOLD_KWH,
+                        default=float(
+                            self._group_input.get(
+                                CONF_RESET_HOLD_THRESHOLD_KWH,
+                                DEFAULT_RESET_HOLD_THRESHOLD_KWH,
+                            )
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0, step=0.1, mode=NumberSelectorMode.BOX
+                        )
+                    ),
+                }
+            ),
+        )
+
     async def async_step_cycles(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Langkah 3: periode apa saja, dan di mana batas siklusnya jatuh."""
+        """Langkah 4: periode apa saja, dan di mana batas siklusnya jatuh."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -844,7 +892,7 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
     async def async_step_review(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Langkah 4: ringkasan sebelum disimpan."""
+        """Langkah 5: ringkasan sebelum disimpan."""
         if user_input is None:
             return self.async_show_form(
                 step_id="review",

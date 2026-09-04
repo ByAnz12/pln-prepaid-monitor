@@ -17,10 +17,12 @@ from custom_components.pln_prepaid_monitor.const import (
     CONF_MONTH_START_DAY,
     CONF_RATE_HISTORY,
     CONF_RATE_RP_PER_KWH,
+    CONF_RESET_HOLD_THRESHOLD_KWH,
     CONF_ROUNDING_MODE,
     CONF_ROUNDING_UNIT_RP,
     CONF_SOURCE_IDS,
     CONF_TARIFF_ID,
+    CONF_TOKEN_ENABLED,
     CONF_WEEK_START_DAY,
     CONF_YEAR_START_MONTH,
     DEFAULT_RATE_RP_PER_KWH,
@@ -42,6 +44,11 @@ TARIFF_INPUT = {
     CONF_FIXED_CHARGE_PERIOD: "monthly",
     CONF_ROUNDING_MODE: "nearest",
     CONF_ROUNDING_UNIT_RP: 1.0,
+}
+
+TOKEN_INPUT = {
+    CONF_TOKEN_ENABLED: False,
+    CONF_RESET_HOLD_THRESHOLD_KWH: 1.0,
 }
 
 CYCLES_INPUT = {
@@ -187,6 +194,11 @@ async def test_billing_group_can_pick_a_tariff(hass: HomeAssistant) -> None:
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {CONF_TARIFF_ID: TARIFF_ID}
     )
+    assert result["step_id"] == "token"
+
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], dict(TOKEN_INPUT)
+    )
     assert result["step_id"] == "cycles"
 
     result = await hass.config_entries.subentries.async_configure(
@@ -223,7 +235,12 @@ async def test_tariff_step_is_skipped_when_none_exist(hass: HomeAssistant) -> No
         result["flow_id"], {"name": "PLN RUMAH", CONF_SOURCE_IDS: [RUMAH_ID]}
     )
 
-    # Langsung ke periode, tanpa langkah tarif.
+    # Langsung ke langkah token, tanpa langkah tarif.
+    assert result["step_id"] == "token"
+
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], dict(TOKEN_INPUT)
+    )
     assert result["step_id"] == "cycles"
 
     result = await hass.config_entries.subentries.async_configure(
@@ -255,6 +272,11 @@ async def test_tariff_can_be_left_empty(hass: HomeAssistant) -> None:
     )
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {}
+    )
+    assert result["step_id"] == "token"
+
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], dict(TOKEN_INPUT)
     )
     assert result["step_id"] == "cycles"
 

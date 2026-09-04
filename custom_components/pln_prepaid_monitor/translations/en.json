@@ -189,6 +189,18 @@
           "data_description": {
             "tariff_id": "If the tariff you need does not exist yet, close this form, add a tariff from the integration page, then start again."
           }
+        },
+        "token": {
+          "title": "PLN token tracking",
+          "description": "Turn this on if this billing group runs on **prepaid (token)** electricity and you want the system to track the remaining kWh.\n\nThe system cannot read your remaining token from PLN - there is no official service for that. What it does instead: each time you top up, you record how many kWh went in, and the system subtracts your real usage as measured by your meter.\n\nThe result is a token record that **stands on its own**, and does not break when your meter's built-in counter misbehaves.",
+          "data": {
+            "token_enabled": "Track remaining token for this group",
+            "reset_hold_threshold_kwh": "Hold threshold when the meter resets (kWh)"
+          },
+          "data_description": {
+            "token_enabled": "Leave off if this group is on postpaid electricity, or if you only want usage monitoring without token tracking.",
+            "reset_hold_threshold_kwh": "A safeguard for a rare event: if the meter resets and the first reading afterwards is larger than this, the system **freezes** the remaining-token figure and asks you first, instead of silently subtracting it from your balance. An ordinary firmware reset drops to nearly zero and will not trigger this. The default of 1 kWh is safe for most cases."
+          }
         }
       }
     },
@@ -234,6 +246,9 @@
     "binary_sensor": {
       "available": {
         "name": "Connection status"
+      },
+      "ledger_hold": {
+        "name": "Token ledger hold"
       }
     },
     "sensor": {
@@ -287,6 +302,15 @@
       },
       "cost_this_year": {
         "name": "Cost this year"
+      },
+      "token_remaining": {
+        "name": "Token remaining"
+      },
+      "token_remaining_value": {
+        "name": "Token remaining value"
+      },
+      "token_consumed": {
+        "name": "Token consumed"
       }
     }
   },
@@ -339,6 +363,140 @@
         "up": "Always up",
         "down": "Always down"
       }
+    },
+    "hold_action": {
+      "options": {
+        "accept": "Treat as real usage",
+        "ignore": "Ignore (meter replaced / false reset)",
+        "calibrate": "Calibrate from the meter reading"
+      }
+    }
+  },
+  "services": {
+    "add_token_topup": {
+      "name": "Record token top-up",
+      "description": "Record electricity token you have just bought. The amount is added to what is left, not replacing it.",
+      "fields": {
+        "kwh_credited": {
+          "name": "kWh added",
+          "description": "How many kWh actually went into the meter, as shown on the receipt or on the meter display after entering the token. Not the rupiah amount."
+        },
+        "nominal_rp": {
+          "name": "Amount paid (Rp)",
+          "description": "How much you paid. For your own records only; not used to calculate the remaining token."
+        },
+        "timestamp": {
+          "name": "Top-up time",
+          "description": "Leave empty to use the current time. Fill it in if you are recording a token bought earlier."
+        },
+        "meter_reading_before": {
+          "name": "Meter reading before top-up",
+          "description": "Optional, for cross-checking. The remaining kWh shown on the meter before the token was entered."
+        },
+        "meter_reading_after": {
+          "name": "Meter reading after top-up",
+          "description": "Optional, for cross-checking. The remaining kWh shown on the meter after the token was entered."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Free text, for example where you bought it or the token number."
+        }
+      }
+    },
+    "calibrate_token_reading": {
+      "name": "Match the meter reading",
+      "description": "Bring the system's figure in line with the remaining kWh shown on your physical meter. Use this when the two start to drift apart.",
+      "fields": {
+        "actual_remaining_kwh": {
+          "name": "Remaining kWh on the meter",
+          "description": "The number you can actually see on the meter right now. From that moment on, the system counts down from that figure."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Why you calibrated, so the history makes sense later."
+        }
+      }
+    },
+    "edit_topup": {
+      "name": "Correct a top-up record",
+      "description": "Fix a mistyped top-up entry. The remaining token is recalculated from the whole history immediately.",
+      "fields": {
+        "topup_id": {
+          "name": "Entry ID",
+          "description": "The id of the entry to fix. You can find it in the history attribute on the remaining-token sensor."
+        },
+        "kwh_credited": {
+          "name": "kWh added",
+          "description": "Fill in only if this is the value you want to change."
+        },
+        "nominal_rp": {
+          "name": "Amount paid (Rp)",
+          "description": "Fill in only if this is the value you want to change."
+        },
+        "timestamp": {
+          "name": "Top-up time",
+          "description": "Fill in only if the time is what you want to change."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Replacement note."
+        }
+      }
+    },
+    "delete_topup": {
+      "name": "Delete a top-up record",
+      "description": "Remove a top-up entry that should not be there, for example one recorded twice.",
+      "fields": {
+        "topup_id": {
+          "name": "Entry ID",
+          "description": "The id of the entry to delete. You can find it in the history attribute on the remaining-token sensor."
+        }
+      }
+    },
+    "reset_token_ledger": {
+      "name": "Start token tracking from zero",
+      "description": "Clear the remaining-token calculation and start again from zero. Use this when your physical meter has been replaced. The old history is kept as a record.",
+      "fields": {
+        "note": {
+          "name": "Note",
+          "description": "Why you reset, for example 'meter replaced on 3 September'."
+        }
+      }
+    },
+    "resolve_ledger_hold": {
+      "name": "Decide on a token hold",
+      "description": "Release the frozen remaining-token figure after the system detected a large meter reset.",
+      "fields": {
+        "action": {
+          "name": "Decision",
+          "description": "Pick 'Treat as real usage' if that much electricity really was used; 'Ignore' if the meter was replaced or the number went wrong for reasons other than usage; 'Calibrate' if you want to enter the remaining figure shown on the meter."
+        },
+        "actual_remaining_kwh": {
+          "name": "Remaining kWh on the meter",
+          "description": "Required if you choose 'Calibrate'."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Free text."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "no_billing_group_selected": {
+      "message": "No billing group selected. Pick a billing group device as the target of this action."
+    },
+    "token_not_enabled": {
+      "message": "Token tracking is not enabled for '{group}'. Turn it on via Reconfigure billing group, PLN token tracking step."
+    },
+    "topup_not_found": {
+      "message": "There is no top-up entry with id '{topup_id}'. Check the history attribute on the remaining-token sensor."
+    },
+    "ledger_not_on_hold": {
+      "message": "Token tracking for '{group}' is not on hold, so there is nothing to decide."
+    },
+    "calibration_needs_reading": {
+      "message": "The 'Calibrate' option needs the remaining kWh shown on the meter."
     }
   }
 }
