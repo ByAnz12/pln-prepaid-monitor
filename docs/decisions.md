@@ -9,6 +9,57 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-037 · Ikon integrasi disajikan dari folder `brand/`, dan sengaja bukan logo PLN
+
+**Tanggal**: 4 September 2026 · **Status: VERIFIED**
+
+### Dari mana Home Assistant mengambil ikon integrasi
+
+Diverifikasi ke Core 2026.8.3, bukan dari ingatan:
+
+| Yang dicek | Hasil |
+|---|---|
+| `components/brands/__init__.py` → `_serve_from_custom_integration` | Ada |
+| Syaratnya: `Integration.has_branding` | `"brand" in self._top_level_files` — cukup ada folder bernama `brand` |
+| Nama berkas yang diterima | `icon.png`, `logo.png`, `icon@2x.png`, `dark_*`, dst |
+| Rantai fallback | `logo.png` → `icon.png`, jadi cukup sediakan ikon |
+| Kategori `icons.json` yang dikonsumsi frontend | `conditions`, `entity`, `entity_component`, `services`, `triggers` |
+
+Artinya integrasi custom **tidak perlu** mengirim PR ke repositori
+`home-assistant/brands` — anggapan yang berlaku di versi-versi lama. Cukup
+taruh berkasnya di `custom_components/pln_prepaid_monitor/brand/`.
+
+`hacs.json` dan `manifest.json` sudah mensyaratkan minimal 2026.8.0, jadi
+fitur ini pasti tersedia.
+
+### Kenapa bukan logo PLN
+
+Logo PT PLN (Persero) adalah merek dagang terdaftar. Integrasi ini bukan
+buatan PLN dan tidak berafiliasi dengan mereka; memakai logo itu akan
+menyiratkan restu yang tidak pernah ada. Yang digambar adalah **maknanya** —
+listrik prabayar dan sisa token — bukan lambang perusahaannya.
+
+Ikonnya dihasilkan oleh `scripts/make_brand_icon.py`, jadi bisa diubah dan
+dibuat ulang secara deterministik tanpa alat desain.
+
+### Ikon entity: hanya di tempat yang menambah informasi
+
+`icons.json` sengaja **tidak** menimpa ikon yang sudah benar dari
+`device_class` (tegangan, arus, frekuensi, daya, status koneksi, penahan
+ledger). Menimpanya tidak menambah informasi apa pun, hanya membuat integrasi
+ini tampil beda sendiri. Keputusan itu dikunci oleh
+`test_we_do_not_override_icons_device_class_already_gets_right`.
+
+Penghitung periode (`energy_this_day`, `cost_this_month`, dst) juga dibiarkan
+memakai ikon bawaannya. Namanya sudah menyebut periodenya; ikon kalender di
+sebelahnya hanya mengulang, bukan memberi tahu.
+
+Yang ditimpa hanya yang benar-benar membantu, terutama **status token** yang
+ikonnya ikut berubah mengikuti tingkat keparahan — informasi yang terbaca
+sekilas tanpa perlu membaca teksnya.
+
+---
+
 ## D-036 · Response `generate_dashboard` adalah konfigurasi dashboard itu sendiri
 
 **Tanggal**: 4 September 2026 · **Perbaikan setelah Milestone 8**

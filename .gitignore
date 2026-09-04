@@ -8,3 +8,6 @@ venv/
 .mypy_cache/
 .ruff_cache/
 *.egg-info/
+
+# Paket siap pasang - dibangun ulang dari sumber, jangan ikut dilacak.
+*.zip

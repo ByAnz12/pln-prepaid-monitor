@@ -1,0 +1,59 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "data_sufficient": {
+        "default": "mdi:database-alert",
+        "state": {
+          "on": "mdi:database-check"
+        }
+      }
+    },
+    "sensor": {
+      "energy": {
+        "default": "mdi:meter-electric-outline"
+      },
+      "energy_total": {
+        "default": "mdi:counter"
+      },
+      "cost_total": {
+        "default": "mdi:cash-multiple"
+      },
+      "token_remaining": {
+        "default": "mdi:gauge"
+      },
+      "token_consumed": {
+        "default": "mdi:lightning-bolt"
+      },
+      "avg_daily_usage": {
+        "default": "mdi:chart-line"
+      },
+      "days_remaining": {
+        "default": "mdi:calendar-clock"
+      },
+      "empty_date": {
+        "default": "mdi:calendar-alert"
+      },
+      "token_status": {
+        "default": "mdi:help-circle-outline",
+        "state": {
+          "normal": "mdi:check-circle",
+          "warning": "mdi:alert-circle-outline",
+          "critical": "mdi:alert-circle",
+          "very_critical": "mdi:alert-octagon",
+          "hold": "mdi:pause-circle",
+          "unknown": "mdi:help-circle-outline"
+        }
+      }
+    }
+  },
+  "services": {
+    "add_token_topup": "mdi:cash-plus",
+    "calibrate_token_reading": "mdi:auto-fix",
+    "edit_topup": "mdi:pencil",
+    "delete_topup": "mdi:delete-outline",
+    "reset_token_ledger": "mdi:restore-alert",
+    "resolve_ledger_hold": "mdi:play-circle-outline",
+    "generate_dashboard": "mdi:view-dashboard-outline",
+    "purge_old_data": "mdi:database-remove"
+  }
+}

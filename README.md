@@ -925,6 +925,28 @@ dengan perhitungan statistik bawaan Home Assistant. Kalau test itu gagal,
 artinya angka integrasi ini akan menyimpang dari angka Home Assistant untuk
 sensor yang sama.
 
+### Ikon integrasi
+
+Ikon yang muncul di **Settings → Devices & Services** diambil dari
+`custom_components/pln_prepaid_monitor/brand/`. Home Assistant menyajikan
+berkas dari folder bernama persis `brand` untuk integrasi custom, jadi tidak
+perlu mendaftarkan apa pun ke repositori brands Home Assistant.
+
+Ikonnya dibuat ulang dengan:
+
+```bash
+python scripts/make_brand_icon.py custom_components/pln_prepaid_monitor/brand
+```
+
+Ikon per-entity dan per-layanan ada di `icons.json`. Entity yang sudah punya
+`device_class` dengan ikon yang tepat — tegangan, arus, frekuensi, daya,
+status koneksi — sengaja **tidak** ditimpa, supaya integrasi ini tidak tampil
+beda sendiri dari seluruh Home Assistant.
+
+Ikon di sini **bukan logo PT PLN (Persero)** dan tidak meniru logo itu. Logo
+tersebut merek dagang terdaftar milik mereka, sementara integrasi ini bukan
+buatan PLN dan tidak berafiliasi dengan PLN.
+
 ---
 
 ## Rencana pengembangan
