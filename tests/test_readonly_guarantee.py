@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -56,23 +57,77 @@ def test_no_control_platform_module_exists() -> None:
         assert not (INTEGRATION_DIR / f"{platform.value}.py").exists()
 
 
-def test_source_never_calls_a_service() -> None:
-    """Tidak ada satu pun pemanggilan service di seluruh kode integrasi."""
-    forbidden = (
-        "services.async_call",
-        "services.call",
-        "async_call_service",
-        "turn_on",
-        "turn_off",
-        "toggle",
-    )
+def test_no_control_verbs_anywhere_in_the_source() -> None:
+    """Kata kerja pengendali perangkat tidak boleh muncul di kode mana pun."""
+    forbidden = ("turn_on", "turn_off", "toggle", "async_call_service")
     offenders: list[str] = []
     for path in INTEGRATION_DIR.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
-        for needle in forbidden:
-            if needle in text:
-                offenders.append(f"{path.name}: {needle}")
+        offenders.extend(
+            f"{path.name}: {needle}" for needle in forbidden if needle in text
+        )
     assert offenders == []
+
+
+def test_only_the_notifier_may_call_services() -> None:
+    """Pemanggilan service hanya boleh ada di satu file, di balik pagar pengaman.
+
+    Sejak Milestone 6 integrasi ini perlu mengirim notifikasi, jadi larangan
+    total memanggil service tidak lagi bisa dipertahankan. Yang dipertahankan
+    adalah maksud aslinya: **tidak boleh ada jalan untuk mengendalikan
+    listrik**. Karena itu seluruh pemanggilan service dipusatkan di satu file
+    yang memeriksa domainnya lebih dulu, dan test ini menjaga agar tidak ada
+    file kedua yang diam-diam ikut memanggil service.
+    """
+    callers = {
+        path.name
+        for path in INTEGRATION_DIR.rglob("*.py")
+        if "services.async_call" in path.read_text(encoding="utf-8")
+    }
+    assert callers == {"notifier.py"}
+
+
+def test_allowed_service_domains_are_notify_only() -> None:
+    """Daftar domain yang boleh dipanggil dikunci ke notify saja."""
+    from custom_components.pln_prepaid_monitor.notifier import (
+        ALLOWED_SERVICE_DOMAINS,
+    )
+
+    assert set(ALLOWED_SERVICE_DOMAINS) == {"notify"}
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "switch.turn_off",
+        "switch.mcb_rumah_switch",
+        "homeassistant.turn_off",
+        "script.matikan_listrik",
+    ],
+)
+async def test_forbidden_service_target_is_refused(
+    hass: HomeAssistant, target: str
+) -> None:
+    """Target di luar domain notify ditolak sebelum sempat dipanggil."""
+    from custom_components.pln_prepaid_monitor.notifier import (
+        ForbiddenServiceError,
+        async_call_notify_target,
+    )
+
+    called: list[tuple[str, str]] = []
+
+    async def _record(call) -> None:
+        called.append((call.domain, call.service))
+
+    hass.services.async_register("switch", "turn_off", _record)
+    hass.services.async_register("homeassistant", "turn_off", _record)
+    hass.services.async_register("script", "matikan_listrik", _record)
+
+    with pytest.raises(ForbiddenServiceError):
+        await async_call_notify_target(hass, target, "pesan", "judul")
+
+    await hass.async_block_till_done()
+    assert called == []
 
 
 async def test_relay_entities_are_untouched_after_setup(

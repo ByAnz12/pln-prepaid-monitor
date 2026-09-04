@@ -82,6 +82,7 @@ from .engines.energy_calc import (
     PeriodCounterState,
 )
 from .engines.normalization import CHANNEL_SPECS, conversion_factor
+from .engines.notification_engine import NotificationConfig, NotifierState
 from .engines.prediction_engine import (
     STATUS_UNKNOWN,
     PredictionConfig,
@@ -544,6 +545,8 @@ class BillingGroupRuntime:
         self.prediction_config = PredictionConfig.from_dict(config)
         self.thresholds = TokenThresholds.from_dict(config)
         self.prediction = PredictionResult()
+        self.notification_config = NotificationConfig.from_dict(config)
+        self.notifier_state = NotifierState.from_dict(stored.get("notifier"))
         self._prediction_unsub: CALLBACK_TYPE | None = None
 
         self._member_unsubs: list[CALLBACK_TYPE] = []
@@ -869,7 +872,9 @@ class BillingGroupRuntime:
         """Dipanggil sesudah layanan token mengubah ledger."""
         self._async_notify()
         self._on_persist()
-        # Sisa token berubah, jadi perkiraan hari tersisa ikut berubah.
+        # Sisa token berubah, jadi perkiraan hari tersisa dan status ikut
+        # berubah - dan itulah momen pesan pemulihan "token sudah terisi"
+        # seharusnya dikirim.
         self.hass.async_create_task(self.async_refresh_prediction())
 
     # ------------------------------------------------------------------
@@ -911,6 +916,22 @@ class BillingGroupRuntime:
             now=dt_util.now(),
         )
         self._async_notify()
+        await self.async_evaluate_notifications()
+
+    async def async_evaluate_notifications(self) -> str:
+        """Timbang apakah ada notifikasi token yang pantas dikirim sekarang.
+
+        Diimpor di dalam fungsi supaya tidak ada lingkaran impor antara runtime
+        dan lapisan pengiriman.
+        """
+        if not self.token_enabled:
+            return "token_disabled"
+
+        from .notifier import TokenNotifier  # noqa: PLC0415
+
+        reason = await TokenNotifier(self.hass, self).async_evaluate()
+        self._on_persist()
+        return reason
 
     @callback
     def async_start_prediction_refresh(self) -> None:
@@ -941,6 +962,7 @@ class BillingGroupRuntime:
                 for period, counter in self.cost_counters.items()
             },
             "token": self.ledger.state.as_dict(),
+            "notifier": self.notifier_state.as_dict(),
         }
 
 

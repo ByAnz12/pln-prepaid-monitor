@@ -105,6 +105,28 @@ DEFAULT_TOKEN_LOW_KWH_THRESHOLD: Final = 0.0
 # bermakna dalam hitungan detik.
 PREDICTION_REFRESH_MINUTES: Final = 30
 
+# --- kunci konfigurasi Notifikasi ---------------------------------------------
+CONF_NOTIFY_ENABLED: Final = "notify_enabled"
+CONF_NOTIFY_TARGETS: Final = "notify_targets"
+CONF_CREATE_PERSISTENT_NOTIFICATION: Final = "create_persistent_notification"
+CONF_MESSAGE_PREFIX: Final = "message_prefix"
+CONF_COOLDOWN_HOURS: Final = "cooldown_hours"
+CONF_REPEAT_WHILE_UNRESOLVED: Final = "repeat_while_unresolved"
+CONF_QUIET_HOURS_START: Final = "quiet_hours_start"
+CONF_QUIET_HOURS_END: Final = "quiet_hours_end"
+CONF_BYPASS_QUIET_HOURS: Final = "bypass_quiet_hours_for_very_critical"
+CONF_NOTIFY_ON_RECOVERY: Final = "notify_on_recovery"
+
+DEFAULT_NOTIFY_ENABLED: Final = False
+DEFAULT_CREATE_PERSISTENT_NOTIFICATION: Final = True
+# Prefix ini membedakan pesan kita dari automation PLN padam/nyala yang sudah
+# ada di instalasi user (spec O.5), supaya dua sistem tidak saling tertukar.
+DEFAULT_MESSAGE_PREFIX: Final = "[Token PLN]"
+DEFAULT_COOLDOWN_HOURS: Final = 12.0
+DEFAULT_REPEAT_WHILE_UNRESOLVED: Final = False
+DEFAULT_BYPASS_QUIET_HOURS: Final = True
+DEFAULT_NOTIFY_ON_RECOVERY: Final = True
+
 # --- nama service --------------------------------------------------------------
 SERVICE_ADD_TOKEN_TOPUP: Final = "add_token_topup"
 SERVICE_CALIBRATE_TOKEN_READING: Final = "calibrate_token_reading"

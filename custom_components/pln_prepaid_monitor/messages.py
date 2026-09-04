@@ -12,6 +12,8 @@ Label form dan deskripsi field yang statis tetap memakai
 
 from __future__ import annotations
 
+from typing import Any
+
 from .const import (
     CHANNEL_CURRENT,
     CHANNEL_ENERGY,
@@ -266,3 +268,131 @@ def issue_text(language: str, code: str, placeholders: dict[str, str]) -> str:
         return template.format(**placeholders)
     except KeyError:
         return template
+
+
+# --- teks notifikasi ---------------------------------------------------------
+
+STATUS_LABELS: dict[str, dict[str, str]] = {
+    LANG_ID: {
+        "warning": "perlu perhatian",
+        "critical": "kritis",
+        "very_critical": "SANGAT KRITIS",
+        "hold": "ditahan",
+        "normal": "aman",
+    },
+    LANG_EN: {
+        "warning": "needs attention",
+        "critical": "critical",
+        "very_critical": "VERY CRITICAL",
+        "hold": "on hold",
+        "normal": "normal",
+    },
+}
+
+NOTIFICATION_TEXTS: dict[str, dict[str, str]] = {
+    LANG_ID: {
+        "alert_title": "{prefix} {group}: token {status}",
+        "alert_body": "Sisa token {group} tinggal {remaining}.",
+        "recovery_title": "{prefix} {group}: token sudah terisi",
+        "recovery_body": "Token {group} sudah terisi lagi. Sisa sekarang {remaining}.",
+        "hold_title": "{prefix} {group}: pencatatan token ditahan",
+        "hold_body": (
+            "Pencatatan sisa token {group} dibekukan karena meteran '{source}' "
+            "melompat ke {reset_to} kWh sesudah counter-nya ter-reset.\n\n"
+            "Sisa token ditahan di angka terakhir supaya tidak hangus salah. "
+            "Silakan putuskan lewat layanan 'Putuskan penahanan token': anggap "
+            "pemakaian nyata, abaikan, atau kalibrasi dari angka di layar meteran."
+        ),
+        "days_line": "Perkiraan habis {days} hari lagi, sekitar {date}.",
+        "no_prediction_line": (
+            "Perkiraan hari tersisa belum tersedia - data pemakaian belum cukup."
+        ),
+        "value_suffix": " (setara sekitar Rp {value})",
+        "unknown_remaining": "belum diketahui",
+    },
+    LANG_EN: {
+        "alert_title": "{prefix} {group}: token {status}",
+        "alert_body": "Only {remaining} of token left for {group}.",
+        "recovery_title": "{prefix} {group}: token topped up",
+        "recovery_body": "{group} has been topped up. {remaining} remaining.",
+        "hold_title": "{prefix} {group}: token tracking on hold",
+        "hold_body": (
+            "Token tracking for {group} is frozen because meter '{source}' "
+            "jumped to {reset_to} kWh after its counter reset.\n\n"
+            "The remaining token is held at its last value so it is not written "
+            "off by mistake. Please decide via the 'Decide on a token hold' "
+            "action: treat as real usage, ignore, or calibrate from the meter."
+        ),
+        "days_line": "Estimated to run out in {days} days, around {date}.",
+        "no_prediction_line": (
+            "No day estimate yet - there is not enough usage data."
+        ),
+        "value_suffix": " (worth roughly Rp {value})",
+        "unknown_remaining": "unknown",
+    },
+}
+
+
+def _format_number(value: float, decimals: int = 2) -> str:
+    """Angka bergaya Indonesia: titik ribuan, koma desimal."""
+    formatted = f"{value:,.{decimals}f}"
+    return formatted.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
+def notification_text(
+    language: str,
+    *,
+    kind: str,
+    status: str,
+    prefix: str,
+    group_name: str,
+    remaining_kwh: float | None,
+    days_remaining: float | None,
+    empty_date: Any,
+    remaining_value_rp: float | None,
+    hold: dict[str, Any] | None,
+) -> tuple[str, str]:
+    """Rakit judul dan isi satu notifikasi token."""
+    texts = NOTIFICATION_TEXTS[language]
+    labels = STATUS_LABELS[language]
+
+    if kind == "hold":
+        hold = hold or {}
+        title = texts["hold_title"].format(prefix=prefix, group=group_name)
+        body = texts["hold_body"].format(
+            group=group_name,
+            source=hold.get("source_name", "?"),
+            reset_to=_format_number(float(hold.get("reset_to") or 0)),
+        )
+        return title, body
+
+    if remaining_kwh is None:
+        remaining = texts["unknown_remaining"]
+    else:
+        remaining = f"{_format_number(remaining_kwh)} kWh"
+        if remaining_value_rp is not None:
+            remaining += texts["value_suffix"].format(
+                value=_format_number(remaining_value_rp, 0)
+            )
+
+    if kind == "recovery":
+        title = texts["recovery_title"].format(prefix=prefix, group=group_name)
+        body = texts["recovery_body"].format(group=group_name, remaining=remaining)
+        return title, body
+
+    title = texts["alert_title"].format(
+        prefix=prefix, group=group_name, status=labels.get(status, status)
+    )
+    lines = [texts["alert_body"].format(group=group_name, remaining=remaining)]
+
+    if days_remaining is None or empty_date is None:
+        lines.append(texts["no_prediction_line"])
+    else:
+        lines.append(
+            texts["days_line"].format(
+                days=_format_number(days_remaining, 1),
+                date=empty_date.strftime("%d %b %Y %H:%M"),
+            )
+        )
+
+    return title, "\n".join(lines)

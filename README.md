@@ -24,11 +24,12 @@ kapan token habis, dan mengingatkan Anda sebelum listrik padam.
 7. [Mengatur tarif dan menghitung biaya](#mengatur-tarif-dan-menghitung-biaya)
 8. [Mencatat token PLN](#mencatat-token-pln)
 9. [Memperkirakan kapan token habis](#memperkirakan-kapan-token-habis)
-10. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
-11. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
-12. [Troubleshooting](#troubleshooting)
-13. [Untuk pengembang](#untuk-pengembang)
-14. [Rencana pengembangan](#rencana-pengembangan)
+10. [Notifikasi token](#notifikasi-token)
+11. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
+12. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
+13. [Troubleshooting](#troubleshooting)
+14. [Untuk pengembang](#untuk-pengembang)
+15. [Rencana pengembangan](#rencana-pengembangan)
 
 ---
 
@@ -52,9 +53,11 @@ Integrasi ini dibangun bertahap. Yang **sudah selesai dan bisa dipakai**:
   salah input dan pengaman saat meteran ter-reset.
 - **Perkiraan kapan token habis** dari pemakaian Anda sendiri, lengkap dengan
   tingkat keyakinan - dan diam saja selama datanya belum cukup.
+- **Notifikasi bertingkat** ke Telegram dan/atau Home Assistant, dikirim hanya
+  saat status berpindah tingkat, menghormati jam tenang.
 
-Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): notifikasi
-Telegram dan dashboard siap pakai.
+Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): dashboard
+siap pakai dan pembersihan data lama.
 
 ---
 
@@ -522,6 +525,63 @@ sangat kritis) — bukan diam-diam membetulkannya.
 
 ---
 
+## Notifikasi token
+
+Sistem bisa mengirim peringatan sebelum token habis - ke Telegram, ke notifikasi
+Home Assistant, atau keduanya.
+
+### Mengatur
+
+Saat membuat atau mengubah kelompok tagihan, ada langkah **Notifikasi token**.
+Kalau integrasi Telegram sudah terpasang di Home Assistant, target Telegram-nya
+**muncul otomatis** di daftar pilihan — Anda tidak perlu mengetik nama service.
+
+| Pengaturan | Bawaan | Untuk apa |
+|---|---|---|
+| Kirim notifikasi token | mati | Nyalakan untuk mulai menerima peringatan |
+| Kirim ke | — | Pilih satu atau beberapa tujuan dari daftar |
+| Tampilkan juga di Home Assistant | menyala | Cadangan kalau Telegram bermasalah |
+| Awalan pesan | `[Token PLN]` | Membedakan dari pesan automation lain |
+| Beri tahu saat token terisi lagi | menyala | Satu pesan penutup saat sudah aman |
+| Ulangi selama belum diisi | mati | Kalau mati, satu tingkat cukup sekali |
+| Jarak minimum antar pengulangan | 12 jam | Hanya berlaku kalau pengulangan menyala |
+| Jam tenang | — | Misalnya 22:00–06:00 |
+| Sangat kritis boleh menembus jam tenang | menyala | Tetap dibangunkan kalau hampir padam |
+
+> **Awalan `[Token PLN]` itu penting.** Anda sudah punya automation lain yang
+> mengirim pesan soal listrik padam/nyala. Awalan ini membuat dua sistem itu
+> mudah dibedakan begitu pesannya masuk.
+
+### Kapan pesan dikirim
+
+Pesan hanya dikirim **saat status berpindah tingkat** — misalnya dari aman ke
+perlu perhatian, atau dari kritis ke sangat kritis. Selama statusnya belum
+berubah, sistem diam. Peringatan yang datang tiap lima menit hanya akan berhenti
+dibaca.
+
+| Kejadian | Yang terjadi |
+|---|---|
+| Aman → perlu perhatian | Satu pesan |
+| Perlu perhatian → tetap perlu perhatian | Tidak ada pesan |
+| Perlu perhatian → kritis | Satu pesan lagi |
+| Anda isi token, status kembali aman | Satu pesan penutup |
+| Pencatatan token ditahan | Satu pesan + kartu di menu Perbaikan |
+
+### Jam tenang
+
+Pesan yang tertahan jam tenang **tidak hilang** — ia dikirim begitu jam tenang
+lewat. Kecuali status **sangat kritis**, yang boleh menembus kalau Anda
+mengizinkannya, karena listrik yang benar-benar hampir padam pantas
+membangunkan Anda.
+
+### Kalau pencatatan token ditahan
+
+Selain pesan, muncul juga kartu di **Settings → System → Repairs** yang
+menjelaskan meteran mana yang melompat dan ke angka berapa, lengkap dengan tiga
+pilihan keputusan Anda. Kartu itu hilang sendiri begitu Anda memutuskan.
+
+---
+
 ## Kenapa angkanya beda dengan aplikasi meteran?
 
 Sensor `..._energy` buatan integrasi ini **dimulai dari angka yang sama** dengan
@@ -648,6 +708,24 @@ sensor perkiraan. Penyebab yang paling sering:
 Perkiraan dihitung ulang setiap 30 menit, jadi perubahan tidak langsung terlihat
 detik itu juga.
 
+### Tidak menerima notifikasi
+
+Periksa berurutan:
+
+1. **Sudah dinyalakan?** Buka **Ubah kelompok tagihan → Notifikasi token**.
+2. **Statusnya memang belum berpindah tingkat?** Pesan hanya dikirim saat
+   status berubah. Cek `sensor.<kelompok>_token_status`.
+3. **Sedang jam tenang?** Pesan ditahan sampai jam tenang lewat.
+4. **Targetnya masih ada?** Kalau service Telegram-nya berganti nama, pengiriman
+   gagal dan tercatat di log Home Assistant. Notifikasi di dalam Home Assistant
+   tetap muncul sebagai cadangan.
+
+### Notifikasi tertukar dengan automation listrik padam saya
+
+Ubah **Awalan pesan** di langkah Notifikasi token menjadi sesuatu yang lebih
+khas, misalnya `[TOKEN RUMAH]`. Awalan itu ditempelkan di depan setiap pesan
+dari integrasi ini.
+
 ### Grafik histori masih kosong
 
 Long-term statistics dihitung Home Assistant sekali per jam, jadi setelah
@@ -688,7 +766,7 @@ sensor yang sama.
 | 3 | Perhitungan biaya rupiah (tarif bisa diatur penuh) | **Selesai** |
 | 4 | Pencatatan token: isi ulang, sisa kWh, kalibrasi manual | **Selesai** |
 | 5 | Prediksi hari tersisa & tanggal habis | **Selesai** |
-| 6 | Notifikasi Telegram bertingkat | Belum |
+| 6 | Notifikasi Telegram bertingkat | **Selesai** |
 | 7 | Dashboard | Belum |
 | 8 | Pembersihan data lama | Belum |
 

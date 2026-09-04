@@ -226,6 +226,34 @@
             "outlier_filter": "Cara meredam hari dengan pemakaian luar biasa - misalnya tamu menginap atau AC menyala seharian - supaya satu hari itu tidak menggeser perkiraan sebulan ke depan.",
             "safety_margin_percent": "Membuat perkiraan sedikit pesimistis: dihitung seolah pemakaian Anda sekian persen lebih boros. Tujuannya supaya Anda mengisi token sedikit lebih awal, bukan sedikit terlambat."
           }
+        },
+        "notification": {
+          "title": "Notifikasi token",
+          "description": "Atur ke mana peringatan dikirim saat token menipis, dan seberapa sering.\n\nPesan hanya dikirim **saat status berpindah tingkat** - misalnya dari aman jadi perlu perhatian. Selama statusnya belum berubah, sistem diam. Peringatan yang datang tiap lima menit hanya akan berhenti dibaca.\n\nKalau Anda sudah memasang integrasi Telegram di Home Assistant, target Telegram-nya muncul otomatis di daftar di bawah.",
+          "data": {
+            "notify_enabled": "Kirim notifikasi token",
+            "notify_targets": "Kirim ke",
+            "create_persistent_notification": "Tampilkan juga di Home Assistant",
+            "message_prefix": "Awalan pesan",
+            "notify_on_recovery": "Beri tahu juga saat token sudah terisi lagi",
+            "repeat_while_unresolved": "Ulangi selama belum diisi",
+            "cooldown_hours": "Jarak minimum antar pengulangan (jam)",
+            "quiet_hours_start": "Jam tenang mulai",
+            "quiet_hours_end": "Jam tenang selesai",
+            "bypass_quiet_hours_for_very_critical": "Keadaan sangat kritis boleh menembus jam tenang"
+          },
+          "data_description": {
+            "notify_enabled": "Matikan kalau Anda hanya ingin melihat statusnya di dashboard tanpa dikirimi pesan.",
+            "notify_targets": "Pilih satu atau beberapa tujuan. Daftar ini diambil langsung dari Home Assistant Anda, jadi hanya berisi tujuan yang memang sudah bisa dipakai. Boleh dikosongkan kalau Anda cukup dengan notifikasi di dalam Home Assistant saja.",
+            "create_persistent_notification": "Menampilkan pesan di lonceng notifikasi Home Assistant. Berguna sebagai cadangan kalau Telegram sedang bermasalah.",
+            "message_prefix": "Ditempelkan di depan setiap pesan. Bawaannya '[Token PLN]' supaya mudah dibedakan dari pesan automation lain yang mungkin sudah Anda punya, misalnya pemberitahuan listrik padam.",
+            "notify_on_recovery": "Mengirim satu pesan penutup saat status kembali aman, supaya Anda tahu keadaan sudah beres - bukan dibiarkan menebak.",
+            "repeat_while_unresolved": "Kalau dinyalakan, pesan diulang selama status masih di tingkat yang sama. Kalau dimatikan (bawaan), satu tingkat hanya diberitahukan sekali.",
+            "cooldown_hours": "Hanya berlaku kalau pengulangan dinyalakan. Menjaga agar pesan yang sama tidak datang terlalu berdekatan.",
+            "quiet_hours_start": "Awal rentang waktu Anda tidak ingin diganggu, misalnya 22:00. Kosongkan kalau tidak perlu.",
+            "quiet_hours_end": "Akhir rentang tersebut, misalnya 06:00. Pesan yang tertahan tidak hilang - ia dikirim begitu jam tenang lewat.",
+            "bypass_quiet_hours_for_very_critical": "Biarkan menyala kalau Anda tetap ingin dibangunkan ketika listrik benar-benar hampir padam."
+          }
         }
       }
     },
@@ -559,6 +587,12 @@
     },
     "calibration_needs_reading": {
       "message": "Pilihan 'Kalibrasi' membutuhkan angka sisa kWh yang tertera di layar meteran."
+    }
+  },
+  "issues": {
+    "ledger_hold": {
+      "title": "Pencatatan token {group} sedang ditahan",
+      "description": "Meteran '{source}' melompat ke {reset_to} kWh sesudah counter-nya ter-reset, jadi sisa token {group} dibekukan supaya tidak hangus salah.\n\nSilakan putuskan lewat layanan **Putuskan penahanan token**:\n\n- **Anggap pemakaian nyata** - kalau listriknya memang terpakai sebanyak itu.\n- **Abaikan** - kalau meteran diganti, atau angkanya kacau bukan karena pemakaian.\n- **Kalibrasi** - kalau Anda ingin memasukkan sisa kWh yang tertera di layar meteran."
     }
   }
 }

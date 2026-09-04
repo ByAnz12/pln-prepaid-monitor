@@ -9,6 +9,91 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-029 · Notifikasi di dalam Home Assistant menyala secara bawaan
+
+**Tanggal**: 3 September 2026 · **Milestone 6**
+
+Selain mengirim ke tujuan pilihan user (Telegram dan sejenisnya), sistem juga
+membuat **persistent notification** di dalam Home Assistant, dan itu menyala
+secara bawaan.
+
+Alasannya: peringatan token adalah hal yang tidak boleh gagal sampai. Kalau
+Telegram sedang bermasalah - token bot kedaluwarsa, internet putus, service-nya
+diganti nama - user tetap melihat peringatannya begitu membuka Home Assistant.
+Ini jaring pengaman yang harganya nyaris nol.
+
+Bisa dimatikan kalau user merasa terganggu.
+
+---
+
+## D-028 · Pesan yang tertahan jam tenang tidak butuh state tambahan
+
+**Tanggal**: 3 September 2026 · **Milestone 6**
+
+Saat sebuah pesan tertahan jam tenang, tidak ada antrean, penanda "tertunda",
+atau timer yang perlu disimpan.
+
+Caranya: penahanan bekerja dengan **tidak** mencatat tingkat itu sebagai sudah
+terkirim. Karena syarat pengiriman adalah "tingkat sekarang berbeda dari tingkat
+terakhir yang tercatat terkirim", pesan itu otomatis memenuhi syarat lagi pada
+evaluasi berikutnya - dan evaluasi berjalan tiap 30 menit bersama prediksi.
+
+Hasilnya: nol state tambahan, nol kemungkinan antrean bocor atau ganda, dan
+pesannya tetap sampai begitu jam tenang lewat. Diuji eksplisit di
+`test_held_message_is_sent_once_quiet_hours_end`.
+
+---
+
+## D-027 · Notifikasi dievaluasi bersama prediksi, bukan pada tiap perubahan state
+
+**Tanggal**: 3 September 2026 · **Milestone 6**
+
+Evaluasi notifikasi menumpang pada siklus perhitungan prediksi
+([D-024](#d-024--prediksi-dihitung-ulang-berkala-bukan-pada-tiap-perubahan-state)):
+tiap 30 menit, ditambah segera setelah ledger token berubah.
+
+Alasannya bukan sekadar efisiensi. Status token bertumpu pada perkiraan hari
+tersisa; mengevaluasi notifikasi di saat yang berbeda dari saat prediksi
+diperbarui berarti mengirim pesan berdasarkan angka yang sudah basi. Menyatukan
+keduanya membuat pesan selalu mencerminkan angka yang sama dengan yang dilihat
+user di dashboard.
+
+Pemicu setelah ledger berubah itulah yang membuat pesan "token sudah terisi"
+datang seketika sesudah user mencatat pengisian, bukan menunggu setengah jam.
+
+---
+
+## D-026 · Jaminan read-only dipertajam, bukan dilonggarkan
+
+**Tanggal**: 3 September 2026 · **Milestone 6** · **Perubahan aturan**
+
+Sampai Milestone 5, jaminan "sistem ini tidak bisa mengendalikan listrik"
+dijaga oleh test yang melarang **semua** pemanggilan service di seluruh kode.
+Milestone 6 membuat larangan itu mustahil dipertahankan apa adanya: mengirim
+notifikasi berarti memanggil `notify.*`.
+
+Yang dilakukan bukan menghapus aturannya, melainkan menggantinya dengan pagar
+yang lebih tepat sasaran - dan lebih kuat, karena kini berlaku juga saat
+program berjalan, bukan hanya saat test:
+
+1. **Satu pintu.** Seluruh pemanggilan service dipusatkan di `notifier.py`.
+   Test `test_only_the_notifier_may_call_services` gagal kalau ada file kedua
+   yang ikut memanggil service.
+2. **Daftar putih domain.** `ALLOWED_SERVICE_DOMAINS` berisi `{"notify"}` saja,
+   dan dikunci oleh test tersendiri.
+3. **Pemeriksaan saat berjalan.** Target di luar daftar itu - `switch.turn_off`,
+   `homeassistant.turn_off`, `script.*` - melempar `ForbiddenServiceError`
+   **sebelum** service-nya sempat dipanggil. Diuji dengan mendaftarkan service
+   `switch.turn_off` palsu lalu memastikan ia tidak pernah terpanggil.
+4. Larangan kata kerja pengendali (`turn_on`, `turn_off`, `toggle`) di seluruh
+   kode tetap berlaku seperti sebelumnya.
+
+Sebelumnya jaminan itu hanya berupa pemeriksaan teks saat test. Sekarang ada
+pengaman nyata di jalur eksekusi: konfigurasi yang di-edit manual sekalipun
+tidak bisa membuat integrasi ini memanggil service pemutus listrik.
+
+---
+
 ## D-025 · Ambang kWh absolut: satu field, bukan tiga (menyelesaikan ambiguitas spec)
 
 **Tanggal**: 3 September 2026 · **Milestone 5**

@@ -226,6 +226,34 @@
             "outlier_filter": "How to damp days with unusual usage - guests staying over, air conditioning running all day - so one day does not skew the whole month ahead.",
             "safety_margin_percent": "Makes the estimate slightly pessimistic: it calculates as if your usage were this many percent higher. The point is to have you top up a little early rather than a little late."
           }
+        },
+        "notification": {
+          "title": "Token notifications",
+          "description": "Choose where warnings go when the token runs low, and how often.\n\nMessages are only sent **when the status changes level** - for example from normal to needs-attention. While the status stays the same, the system says nothing. A warning that arrives every five minutes simply stops being read.\n\nIf you already have the Telegram integration set up in Home Assistant, its targets appear automatically in the list below.",
+          "data": {
+            "notify_enabled": "Send token notifications",
+            "notify_targets": "Send to",
+            "create_persistent_notification": "Also show inside Home Assistant",
+            "message_prefix": "Message prefix",
+            "notify_on_recovery": "Also tell me when the token is topped up again",
+            "repeat_while_unresolved": "Repeat while not topped up",
+            "cooldown_hours": "Minimum gap between repeats (hours)",
+            "quiet_hours_start": "Quiet hours start",
+            "quiet_hours_end": "Quiet hours end",
+            "bypass_quiet_hours_for_very_critical": "Very critical may break through quiet hours"
+          },
+          "data_description": {
+            "notify_enabled": "Turn off if you only want to see the status on your dashboard without being messaged.",
+            "notify_targets": "Pick one or more destinations. This list comes straight from your Home Assistant, so it only contains targets that actually work. You may leave it empty if a notification inside Home Assistant is enough.",
+            "create_persistent_notification": "Shows the message in Home Assistant's notification bell. Useful as a fallback when Telegram is having trouble.",
+            "message_prefix": "Put in front of every message. The default '[Token PLN]' makes it easy to tell apart from other automations you may already have, such as power-outage alerts.",
+            "notify_on_recovery": "Sends one closing message when the status returns to normal, so you know it is sorted - rather than being left to guess.",
+            "repeat_while_unresolved": "When on, the message repeats while the status stays at the same level. When off (the default), each level is announced once.",
+            "cooldown_hours": "Only applies when repeating is on. Keeps the same message from arriving too close together.",
+            "quiet_hours_start": "Start of the stretch you do not want to be disturbed, for example 22:00. Leave empty if not needed.",
+            "quiet_hours_end": "End of that stretch, for example 06:00. Held messages are not lost - they go out once quiet hours are over.",
+            "bypass_quiet_hours_for_very_critical": "Leave on if you still want to be woken when the power is genuinely about to go out."
+          }
         }
       }
     },
@@ -559,6 +587,12 @@
     },
     "calibration_needs_reading": {
       "message": "The 'Calibrate' option needs the remaining kWh shown on the meter."
+    }
+  },
+  "issues": {
+    "ledger_hold": {
+      "title": "Token tracking for {group} is on hold",
+      "description": "Meter '{source}' jumped to {reset_to} kWh after its counter reset, so the remaining token for {group} has been frozen to avoid writing it off by mistake.\n\nPlease decide via the **Decide on a token hold** action:\n\n- **Treat as real usage** - if that much electricity really was used.\n- **Ignore** - if the meter was replaced, or the number went wrong for reasons other than usage.\n- **Calibrate** - if you want to enter the remaining kWh shown on the meter."
     }
   }
 }

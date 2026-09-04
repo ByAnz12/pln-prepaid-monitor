@@ -68,8 +68,18 @@ from .const import (
     CONF_ENABLED,
     CONF_FIXED_CHARGE_PERIOD,
     CONF_FIXED_CHARGE_RP,
+    CONF_BYPASS_QUIET_HOURS,
+    CONF_COOLDOWN_HOURS,
+    CONF_CREATE_PERSISTENT_NOTIFICATION,
     CONF_CRITICAL_THRESHOLD_DAYS,
+    CONF_MESSAGE_PREFIX,
     CONF_MIN_DATA_POINTS,
+    CONF_NOTIFY_ENABLED,
+    CONF_NOTIFY_ON_RECOVERY,
+    CONF_NOTIFY_TARGETS,
+    CONF_QUIET_HOURS_END,
+    CONF_QUIET_HOURS_START,
+    CONF_REPEAT_WHILE_UNRESOLVED,
     CONF_MONTH_START_DAY,
     CONF_OUTLIER_FILTER,
     CONF_PREFERRED_WINDOW,
@@ -93,8 +103,15 @@ from .const import (
     DEFAULT_DAY_START_TIME,
     DEFAULT_FIXED_CHARGE_PERIOD,
     DEFAULT_FIXED_CHARGE_RP,
+    DEFAULT_BYPASS_QUIET_HOURS,
+    DEFAULT_COOLDOWN_HOURS,
+    DEFAULT_CREATE_PERSISTENT_NOTIFICATION,
     DEFAULT_CRITICAL_THRESHOLD_DAYS,
+    DEFAULT_MESSAGE_PREFIX,
     DEFAULT_MIN_DATA_POINTS,
+    DEFAULT_NOTIFY_ENABLED,
+    DEFAULT_NOTIFY_ON_RECOVERY,
+    DEFAULT_REPEAT_WHILE_UNRESOLVED,
     DEFAULT_MONTH_START_DAY,
     DEFAULT_OUTLIER_FILTER,
     DEFAULT_PREFERRED_WINDOW,
@@ -909,7 +926,7 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
                 self._group_input[CONF_MIN_DATA_POINTS] = int(
                     user_input[CONF_MIN_DATA_POINTS]
                 )
-                return await self.async_step_cycles()
+                return await self.async_step_notification()
 
         return self.async_show_form(
             step_id="prediction",
@@ -990,10 +1007,125 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
             errors=errors,
         )
 
+    def _notify_service_options(self) -> list[SelectOptionDict]:
+        """Semua service notify yang tersedia di instalasi ini.
+
+        Diambil langsung dari Home Assistant, jadi kalau integrasi telegram_bot
+        sudah terpasang, target Telegram-nya muncul di sini tanpa user perlu
+        mengetik nama service secara manual.
+        """
+        return [
+            SelectOptionDict(value=f"notify.{service}", label=f"notify.{service}")
+            for service in sorted(self.hass.services.async_services().get("notify", {}))
+        ]
+
+    async def async_step_notification(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Langkah 5: ke mana peringatan token dikirim, dan seberapa sering."""
+        if user_input is not None:
+            self._group_input.update(user_input)
+            return await self.async_step_cycles()
+
+        defaults = self._group_input
+        schema: dict[Any, Any] = {
+            vol.Required(
+                CONF_NOTIFY_ENABLED,
+                default=bool(
+                    defaults.get(CONF_NOTIFY_ENABLED, DEFAULT_NOTIFY_ENABLED)
+                ),
+            ): BooleanSelector(),
+        }
+
+        if options := self._notify_service_options():
+            schema[
+                vol.Optional(
+                    CONF_NOTIFY_TARGETS,
+                    description={
+                        "suggested_value": defaults.get(CONF_NOTIFY_TARGETS, [])
+                    },
+                )
+            ] = SelectSelector(
+                SelectSelectorConfig(
+                    options=options, multiple=True, mode=SelectSelectorMode.LIST
+                )
+            )
+
+        schema.update(
+            {
+                vol.Required(
+                    CONF_CREATE_PERSISTENT_NOTIFICATION,
+                    default=bool(
+                        defaults.get(
+                            CONF_CREATE_PERSISTENT_NOTIFICATION,
+                            DEFAULT_CREATE_PERSISTENT_NOTIFICATION,
+                        )
+                    ),
+                ): BooleanSelector(),
+                vol.Required(
+                    CONF_MESSAGE_PREFIX,
+                    default=str(
+                        defaults.get(CONF_MESSAGE_PREFIX, DEFAULT_MESSAGE_PREFIX)
+                    ),
+                ): TextSelector(),
+                vol.Required(
+                    CONF_NOTIFY_ON_RECOVERY,
+                    default=bool(
+                        defaults.get(
+                            CONF_NOTIFY_ON_RECOVERY, DEFAULT_NOTIFY_ON_RECOVERY
+                        )
+                    ),
+                ): BooleanSelector(),
+                vol.Required(
+                    CONF_REPEAT_WHILE_UNRESOLVED,
+                    default=bool(
+                        defaults.get(
+                            CONF_REPEAT_WHILE_UNRESOLVED,
+                            DEFAULT_REPEAT_WHILE_UNRESOLVED,
+                        )
+                    ),
+                ): BooleanSelector(),
+                vol.Required(
+                    CONF_COOLDOWN_HOURS,
+                    default=float(
+                        defaults.get(CONF_COOLDOWN_HOURS, DEFAULT_COOLDOWN_HOURS)
+                    ),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=0, max=168, step=1, mode=NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Optional(
+                    CONF_QUIET_HOURS_START,
+                    description={
+                        "suggested_value": defaults.get(CONF_QUIET_HOURS_START)
+                    },
+                ): TimeSelector(),
+                vol.Optional(
+                    CONF_QUIET_HOURS_END,
+                    description={
+                        "suggested_value": defaults.get(CONF_QUIET_HOURS_END)
+                    },
+                ): TimeSelector(),
+                vol.Required(
+                    CONF_BYPASS_QUIET_HOURS,
+                    default=bool(
+                        defaults.get(
+                            CONF_BYPASS_QUIET_HOURS, DEFAULT_BYPASS_QUIET_HOURS
+                        )
+                    ),
+                ): BooleanSelector(),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="notification", data_schema=vol.Schema(schema)
+        )
+
     async def async_step_cycles(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Langkah 5: periode apa saja, dan di mana batas siklusnya jatuh."""
+        """Langkah 6: periode apa saja, dan di mana batas siklusnya jatuh."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
