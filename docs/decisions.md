@@ -9,6 +9,76 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-039 · Platform `number` dan `button` ditambahkan, larangan `switch` tetap mutlak
+
+**Tanggal**: 4 September 2026 · **Atas permintaan eksplisit user**
+
+User meminta seluruh urusan token bisa dilakukan dari dashboard, "sehingga
+orang awam pun mudah melakukannya". Dengan kartu bawaan Home Assistant, mengetik
+angka lalu memanggil layanan dengan angka itu **tidak mungkin** tanpa entity
+yang bisa diubah. Jadi pilihannya cuma dua: tambah platform, atau tolak
+permintaannya.
+
+### Kenapa ini bukan pelanggaran aturan non-negotiable
+
+Aturan aslinya berbunyi: *"JANGAN PERNAH mendaftarkan platform switch atau
+memanggil service apa pun yang bisa memutus/menyalakan listrik."* Yang dilarang
+adalah **kemampuan mengendalikan listrik**, dan `switch` disebut karena itulah
+platform yang melakukannya.
+
+`number` dan `button` di sini hanya menyentuh catatan token dan konfigurasi
+integrasi ini sendiri. Tidak satu pun mengirim perintah ke perangkat mana pun.
+
+Keputusan diambil setelah menanyakan ini secara eksplisit ke user, bukan
+disimpulkan sendiri.
+
+### Jaminannya jadi lebih kuat, bukan lebih longgar
+
+Sebelumnya jaminan bertumpu pada **nama platform**: `PLATFORMS` harus persis
+`{sensor, binary_sensor}`. Itu murah dan rapuh - ia tidak membuktikan apa pun
+tentang perilaku.
+
+Sekarang tiga lapis:
+
+1. `FORBIDDEN_PLATFORMS` di `const.py` mengunci `switch`, `select`, `climate`,
+   `cover`, `fan`, `humidifier`, `light`, `lock`, `siren`, `vacuum`, `valve`,
+   `water_heater` - selamanya, dan tidak boleh ada berkasnya di dalam paket.
+2. `PLATFORMS` tetap dikunci ke daftar persis, jadi penambahan berikutnya harus
+   disengaja dan menggagalkan test lebih dulu.
+3. **Dibuktikan lewat perilaku**:
+   `test_pressing_every_button_leaves_relays_untouched` mengubah seluruh isian
+   dan menekan seluruh tombol, lalu memastikan tidak satu pun entity
+   relay/breaker milik user bergerak.
+
+Lapis ketiga itulah jaminan yang sebenarnya. Dua lapis pertama hanya membuat
+pelanggaran sulit dilakukan tanpa sadar.
+
+### Reset tetap bukan entity tombol
+
+Menekan entity `button` langsung menjalankan aksinya tanpa dialog konfirmasi.
+Reset ledger menggantikan seluruh pengisian yang masih aktif dan tidak bisa
+dibatalkan, jadi ia tetap berupa **tombol kartu dashboard** yang selalu bertanya
+lebih dulu. `record_topup` dan `calibrate_token` boleh jadi entity karena
+keduanya masih bisa diperbaiki - lewat `edit_topup`, `delete_topup`, atau
+menyamakan ulang.
+
+### Angka isian disimpan di runtime, bukan di entity
+
+Isian jumlah kWh dan angka layar meteran disimpan di `BillingGroupRuntime.inputs`,
+bukan di entity-nya masing-masing. Alasannya: tombol dan isian jadi membaca satu
+angka yang sama persis, tanpa tombol harus mengintip state entity lain. Ikut
+tersimpan bersama state token, jadi angka yang sudah diketik tidak hilang kalau
+Home Assistant restart di tengah-tengah.
+
+### Tarif punya perangkatnya sendiri
+
+Tarif adalah subentry tersendiri dan bisa dipakai banyak kelompok tagihan. Kalau
+entity tarifnya ditempelkan ke perangkat kelompok, dua kelompok yang berbagi
+tarif akan punya dua entity yang diam-diam mengubah angka yang sama. Jadi tarif
+mendapat perangkatnya sendiri (`model: Tariff`).
+
+---
+
 ## D-038 · Tombol pengisian muncul sendiri dari riwayat, bukan hanya dari pengaturan
 
 **Tanggal**: 4 September 2026

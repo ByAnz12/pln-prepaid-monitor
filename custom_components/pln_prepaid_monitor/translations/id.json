@@ -391,6 +391,40 @@
           "unknown": "Belum diketahui"
         }
       }
+    },
+    "number": {
+      "topup_kwh": {
+        "name": "Jumlah kWh pengisian",
+        "description": "Isi berapa kWh yang masuk menurut struk atau layar meteran, lalu tekan Catat pengisian. Angka ini belum tercatat apa-apa sampai tombolnya ditekan."
+      },
+      "meter_reading_kwh": {
+        "name": "Sisa token di layar meteran",
+        "description": "Isi angka sisa token yang tertera di layar meteran fisik, lalu tekan Samakan dengan angka meteran. Dipakai kalau hitungan sistem sudah melenceng dari meteran."
+      },
+      "warning_threshold_days": {
+        "name": "Ambang peringatan",
+        "description": "Status token berubah jadi Peringatan kalau perkiraan sisa waktunya turun di bawah angka ini. Harus lebih besar dari ambang Kritis."
+      },
+      "critical_threshold_days": {
+        "name": "Ambang kritis",
+        "description": "Status token berubah jadi Kritis di bawah angka ini. Harus di antara ambang Peringatan dan Sangat kritis."
+      },
+      "very_critical_threshold_days": {
+        "name": "Ambang sangat kritis",
+        "description": "Status token berubah jadi Sangat kritis di bawah angka ini. Harus lebih kecil dari ambang Kritis."
+      },
+      "rate_rp_per_kwh": {
+        "name": "Tarif per kWh",
+        "description": "Harga listrik per kWh. Mengubahnya membuat versi tarif baru - biaya yang sudah tercatat tetap memakai tarif yang berlaku saat pemakaian itu terjadi, jadi masa lalu tidak ditulis ulang."
+      }
+    },
+    "button": {
+      "record_topup": {
+        "name": "Catat pengisian"
+      },
+      "calibrate_token": {
+        "name": "Samakan dengan angka meteran"
+      }
     }
   },
   "selector": {
@@ -631,6 +665,12 @@
     },
     "retention_unsupported": {
       "message": "Pembersihan data tidak bisa dijalankan di versi Home Assistant ini: {reason}. Tidak ada data yang dihapus. Anda bisa menghapus manual lewat Developer Tools -> Statistics."
+    },
+    "amount_not_set": {
+      "message": "Angkanya masih kosong. Isi dulu kotak angkanya di atas tombol ini, baru tekan tombolnya."
+    },
+    "thresholds_out_of_order": {
+      "message": "Urutan ambang tidak masuk akal. Peringatan harus lebih besar dari Kritis, dan Kritis lebih besar dari Sangat kritis."
     }
   },
   "issues": {

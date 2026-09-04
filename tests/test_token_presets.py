@@ -516,23 +516,25 @@ def test_history_supplies_values_the_user_actually_used() -> None:
     assert 999.0 not in [preset.kwh for preset in presets]
 
 
+def _walk_cards(cards):
+    """Ratakan seluruh kartu, termasuk yang bersarang di dalam stack."""
+    for card in cards:
+        yield card
+        yield from _walk_cards(card.get("cards", []))
+        if nested := card.get("card"):
+            yield nested
+            yield from _walk_cards(nested.get("cards", []))
+
+
 def _topup_buttons(hass: HomeAssistant, runtime_data) -> list[dict]:
     """Semua tombol pencatatan pengisian di dashboard."""
     from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
-
-    def _walk(cards):
-        for card in cards:
-            yield card
-            yield from _walk(card.get("cards", []))
-            if nested := card.get("card"):
-                yield nested
-                yield from _walk(nested.get("cards", []))
 
     config = build_dashboard(hass, runtime_data)
     return [
         card
         for view in config["views"]
-        for card in _walk(view["cards"])
+        for card in _walk_cards(view["cards"])
         if card["type"] == "button"
         and card["tap_action"]["perform_action"].endswith("add_token_topup")
     ]
@@ -557,20 +559,33 @@ async def test_one_topup_is_enough_to_get_a_button(hass: HomeAssistant) -> None:
     assert buttons[0]["tap_action"]["data"]["kwh_credited"] == STRUK_KWH
 
 
-async def test_without_any_value_the_card_explains_how(hass: HomeAssistant) -> None:
-    """Belum ada tombol bukan berarti kartunya kosong tanpa penjelasan."""
+async def test_manual_entry_works_without_any_preset(hass: HomeAssistant) -> None:
+    """Tanpa satu pun nilai siap pakai, pengisian tetap bisa dilakukan di dashboard.
+
+    Dulu bagian ini hanya berisi petunjuk menuju Developer Tools. Sekarang
+    isian angka dan tombolnya ada langsung di halaman, jadi tidak ada kondisi
+    apa pun di mana user terpaksa keluar dari dashboard untuk mengisi token.
+    """
     apply_states(hass, MCB_RUMAH)
     entry = await _setup(hass, SOURCE_SUBENTRY, _group(presets=[]))
 
-    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
-
-    text = "\n".join(
-        card.get("content", "")
-        for view in build_dashboard(hass, entry.runtime_data)["views"]
-        for card in view["cards"]
+    from custom_components.pln_prepaid_monitor.dashboard import (
+        build_dashboard,
+        collect_views,
     )
 
-    assert "Catat pengisian token" in text or "Record token top-up" in text
+    view = collect_views(hass, entry.runtime_data)[0]
+    entities = {
+        row["entity"] if isinstance(row, dict) else row
+        for page in build_dashboard(hass, entry.runtime_data)["views"]
+        for card in _walk_cards(page["cards"])
+        for row in card.get("entities", [])
+    }
+
+    # Isian jumlah kWh dan tombol pencatatnya ada di halaman, bukan sekadar ada
+    # sebagai entity di suatu tempat.
+    assert view.entity("topup_kwh") in entities
+    assert view.entity("record_topup") in entities
 
 
 async def test_configured_values_come_before_remembered_ones(

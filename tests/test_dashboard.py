@@ -305,6 +305,7 @@ async def test_hold_cards_are_hidden_until_needed(hass: HomeAssistant) -> None:
         card
         for card in _all_cards(build_dashboard(hass, entry.runtime_data))
         if card["type"] == "conditional"
+        and "ledger_hold" in card["conditions"][0]["entity"]
     ]
 
     assert len(conditionals) == 1
@@ -382,3 +383,46 @@ async def test_two_groups_get_two_pages(hass: HomeAssistant) -> None:
 
     paths = {view["path"] for view in response["views"]}
     assert paths == {"pln-rumah", "pln-toko"}
+
+
+async def test_every_key_the_dashboard_asks_for_really_exists(
+    hass: HomeAssistant,
+) -> None:
+    """Kunci yang tidak cocok membuat baris hilang dari dashboard tanpa error.
+
+    Regresi: dashboard meminta ``average_daily_usage`` sementara sensornya
+    dibuat dengan kunci ``avg_daily_usage``. ``_resolve`` melewati kunci yang
+    tidak ketemu tanpa bersuara, jadi baris "Rata-rata pemakaian harian" hilang
+    diam-diam dari kartu Token - baru ketahuan setelah user mengirim tangkapan
+    layar dashboardnya.
+    """
+    from custom_components.pln_prepaid_monitor.dashboard import (
+        GROUP_KEYS,
+        SOURCE_KEYS,
+        collect_views,
+    )
+
+    from custom_components.pln_prepaid_monitor.const import (
+        CONF_CURRENT_ENTITY_ID,
+        CONF_FREQUENCY_ENTITY_ID,
+    )
+
+    apply_states(hass, MCB_RUMAH)
+    # Sumber dengan kelima kanal terpetakan, supaya setiap kunci yang diminta
+    # dashboard memang seharusnya ada.
+    full_source = {
+        **SOURCE_SUBENTRY,
+        "data": {
+            **SOURCE_SUBENTRY["data"],
+            CONF_CURRENT_ENTITY_ID: "sensor.mcb_rumah_phase_a_current",
+            CONF_FREQUENCY_ENTITY_ID: "sensor.mcb_rumah_supply_frequency",
+        },
+    }
+    entry = await _setup(hass, full_source, TARIFF_SUBENTRY, _group())
+
+    view = collect_views(hass, entry.runtime_data)[0]
+
+    # Konfigurasi ini lengkap - ada tarif, token, dan kelima kanal - jadi setiap
+    # kunci yang diminta dashboard wajib ketemu entity-nya.
+    assert not set(GROUP_KEYS) - set(view.entities)
+    assert not set(SOURCE_KEYS) - set(view.sources[0].entities)

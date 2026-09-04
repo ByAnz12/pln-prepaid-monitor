@@ -21,26 +21,45 @@ views:
   - type: entities
     title: Status
     entities:
-    - sensor.pln_rumah_status_token
-    - sensor.pln_rumah_perkiraan_hari_tersisa
-    - sensor.pln_rumah_perkiraan_tanggal_habis
-    - binary_sensor.pln_rumah_data_cukup_untuk_perkiraan
+    - entity: sensor.pln_rumah_status_token
+      name: Status
+    - entity: sensor.pln_rumah_perkiraan_hari_tersisa
+      name: Perkiraan hari tersisa
+    - entity: sensor.pln_rumah_perkiraan_tanggal_habis
+      name: Perkiraan tanggal habis
+    - entity: binary_sensor.pln_rumah_data_cukup_untuk_perkiraan
+      name: Data cukup untuk perkiraan
+  - type: conditional
+    conditions:
+    - entity: binary_sensor.pln_rumah_data_cukup_untuk_perkiraan
+      state: 'off'
+    card:
+      type: markdown
+      content: '**Perkiraan belum bisa dihitung.** Sistem butuh beberapa hari data
+        pemakaian dulu sebelum bisa menebak kapan token habis, jadi status dan tanggal
+        habis masih kosong. Ini normal untuk pemasangan baru - tidak ada yang rusak,
+        dan sisa token di bawah tetap dihitung benar.'
   - type: gauge
     entity: sensor.pln_rumah_daya
-    name: Sekarang
+    name: Arus
     needle: true
     min: 0
     max: 5000
   - type: glance
-    title: Sumber energi
+    title: 'Sumber energi: MCB RUMAH'
     entities:
-    - sensor.pln_rumah_total_energi
-    - sensor.mcb_rumah_tegangan
-    - sensor.mcb_rumah_arus
-    - sensor.mcb_rumah_frekuensi
-    - binary_sensor.mcb_rumah_status_koneksi
+    - entity: sensor.mcb_rumah_energi
+      name: Angka meteran
+    - entity: sensor.mcb_rumah_tegangan
+      name: Tegangan
+    - entity: sensor.mcb_rumah_arus
+      name: Arus
+    - entity: sensor.mcb_rumah_frekuensi
+      name: Frekuensi
+    - entity: binary_sensor.mcb_rumah_status_koneksi
+      name: Koneksi
   - type: entities
-    title: Sekarang
+    title: Arus
     entities:
     - entity: sensor.pln_rumah_energi_jam_ini
       name: Jam ini
@@ -68,9 +87,14 @@ views:
   - type: entities
     title: Token
     entities:
-    - sensor.pln_rumah_sisa_token
-    - sensor.pln_rumah_nilai_sisa_token
-    - sensor.pln_rumah_token_terpakai
+    - entity: sensor.pln_rumah_sisa_token
+      name: Sisa token
+    - entity: sensor.pln_rumah_nilai_sisa_token
+      name: Nilai sisa token
+    - entity: sensor.pln_rumah_token_terpakai
+      name: Terpakai dari token
+    - entity: sensor.pln_rumah_rata_rata_pemakaian_harian
+      name: Rata-rata harian
   - type: conditional
     conditions:
     - entity: binary_sensor.pln_rumah_penahanan_catatan_token
@@ -117,49 +141,83 @@ views:
               action: accept
             confirmation:
               text: Anggap pemakaian nyata?
-  - type: markdown
-    content: '### Isi token'
-  - type: horizontal-stack
+  - type: vertical-stack
     cards:
+    - type: entities
+      title: Isi token
+      entities:
+      - entity: number.pln_rumah_jumlah_kwh_pengisian
+        name: Jumlah kWh
+      - entity: button.pln_rumah_catat_pengisian
+        name: Catat pengisian
+    - type: markdown
+      content: '**Nilai siap pakai**'
+    - type: grid
+      columns: 2
+      square: false
+      cards:
+      - type: button
+        name: Rp 1.000.000 (826,50 kWh)
+        icon: mdi:cash-plus
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: pln_prepaid_monitor.add_token_topup
+          target:
+            device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+          data:
+            kwh_credited: 826.5
+            nominal_rp: 1000000.0
+          confirmation:
+            text: Rp 1.000.000 (826,50 kWh)?
+      - type: button
+        name: Rp 500.000 (413,25 kWh)
+        icon: mdi:cash-plus
+        show_state: false
+        tap_action:
+          action: perform-action
+          perform_action: pln_prepaid_monitor.add_token_topup
+          target:
+            device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+          data:
+            kwh_credited: 413.25
+            nominal_rp: 500000.0
+          confirmation:
+            text: Rp 500.000 (413,25 kWh)?
+  - type: vertical-stack
+    cards:
+    - type: markdown
+      content: Dipakai kalau angka sistem sudah melenceng dari layar meteran. Isi
+        angka yang tertera di meteran, lalu tekan **Samakan**.
+    - type: entities
+      title: Perbaiki hitungan
+      entities:
+      - entity: number.pln_rumah_sisa_token_di_layar_meteran
+        name: Angka di layar meteran
+      - entity: button.pln_rumah_samakan_dengan_angka_meteran
+        name: Samakan
+    - type: markdown
+      content: Mulai pencatatan token dari nol. Seluruh pengisian yang masih aktif
+        dianggap sudah tidak berlaku. **Tidak bisa dibatalkan.**
     - type: button
-      name: Rp 1.000.000 (826,50 kWh)
-      icon: mdi:cash-plus
+      name: Reset sisa token ke nol
+      show_icon: false
       show_state: false
       tap_action:
         action: perform-action
-        perform_action: pln_prepaid_monitor.add_token_topup
+        perform_action: pln_prepaid_monitor.reset_token_ledger
         target:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
-        data:
-          kwh_credited: 826.5
-          nominal_rp: 1000000.0
         confirmation:
-          text: Rp 1.000.000 (826,50 kWh)?
-    - type: button
-      name: Rp 500.000 (413,25 kWh)
-      icon: mdi:cash-plus
-      show_state: false
-      tap_action:
-        action: perform-action
-        perform_action: pln_prepaid_monitor.add_token_topup
-        target:
-          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
-        data:
-          kwh_credited: 413.25
-          nominal_rp: 500000.0
-        confirmation:
-          text: Rp 500.000 (413,25 kWh)?
-  - type: markdown
-    content: '### Cara mencatat pengisian token
-
-
-      Buka **Developer Tools -> Actions**, cari **Catat pengisian token**, pilih perangkat
-      kelompok tagihan ini, lalu isi berapa kWh yang masuk menurut struk atau layar
-      meteran.
-
-
-      Kalau angka sistem mulai melenceng dari layar meteran, pakai **Samakan dengan
-      angka meteran**.'
+          text: Reset sisa token ke nol?
+  - type: entities
+    title: Pengaturan
+    entities:
+    - entity: number.tarif_r_1_tarif_per_kwh
+      name: Tarif per kWh
+    - entity: number.pln_rumah_ambang_peringatan
+    - entity: number.pln_rumah_ambang_kritis
+    - entity: number.pln_rumah_ambang_sangat_kritis
   - type: statistics-graph
     title: Pemakaian harian
     entities:
@@ -189,6 +247,7 @@ views:
         Assistant Anda tidak tersentuh.'
     - type: button
       name: Bersihkan data lama
+      show_icon: false
       icon: mdi:database-remove
       show_state: false
       tap_action:
@@ -204,26 +263,45 @@ views:
   - type: entities
     title: Status
     entities:
-    - sensor.pln_toko_status_token
-    - sensor.pln_toko_perkiraan_hari_tersisa
-    - sensor.pln_toko_perkiraan_tanggal_habis
-    - binary_sensor.pln_toko_data_cukup_untuk_perkiraan
+    - entity: sensor.pln_toko_status_token
+      name: Status
+    - entity: sensor.pln_toko_perkiraan_hari_tersisa
+      name: Perkiraan hari tersisa
+    - entity: sensor.pln_toko_perkiraan_tanggal_habis
+      name: Perkiraan tanggal habis
+    - entity: binary_sensor.pln_toko_data_cukup_untuk_perkiraan
+      name: Data cukup untuk perkiraan
+  - type: conditional
+    conditions:
+    - entity: binary_sensor.pln_toko_data_cukup_untuk_perkiraan
+      state: 'off'
+    card:
+      type: markdown
+      content: '**Perkiraan belum bisa dihitung.** Sistem butuh beberapa hari data
+        pemakaian dulu sebelum bisa menebak kapan token habis, jadi status dan tanggal
+        habis masih kosong. Ini normal untuk pemasangan baru - tidak ada yang rusak,
+        dan sisa token di bawah tetap dihitung benar.'
   - type: gauge
     entity: sensor.pln_toko_daya
-    name: Sekarang
+    name: Arus
     needle: true
     min: 0
     max: 5000
   - type: glance
-    title: Sumber energi
+    title: 'Sumber energi: MCB TOKO'
     entities:
-    - sensor.pln_toko_total_energi
-    - sensor.mcb_toko_tegangan
-    - sensor.mcb_toko_arus
-    - sensor.mcb_toko_frekuensi
-    - binary_sensor.mcb_toko_status_koneksi
+    - entity: sensor.mcb_toko_energi
+      name: Angka meteran
+    - entity: sensor.mcb_toko_tegangan
+      name: Tegangan
+    - entity: sensor.mcb_toko_arus
+      name: Arus
+    - entity: sensor.mcb_toko_frekuensi
+      name: Frekuensi
+    - entity: binary_sensor.mcb_toko_status_koneksi
+      name: Koneksi
   - type: entities
-    title: Sekarang
+    title: Arus
     entities:
     - entity: sensor.pln_toko_energi_hari_ini
       name: Hari ini
@@ -239,9 +317,14 @@ views:
   - type: entities
     title: Token
     entities:
-    - sensor.pln_toko_sisa_token
-    - sensor.pln_toko_nilai_sisa_token
-    - sensor.pln_toko_token_terpakai
+    - entity: sensor.pln_toko_sisa_token
+      name: Sisa token
+    - entity: sensor.pln_toko_nilai_sisa_token
+      name: Nilai sisa token
+    - entity: sensor.pln_toko_token_terpakai
+      name: Terpakai dari token
+    - entity: sensor.pln_toko_rata_rata_pemakaian_harian
+      name: Rata-rata harian
   - type: conditional
     conditions:
     - entity: binary_sensor.pln_toko_penahanan_catatan_token
@@ -288,34 +371,49 @@ views:
               action: accept
             confirmation:
               text: Anggap pemakaian nyata?
-  - type: markdown
-    content: '### Isi token'
-  - type: markdown
-    content: 'Belum ada tombol pengisian di sini karena sistem belum tahu berapa kWh
-      yang biasa Anda beli.
-
-
-      Ada dua cara memunculkannya:
-
-
-      1. **Catat satu pengisian dulu** lewat **Developer Tools -> Actions -> Catat
-      pengisian token**. Setelah itu jalankan **Buatkan dashboard** lagi, dan nilai
-      tadi langsung jadi tombol di sini.
-
-      2. Atau isi **Nilai pengisian siap pakai** di **Settings -> Devices & Services
-      -> PLN Prepaid Energy & Cost Monitor -> Configure** pada kelompok ini. Cukup
-      tulis angka kWh-nya saja, misalnya `826,50`.'
-  - type: markdown
-    content: '### Cara mencatat pengisian token
-
-
-      Buka **Developer Tools -> Actions**, cari **Catat pengisian token**, pilih perangkat
-      kelompok tagihan ini, lalu isi berapa kWh yang masuk menurut struk atau layar
-      meteran.
-
-
-      Kalau angka sistem mulai melenceng dari layar meteran, pakai **Samakan dengan
-      angka meteran**.'
+  - type: vertical-stack
+    cards:
+    - type: entities
+      title: Isi token
+      entities:
+      - entity: number.pln_toko_jumlah_kwh_pengisian
+        name: Jumlah kWh
+      - entity: button.pln_toko_catat_pengisian
+        name: Catat pengisian
+  - type: vertical-stack
+    cards:
+    - type: markdown
+      content: Dipakai kalau angka sistem sudah melenceng dari layar meteran. Isi
+        angka yang tertera di meteran, lalu tekan **Samakan**.
+    - type: entities
+      title: Perbaiki hitungan
+      entities:
+      - entity: number.pln_toko_sisa_token_di_layar_meteran
+        name: Angka di layar meteran
+      - entity: button.pln_toko_samakan_dengan_angka_meteran
+        name: Samakan
+    - type: markdown
+      content: Mulai pencatatan token dari nol. Seluruh pengisian yang masih aktif
+        dianggap sudah tidak berlaku. **Tidak bisa dibatalkan.**
+    - type: button
+      name: Reset sisa token ke nol
+      show_icon: false
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.reset_token_ledger
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        confirmation:
+          text: Reset sisa token ke nol?
+  - type: entities
+    title: Pengaturan
+    entities:
+    - entity: number.tarif_r_1_tarif_per_kwh
+      name: Tarif per kWh
+    - entity: number.pln_toko_ambang_peringatan
+    - entity: number.pln_toko_ambang_kritis
+    - entity: number.pln_toko_ambang_sangat_kritis
   - type: statistics-graph
     title: Pemakaian harian
     entities:
@@ -345,6 +443,7 @@ views:
         Assistant Anda tidak tersentuh.'
     - type: button
       name: Bersihkan data lama
+      show_icon: false
       icon: mdi:database-remove
       show_state: false
       tap_action:

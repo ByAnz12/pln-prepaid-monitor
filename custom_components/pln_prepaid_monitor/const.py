@@ -13,10 +13,40 @@ from homeassistant.const import Platform
 
 DOMAIN: Final = "pln_prepaid_monitor"
 
-# Integrasi ini HANYA membaca. Daftar platform di bawah sengaja tidak pernah
-# memuat switch/number/select/button: sistem ini tidak boleh punya kemampuan
-# memutus atau menyalakan listrik. Lihat tests/test_readonly_guarantee.py.
-PLATFORMS: Final[list[Platform]] = [Platform.SENSOR, Platform.BINARY_SENSOR]
+# Integrasi ini tidak boleh punya kemampuan memutus atau menyalakan listrik.
+#
+# ``number`` dan ``button`` ada di sini sejak D-039, supaya pencatatan token dan
+# pengaturan yang sering berubah bisa dilakukan langsung dari dashboard. Entity
+# itu hanya menyentuh catatan token dan konfigurasi integrasi ini sendiri -
+# tidak ada satu pun yang mengirim perintah ke perangkat mana pun.
+#
+# ``switch`` dan kerabatnya tetap terlarang selamanya. Lihat
+# ``FORBIDDEN_PLATFORMS`` di bawah dan tests/test_readonly_guarantee.py.
+PLATFORMS: Final[list[Platform]] = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.NUMBER,
+    Platform.BUTTON,
+]
+
+# Platform yang tidak boleh dipakai integrasi ini, apa pun alasannya: semuanya
+# mengirim perintah ke perangkat fisik.
+FORBIDDEN_PLATFORMS: Final[frozenset[Platform]] = frozenset(
+    {
+        Platform.SWITCH,
+        Platform.SELECT,
+        Platform.CLIMATE,
+        Platform.COVER,
+        Platform.FAN,
+        Platform.HUMIDIFIER,
+        Platform.LIGHT,
+        Platform.LOCK,
+        Platform.SIREN,
+        Platform.VACUUM,
+        Platform.VALVE,
+        Platform.WATER_HEATER,
+    }
+)
 
 # Domain entity yang boleh dipilih user sebagai sumber data.
 ALLOWED_SOURCE_DOMAINS: Final = ("sensor",)

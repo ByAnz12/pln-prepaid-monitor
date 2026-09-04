@@ -8,6 +8,34 @@
         }
       }
     },
+    "button": {
+      "record_topup": {
+        "default": "mdi:cash-plus"
+      },
+      "calibrate_token": {
+        "default": "mdi:auto-fix"
+      }
+    },
+    "number": {
+      "topup_kwh": {
+        "default": "mdi:cash-plus"
+      },
+      "meter_reading_kwh": {
+        "default": "mdi:meter-electric-outline"
+      },
+      "warning_threshold_days": {
+        "default": "mdi:alert-circle-outline"
+      },
+      "critical_threshold_days": {
+        "default": "mdi:alert-circle"
+      },
+      "very_critical_threshold_days": {
+        "default": "mdi:alert-octagon"
+      },
+      "rate_rp_per_kwh": {
+        "default": "mdi:cash"
+      }
+    },
     "sensor": {
       "energy": {
         "default": "mdi:meter-electric-outline"

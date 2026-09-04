@@ -560,6 +560,15 @@ class BillingGroupRuntime:
         self.notifier_state = NotifierState.from_dict(stored.get("notifier"))
         self._prediction_unsub: CALLBACK_TYPE | None = None
 
+        # Angka yang sedang diketik user di dashboard, sebelum tombolnya
+        # ditekan. Disimpan di sini, bukan di entity, supaya tombol dan isian
+        # membaca satu angka yang sama - dan supaya angkanya tidak hilang kalau
+        # Home Assistant restart di tengah-tengah.
+        self.inputs: dict[str, float] = {
+            str(key): float(value)
+            for key, value in (stored.get("inputs") or {}).items()
+        }
+
         self._member_unsubs: list[CALLBACK_TYPE] = []
         self._timer_unsubs: dict[str, CALLBACK_TYPE] = {}
         self._listeners: list[CALLBACK_TYPE] = []
@@ -884,6 +893,67 @@ class BillingGroupRuntime:
             return
 
     @callback
+    def async_set_input(self, key: str, value: float) -> None:
+        """Simpan angka yang sedang diketik user, dan beri tahu entity-nya."""
+        self.inputs[key] = float(value)
+        self._async_notify()
+        self._on_persist()
+
+    def record_topup(
+        self,
+        *,
+        kwh_credited: float,
+        nominal_rp: float | None = None,
+        timestamp: str | None = None,
+        meter_reading_before: float | None = None,
+        meter_reading_after: float | None = None,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        """Catat pengisian token, lalu beri tahu semua yang bergantung padanya.
+
+        Satu-satunya tempat pencatatan pengisian dilakukan, dipakai bersama oleh
+        layanan dan oleh tombol di dashboard - supaya keduanya tidak mungkin
+        berperilaku berbeda.
+        """
+        entry = self.ledger.add_topup(
+            kwh_credited=kwh_credited,
+            group_total=self.total_kwh,
+            timestamp=timestamp or dt_util.now().isoformat(),
+            nominal_rp=nominal_rp,
+            meter_reading_before=meter_reading_before,
+            meter_reading_after=meter_reading_after,
+            note=note,
+        )
+        _LOGGER.info(
+            "Token '%s' diisi %s kWh (id %s), sisa sekarang %s kWh",
+            self.name,
+            entry["kwh_credited"],
+            entry["id"],
+            self.token_remaining_kwh,
+        )
+        self.async_ledger_changed()
+        return entry
+
+    def calibrate_to(
+        self,
+        *,
+        actual_remaining_kwh: float,
+        timestamp: str | None = None,
+        note: str | None = None,
+    ) -> None:
+        """Samakan ledger dengan angka di layar meteran fisik."""
+        self.ledger.calibrate(
+            actual_remaining_kwh=actual_remaining_kwh,
+            group_total=self.total_kwh,
+            timestamp=timestamp or dt_util.now().isoformat(),
+            note=note,
+        )
+        _LOGGER.info(
+            "Ledger token '%s' dikalibrasi ke %s kWh", self.name, actual_remaining_kwh
+        )
+        self.async_ledger_changed()
+
+    @callback
     def async_ledger_changed(self) -> None:
         """Dipanggil sesudah layanan token mengubah ledger."""
         self._async_notify()
@@ -979,6 +1049,7 @@ class BillingGroupRuntime:
             },
             "token": self.ledger.state.as_dict(),
             "notifier": self.notifier_state.as_dict(),
+            "inputs": dict(self.inputs),
         }
 
 

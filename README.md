@@ -702,28 +702,75 @@ Dua hal yang mungkin ingin Anda sesuaikan setelah menempel:
   Anda supaya jarumnya proporsional.
 - **Rentang grafik riwayat** diisi 30 hari (`days_to_show`).
 
-### Mencatat pengisian token dari dashboard
+### Semua urusan token dilakukan dari dashboard
 
-Dashboard punya bagian **Isi token** berisi **tombol sekali klik** — misalnya
-"Rp 1.000.000 (826,50 kWh)". Tombolnya meminta konfirmasi dulu, dan angka yang
-akan dicatat tertulis di tombol maupun di dialog konfirmasinya.
+Tidak ada satu pun langkah token yang mengharuskan Anda membuka **Developer
+Tools**. Semuanya ada di halaman kelompok tagihan.
 
-Tombol itu muncul dari dua sumber:
+**Isi token**
 
-1. [Nilai pengisian siap pakai](#nilai-pengisian-siap-pakai) yang Anda atur
-   sendiri.
-2. **Pengisian yang pernah Anda catat.** Begitu ada satu pengisian tercatat,
-   nilainya otomatis tersedia sebagai tombol — tanpa mengatur apa pun.
+| Yang Anda lihat | Cara pakai |
+|---|---|
+| **Jumlah kWh** | Kotak angka. Ketik jumlah kWh dari struk, lalu tekan **Catat pengisian**. |
+| **Nilai siap pakai** | Tombol sekali klik untuk jumlah yang sering Anda beli. Meminta konfirmasi dulu. |
 
-Keduanya baru masuk ke dashboard saat dashboardnya dibuat. Jadi setelah
-pengisian pertama, jalankan **Buatkan dashboard** sekali lagi dan tempelkan
-hasilnya. Selama belum ada nilai apa pun, bagian **Isi token** berisi petunjuk
-cara memunculkan tombolnya, bukan ruang kosong.
+Angka yang Anda ketik belum tercatat apa pun sampai tombolnya ditekan, dan
+kotaknya dikosongkan sesudah dicatat supaya tidak tertekan dua kali. Menekan
+tombol saat kotaknya masih kosong ditolak dengan pesan — bukan mencatat nol
+diam-diam.
 
-Untuk pengisian dengan angka bebas, kartu **Cara mencatat pengisian token**
-menjelaskan langkahnya lewat **Developer Tools → Actions**. Home Assistant tidak
-punya kartu bawaan yang bisa menampilkan form berisi angka lalu memanggil
-layanan dengan isian itu, jadi angka bebas memang perlu lewat sana.
+Tombol **Nilai siap pakai** muncul dari dua sumber: [nilai yang Anda
+atur](#nilai-pengisian-siap-pakai), dan **pengisian yang pernah Anda catat**.
+Keduanya masuk ke dashboard saat dashboardnya dibuat, jadi setelah pengisian
+pertama jalankan **Buatkan dashboard** sekali lagi.
+
+**Perbaiki hitungan**
+
+| Yang Anda lihat | Kapan dipakai |
+|---|---|
+| **Angka di layar meteran** + **Samakan** | Kalau hitungan sistem sudah melenceng dari meteran. |
+| **Reset sisa token ke nol** | Mulai pencatatan dari nol, misalnya setelah meteran diganti. |
+
+> ### ⚠️ Reset tidak bisa dibatalkan
+>
+> Seluruh pengisian yang masih aktif dianggap tidak berlaku lagi. Tombolnya
+> selalu meminta konfirmasi.
+>
+> Reset sengaja **bukan** entity tombol biasa. Entity tombol langsung berjalan
+> begitu ditekan, tanpa dialog apa pun — terlalu berbahaya untuk aksi yang tidak
+> bisa dibatalkan. **Catat pengisian** dan **Samakan** memang entity tombol,
+> karena keduanya masih bisa diperbaiki kalau salah tekan.
+
+**Pengaturan**
+
+Tarif per kWh dan ketiga ambang status token bisa diubah langsung dari
+dashboard. Mengubahnya menulis ke konfigurasi, jadi integrasi memuat ulang
+sebentar — sama seperti mengubahnya lewat layar **Configure**.
+
+Mengubah tarif **menambah versi baru**, tidak menimpa yang lama. Biaya yang
+sudah tercatat tetap memakai tarif yang berlaku saat pemakaian itu terjadi.
+
+Urutan ambang yang tidak masuk akal ditolak dengan pesan — Peringatan harus
+lebih besar dari Kritis, dan Kritis lebih besar dari Sangat kritis.
+
+### Kalau status token masih "Unknown"
+
+Pada pemasangan baru, kartu **Status** menampilkan status *Unknown* dan
+perkiraan *Unavailable*. **Itu normal, bukan kerusakan.**
+
+Sistem perlu beberapa hari data pemakaian sebelum bisa menebak kapan token
+habis. Selama itu belum cukup, ia memilih **tidak menampilkan angka sama
+sekali** ketimbang menampilkan tebakan yang menyesatkan — lihat [Selama data
+belum cukup, tidak ada angka sama
+sekali](#selama-data-belum-cukup-tidak-ada-angka-sama-sekali).
+
+Sisa token di kartu **Token** tetap dihitung benar sejak menit pertama. Yang
+belum ada hanya *perkiraan kapan habisnya*. Dashboard menampilkan penjelasan ini
+sendiri selama datanya belum cukup.
+
+Grafik **Pemakaian harian** dan **Biaya harian** yang bertuliskan *No statistics
+found* juga normal — Home Assistant menyusun statistik jangka panjang tiap jam,
+jadi grafiknya terisi setelah beberapa jam.
 
 ---
 

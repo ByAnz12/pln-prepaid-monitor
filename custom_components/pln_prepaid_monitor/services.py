@@ -274,40 +274,24 @@ def async_setup_services(hass: HomeAssistant) -> None:
         """Catat pengisian token baru."""
         for group in _resolve_groups(hass, call):
             _require_token_enabled(group)
-            entry = group.ledger.add_topup(
+            group.record_topup(
                 kwh_credited=_resolve_kwh(group, call),
-                group_total=group.total_kwh,
                 timestamp=_timestamp(call),
                 nominal_rp=call.data.get(ATTR_NOMINAL_RP),
                 meter_reading_before=call.data.get(ATTR_METER_READING_BEFORE),
                 meter_reading_after=call.data.get(ATTR_METER_READING_AFTER),
                 note=call.data.get(ATTR_NOTE),
             )
-            _LOGGER.info(
-                "Token '%s' diisi %s kWh (id %s), sisa sekarang %s kWh",
-                group.name,
-                entry["kwh_credited"],
-                entry["id"],
-                group.token_remaining_kwh,
-            )
-            group.async_ledger_changed()
 
     async def async_calibrate(call: ServiceCall) -> None:
         """Samakan ledger dengan angka di layar meteran fisik."""
         for group in _resolve_groups(hass, call):
             _require_token_enabled(group)
-            group.ledger.calibrate(
+            group.calibrate_to(
                 actual_remaining_kwh=call.data[ATTR_ACTUAL_REMAINING_KWH],
-                group_total=group.total_kwh,
                 timestamp=_timestamp(call),
                 note=call.data.get(ATTR_NOTE),
             )
-            _LOGGER.info(
-                "Ledger token '%s' dikalibrasi ke %s kWh",
-                group.name,
-                call.data[ATTR_ACTUAL_REMAINING_KWH],
-            )
-            group.async_ledger_changed()
 
     async def async_edit_topup(call: ServiceCall) -> None:
         """Perbaiki entri top-up yang salah input."""

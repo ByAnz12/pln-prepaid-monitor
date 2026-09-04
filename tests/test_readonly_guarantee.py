@@ -19,6 +19,7 @@ from custom_components.pln_prepaid_monitor.const import (
     CONF_ENERGY_ENTITY_ID,
     CONF_POWER_ENTITY_ID,
     DOMAIN,
+    FORBIDDEN_PLATFORMS,
     PLATFORMS,
     SUBENTRY_TYPE_ENERGY_SOURCE,
 )
@@ -29,31 +30,33 @@ INTEGRATION_DIR = (
     Path(__file__).parent.parent / "custom_components" / "pln_prepaid_monitor"
 )
 
-CONTROL_PLATFORMS = {
-    Platform.SWITCH,
-    Platform.NUMBER,
-    Platform.SELECT,
-    Platform.BUTTON,
-    Platform.CLIMATE,
-    Platform.COVER,
-    Platform.FAN,
-    Platform.LIGHT,
-    Platform.LOCK,
-    Platform.SIREN,
-    Platform.VALVE,
-    Platform.WATER_HEATER,
-}
+def test_platform_list_is_locked() -> None:
+    """Daftar platform dikunci, jadi penambahan berikutnya harus disengaja.
+
+    ``number`` dan ``button`` masuk sejak D-039 supaya pencatatan token bisa
+    dilakukan dari dashboard. Keduanya hanya menyentuh catatan token dan
+    konfigurasi integrasi ini sendiri - dibuktikan oleh
+    ``test_pressing_every_button_leaves_relays_untouched`` di bawah, yang
+    menekan seluruh tombol dan mengubah seluruh isian lalu memastikan tidak
+    ada entity relay yang bergerak.
+    """
+    assert set(PLATFORMS) == {
+        Platform.SENSOR,
+        Platform.BINARY_SENSOR,
+        Platform.NUMBER,
+        Platform.BUTTON,
+    }
 
 
-def test_no_control_platform_is_registered() -> None:
-    """Daftar platform tidak boleh memuat satu pun platform yang bisa mengontrol."""
-    assert set(PLATFORMS) == {Platform.SENSOR, Platform.BINARY_SENSOR}
-    assert not CONTROL_PLATFORMS & set(PLATFORMS)
+def test_forbidden_platforms_are_never_used() -> None:
+    """Platform yang mengirim perintah ke perangkat tetap terlarang selamanya."""
+    assert not FORBIDDEN_PLATFORMS & set(PLATFORMS)
+    assert Platform.SWITCH in FORBIDDEN_PLATFORMS
 
 
-def test_no_control_platform_module_exists() -> None:
-    """Tidak boleh ada file platform kontrol di dalam paket integrasi."""
-    for platform in CONTROL_PLATFORMS:
+def test_no_forbidden_platform_module_exists() -> None:
+    """Tidak boleh ada file platform terlarang di dalam paket integrasi."""
+    for platform in FORBIDDEN_PLATFORMS:
         assert not (INTEGRATION_DIR / f"{platform.value}.py").exists()
 
 
@@ -204,3 +207,99 @@ async def test_only_bookkeeping_services_are_registered(
         assert not any(
             word in name for word in ("turn", "switch", "toggle", "power", "breaker")
         )
+
+
+async def test_pressing_every_button_leaves_relays_untouched(
+    hass: HomeAssistant,
+) -> None:
+    """Bukti bahwa number dan button di sini tidak menyentuh perangkat apa pun.
+
+    Ini pengganti larangan platform yang dulu: alih-alih melarang berdasarkan
+    nama platform, sekarang dibuktikan berdasarkan perilaku. Seluruh isian
+    diubah dan seluruh tombol ditekan; tidak satu pun entity relay/breaker
+    milik user boleh bergerak.
+    """
+    from custom_components.pln_prepaid_monitor.const import (
+        CONF_CYCLE_PERIODS,
+        CONF_SOURCE_IDS,
+        CONF_TOKEN_ENABLED,
+        SUBENTRY_TYPE_BILLING_GROUP,
+    )
+
+    apply_states(hass, MCB_RUMAH, RELAY_ENTITIES)
+    before = {
+        entity_id: hass.states.get(entity_id).state for entity_id in RELAY_ENTITIES
+    }
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={},
+        subentries_data=[
+            {
+                "data": {
+                    "name": "MCB RUMAH",
+                    CONF_ENERGY_ENTITY_ID: "sensor.mcb_rumah_total_energy",
+                    CONF_POWER_ENTITY_ID: "sensor.mcb_rumah_phase_a_power",
+                },
+                "subentry_id": "src_rumah",
+                "subentry_type": SUBENTRY_TYPE_ENERGY_SOURCE,
+                "title": "MCB RUMAH",
+                "unique_id": None,
+            },
+            {
+                "data": {
+                    "name": "PLN RUMAH",
+                    CONF_SOURCE_IDS: ["src_rumah"],
+                    CONF_CYCLE_PERIODS: ["day"],
+                    CONF_TOKEN_ENABLED: True,
+                },
+                "subentry_id": "grp_rumah",
+                "subentry_type": SUBENTRY_TYPE_BILLING_GROUP,
+                "title": "PLN RUMAH",
+                "unique_id": None,
+            },
+        ],
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    numbers = [
+        state.entity_id
+        for state in hass.states.async_all("number")
+        if state.entity_id.startswith("number.pln_")
+    ]
+    buttons = [state.entity_id for state in hass.states.async_all("button")]
+    assert numbers and buttons, "platform baru harus benar-benar membuat entity"
+
+    # Sebagian nilai memang akan ditolak - misalnya menyamakan ketiga ambang
+    # jadi 1.0 melanggar urutan wajibnya. Yang diuji di sini bukan apakah
+    # nilainya diterima, melainkan bahwa tidak ada relay yang bergerak entah
+    # diterima maupun ditolak.
+    from homeassistant.exceptions import HomeAssistantError
+
+    for entity_id in numbers:
+        try:
+            await hass.services.async_call(
+                "number",
+                "set_value",
+                {"entity_id": entity_id, "value": 1.0},
+                blocking=True,
+            )
+        except HomeAssistantError:
+            pass
+        await hass.async_block_till_done()
+
+    for entity_id in buttons:
+        try:
+            await hass.services.async_call(
+                "button", "press", {"entity_id": entity_id}, blocking=True
+            )
+        except HomeAssistantError:
+            pass
+        await hass.async_block_till_done()
+
+    after = {
+        entity_id: hass.states.get(entity_id).state for entity_id in RELAY_ENTITIES
+    }
+    assert after == before

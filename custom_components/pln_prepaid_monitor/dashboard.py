@@ -18,7 +18,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN
+from .const import CONF_TARIFF_ID, DOMAIN
 from .engines.token_engine import presets_from_history
 from .messages import PERIOD_LABELS, pick_language
 
@@ -32,14 +32,6 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "history": "Riwayat",
         "sources": "Sumber energi",
         "hold_title": "Pencatatan token ditahan",
-        "howto_title": "Cara mencatat pengisian token",
-        "howto": (
-            "Buka **Developer Tools -> Actions**, cari **Catat pengisian token**, "
-            "pilih perangkat kelompok tagihan ini, lalu isi berapa kWh yang masuk "
-            "menurut struk atau layar meteran.\n\n"
-            "Kalau angka sistem mulai melenceng dari layar meteran, pakai "
-            "**Samakan dengan angka meteran**."
-        ),
         "hold_explain": (
             "Meteran ter-reset dan angka sesudahnya cukup besar, jadi sisa token "
             "dibekukan supaya tidak hangus salah. Pilih salah satu di bawah, atau "
@@ -49,17 +41,6 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "hold_ignore": "Abaikan (meteran diganti)",
         "hold_accept": "Anggap pemakaian nyata",
         "topup_title": "Isi token",
-        "topup_none": (
-            "Belum ada tombol pengisian di sini karena sistem belum tahu berapa "
-            "kWh yang biasa Anda beli.\n\n"
-            "Ada dua cara memunculkannya:\n\n"
-            "1. **Catat satu pengisian dulu** lewat **Developer Tools -> Actions "
-            "-> Catat pengisian token**. Setelah itu jalankan **Buatkan "
-            "dashboard** lagi, dan nilai tadi langsung jadi tombol di sini.\n"
-            "2. Atau isi **Nilai pengisian siap pakai** di **Settings -> Devices "
-            "& Services -> PLN Prepaid Energy & Cost Monitor -> Configure** pada "
-            "kelompok ini. Cukup tulis angka kWh-nya saja, misalnya `826,50`."
-        ),
         "maint_title": "Perawatan",
         "maint_note": (
             "Menghapus riwayat lama milik integrasi ini sesuai batas retensi "
@@ -67,6 +48,42 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
             "dan data lain di Home Assistant Anda tidak tersentuh."
         ),
         "maint_button": "Bersihkan data lama",
+        "status_waiting": (
+            "**Perkiraan belum bisa dihitung.** Sistem butuh beberapa hari data "
+            "pemakaian dulu sebelum bisa menebak kapan token habis, jadi status "
+            "dan tanggal habis masih kosong. Ini normal untuk pemasangan baru - "
+            "tidak ada yang rusak, dan sisa token di bawah tetap dihitung benar."
+        ),
+        "topup_amount": "Jumlah kWh",
+        "topup_record": "Catat pengisian",
+        "presets_title": "Nilai siap pakai",
+        "fix_title": "Perbaiki hitungan",
+        "fix_note": (
+            "Dipakai kalau angka sistem sudah melenceng dari layar meteran. "
+            "Isi angka yang tertera di meteran, lalu tekan **Samakan**."
+        ),
+        "meter_reading": "Angka di layar meteran",
+        "calibrate": "Samakan",
+        "reset_button": "Reset sisa token ke nol",
+        "reset_note": (
+            "Mulai pencatatan token dari nol. Seluruh pengisian yang masih "
+            "aktif dianggap sudah tidak berlaku. **Tidak bisa dibatalkan.**"
+        ),
+        "settings_title": "Pengaturan",
+        "rate": "Tarif per kWh",
+        "meter": "Angka meteran",
+        "voltage": "Tegangan",
+        "current": "Arus",
+        "frequency": "Frekuensi",
+        "connection": "Koneksi",
+        "status_token": "Status",
+        "days_remaining": "Perkiraan hari tersisa",
+        "empty_date": "Perkiraan tanggal habis",
+        "data_sufficient": "Data cukup untuk perkiraan",
+        "token_remaining": "Sisa token",
+        "token_value": "Nilai sisa token",
+        "token_consumed": "Terpakai dari token",
+        "avg_daily": "Rata-rata harian",
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
     },
@@ -78,14 +95,6 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "history": "History",
         "sources": "Energy sources",
         "hold_title": "Token tracking on hold",
-        "howto_title": "How to record a top-up",
-        "howto": (
-            "Open **Developer Tools -> Actions**, find **Record token top-up**, "
-            "pick this billing group's device, then enter how many kWh went in "
-            "according to the receipt or the meter display.\n\n"
-            "If the system's figure drifts from the meter, use **Match the meter "
-            "reading**."
-        ),
         "hold_explain": (
             "The meter reset and the value afterwards was large, so the remaining "
             "token has been frozen to avoid writing it off by mistake. Pick one "
@@ -95,18 +104,6 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "hold_ignore": "Ignore (meter replaced)",
         "hold_accept": "Treat as real usage",
         "topup_title": "Top up token",
-        "topup_none": (
-            "No top-up buttons here yet, because the system does not know how "
-            "many kWh you usually buy.\n\n"
-            "Two ways to get them:\n\n"
-            "1. **Record one top-up first** via **Developer Tools -> Actions -> "
-            "Record token top-up**. Then run **Generate dashboard** again and "
-            "that amount becomes a button here.\n"
-            "2. Or fill in **Ready-to-use top-up values** under **Settings -> "
-            "Devices & Services -> PLN Prepaid Energy & Cost Monitor -> "
-            "Configure** for this group. Just the kWh figure is enough, for "
-            "example `826.50`."
-        ),
         "maint_title": "Maintenance",
         "maint_note": (
             "Deletes this integration's old history according to the retention "
@@ -114,6 +111,42 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
             "other entities and data are not touched."
         ),
         "maint_button": "Purge old data",
+        "status_waiting": (
+            "**No estimate yet.** The system needs a few days of usage data "
+            "before it can guess when the token runs out, so the status and "
+            "empty date are still blank. This is normal for a fresh install - "
+            "nothing is broken, and the remaining token below is still correct."
+        ),
+        "topup_amount": "Amount in kWh",
+        "topup_record": "Record top-up",
+        "presets_title": "Ready-to-use values",
+        "fix_title": "Correct the figure",
+        "fix_note": (
+            "Use this when the system's figure has drifted from the meter "
+            "display. Enter the figure shown on the meter, then press **Match**."
+        ),
+        "meter_reading": "Figure on the meter",
+        "calibrate": "Match",
+        "reset_button": "Reset remaining token to zero",
+        "reset_note": (
+            "Start token tracking from zero. Every top-up still counted is "
+            "treated as no longer valid. **This cannot be undone.**"
+        ),
+        "settings_title": "Settings",
+        "rate": "Rate per kWh",
+        "meter": "Meter reading",
+        "voltage": "Voltage",
+        "current": "Current",
+        "frequency": "Frequency",
+        "connection": "Connection",
+        "status_token": "Status",
+        "days_remaining": "Estimated days remaining",
+        "empty_date": "Estimated empty date",
+        "data_sufficient": "Data sufficient",
+        "token_remaining": "Remaining token",
+        "token_value": "Value of remaining token",
+        "token_consumed": "Used from token",
+        "avg_daily": "Daily average",
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
     },
@@ -139,6 +172,7 @@ class GroupView:
     token_enabled: bool
     presets: list[Any] = field(default_factory=list)
     entities: dict[str, str] = field(default_factory=dict)
+    tariff_entities: dict[str, str] = field(default_factory=dict)
     sources: list[SourceView] = field(default_factory=list)
 
     def entity(self, key: str) -> str | None:
@@ -178,7 +212,7 @@ def _resolve(hass: HomeAssistant, subentry_id: str, keys: list[str]) -> dict[str
     registry = er.async_get(hass)
     resolved: dict[str, str] = {}
     for key in keys:
-        for platform in ("sensor", "binary_sensor"):
+        for platform in ("sensor", "binary_sensor", "number", "button"):
             entity_id = registry.async_get_entity_id(
                 platform, DOMAIN, f"{subentry_id}_{key}"
             )
@@ -196,14 +230,26 @@ GROUP_KEYS = [
     "token_remaining_value",
     "token_consumed",
     "token_status",
-    "average_daily_usage",
+    "avg_daily_usage",
     "days_remaining",
     "empty_date",
     "data_sufficient",
     "ledger_hold",
+    # Isian dan tombol, supaya seluruh pencatatan token bisa dilakukan dari
+    # dashboard tanpa membuka Developer Tools.
+    "topup_kwh",
+    "meter_reading_kwh",
+    "record_topup",
+    "calibrate_token",
+    "warning_threshold_days",
+    "critical_threshold_days",
+    "very_critical_threshold_days",
 ]
 
 SOURCE_KEYS = ["energy", "power", "voltage", "current", "frequency", "available"]
+
+# Tarif punya perangkatnya sendiri, jadi entity-nya dicari terpisah.
+TARIFF_KEYS = ["rate_rp_per_kwh"]
 
 
 def collect_views(hass: HomeAssistant, runtime_data: Any) -> list[GroupView]:
@@ -228,6 +274,11 @@ def collect_views(hass: HomeAssistant, runtime_data: Any) -> list[GroupView]:
                 token_enabled=group.token_enabled,
                 presets=_usable_presets(group),
                 entities=_resolve(hass, subentry_id, keys),
+                tariff_entities=(
+                    _resolve(hass, tariff_id, TARIFF_KEYS)
+                    if (tariff_id := group.config.get(CONF_TARIFF_ID))
+                    else {}
+                ),
                 sources=[
                     SourceView(
                         name=source.name,
@@ -240,16 +291,42 @@ def collect_views(hass: HomeAssistant, runtime_data: Any) -> list[GroupView]:
     return views
 
 
-def _status_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
-    """Kartu ringkasan status paling atas."""
+STATUS_ROWS = (
+    ("token_status", "status_token"),
+    ("days_remaining", "days_remaining"),
+    ("empty_date", "empty_date"),
+    ("data_sufficient", "data_sufficient"),
+)
+
+
+def _status_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
+    """Ringkasan status, plus penjelasan kalau perkiraannya memang belum ada.
+
+    Tanpa penjelasan itu, pemasangan baru menampilkan empat baris berisi
+    "Unknown" dan "Unavailable" - terlihat seperti rusak, padahal sistem hanya
+    belum punya cukup data. Nama barisnya juga dipendekkan; tanpa itu setiap
+    baris diawali nama kelompok tagihan dan terpotong di layar sempit.
+    """
     rows = [
-        entity
-        for key in ("token_status", "days_remaining", "empty_date", "data_sufficient")
+        {"entity": entity, "name": texts[label]}
+        for key, label in STATUS_ROWS
         if (entity := view.entity(key))
     ]
     if not rows:
-        return None
-    return {"type": "entities", "title": texts["status"], "entities": rows}
+        return []
+
+    cards: list[dict[str, Any]] = [
+        {"type": "entities", "title": texts["status"], "entities": rows}
+    ]
+    if sufficient := view.entity("data_sufficient"):
+        cards.append(
+            {
+                "type": "conditional",
+                "conditions": [{"entity": sufficient, "state": "off"}],
+                "card": {"type": "markdown", "content": texts["status_waiting"]},
+            }
+        )
+    return cards
 
 
 def _current_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
@@ -268,17 +345,29 @@ def _current_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any
             }
         )
 
-    glance = [entity for key in ("energy_total",) if (entity := view.entity(key))]
+    # Satu kartu per sumber, dengan nama pendek. Sebelumnya semua sumber
+    # dijejalkan ke satu kartu memakai nama panjang bawaan entity, sehingga
+    # labelnya terpotong jadi "MCB TOKO ..." dan tidak terbaca sama sekali.
     for source in view.sources:
-        glance.extend(
-            entity
-            for key in ("voltage", "current", "frequency", "available")
+        entities = [
+            {"entity": entity, "name": texts[label]}
+            for key, label in (
+                ("energy", "meter"),
+                ("voltage", "voltage"),
+                ("current", "current"),
+                ("frequency", "frequency"),
+                ("available", "connection"),
+            )
             if (entity := source.entities.get(key))
-        )
-    if glance:
-        cards.append(
-            {"type": "glance", "title": texts["sources"], "entities": glance}
-        )
+        ]
+        if entities:
+            cards.append(
+                {
+                    "type": "glance",
+                    "title": f"{texts['sources']}: {source.name}",
+                    "entities": entities,
+                }
+            )
 
     return cards
 
@@ -304,12 +393,12 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
 
     cards: list[dict[str, Any]] = []
     rows = [
-        entity
-        for key in (
-            "token_remaining",
-            "token_remaining_value",
-            "token_consumed",
-            "average_daily_usage",
+        {"entity": entity, "name": texts[label]}
+        for key, label in (
+            ("token_remaining", "token_remaining"),
+            ("token_remaining_value", "token_value"),
+            ("token_consumed", "token_consumed"),
+            ("avg_daily_usage", "avg_daily"),
         )
         if (entity := view.entity(key))
     ]
@@ -354,30 +443,115 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
             }
         )
 
-    if view.token_enabled and view.device_id:
-        # Kartu ini selalu ada kalau token dicatat. Kalau belum ada nilai yang
-        # bisa dijadikan tombol, yang tampil adalah cara memunculkannya - bukan
-        # ruang kosong yang membuat user mengira fiturnya tidak ada.
-        cards.append({"type": "markdown", "content": f"### {texts['topup_title']}"})
-        if view.presets:
-            cards.append(
-                {
-                    "type": "horizontal-stack",
-                    "cards": [
-                        _topup_button(view, preset) for preset in view.presets[:4]
-                    ],
-                }
-            )
-        else:
-            cards.append({"type": "markdown", "content": texts["topup_none"]})
+    if topup := _topup_card(view, texts):
+        cards.append(topup)
+    if fix := _fix_card(view, texts):
+        cards.append(fix)
 
-    cards.append(
-        {
-            "type": "markdown",
-            "content": f"### {texts['howto_title']}\n\n{texts['howto']}",
-        }
-    )
     return cards
+
+
+def _topup_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
+    """Semua cara mengisi token, dalam satu tumpukan yang tidak bisa terpisah.
+
+    Digabung jadi satu ``vertical-stack`` dengan sengaja: tata letak masonry
+    Home Assistant menyebar kartu ke kolom mana pun yang masih kosong, sehingga
+    judul dan tombolnya bisa berakhir di kolom berbeda - persis yang terjadi
+    sebelum ini, di mana judul "Isi token" tampil sendirian tanpa isi apa pun.
+    """
+    inner: list[dict[str, Any]] = []
+
+    rows = [
+        {"entity": entity, "name": texts[label]}
+        for key, label in (
+            ("topup_kwh", "topup_amount"),
+            ("record_topup", "topup_record"),
+        )
+        if (entity := view.entity(key))
+    ]
+    if rows:
+        inner.append(
+            {"type": "entities", "title": texts["topup_title"], "entities": rows}
+        )
+
+    if view.presets and view.device_id:
+        inner.append({"type": "markdown", "content": f"**{texts['presets_title']}**"})
+        inner.append(
+            {
+                "type": "grid",
+                "columns": 2,
+                "square": False,
+                "cards": [_topup_button(view, preset) for preset in view.presets[:4]],
+            }
+        )
+
+    if not inner:
+        return None
+    return {"type": "vertical-stack", "cards": inner}
+
+
+def _fix_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
+    """Penyamaan dengan meteran dan reset ledger, jadi satu tumpukan."""
+    inner: list[dict[str, Any]] = []
+
+    rows = [
+        {"entity": entity, "name": texts[label]}
+        for key, label in (
+            ("meter_reading_kwh", "meter_reading"),
+            ("calibrate_token", "calibrate"),
+        )
+        if (entity := view.entity(key))
+    ]
+    if rows:
+        inner.append({"type": "markdown", "content": texts["fix_note"]})
+        inner.append(
+            {"type": "entities", "title": texts["fix_title"], "entities": rows}
+        )
+
+    if view.device_id:
+        # Reset sengaja tetap tombol kartu, bukan entity button: menekan entity
+        # button langsung menjalankan aksinya tanpa dialog konfirmasi, sementara
+        # reset tidak bisa dibatalkan. Lihat button.py.
+        inner.append({"type": "markdown", "content": texts["reset_note"]})
+        inner.append(
+            {
+                "type": "button",
+                "name": texts["reset_button"],
+                "show_icon": False,
+                "show_state": False,
+                "tap_action": {
+                    "action": "perform-action",
+                    "perform_action": f"{DOMAIN}.reset_token_ledger",
+                    "target": {"device_id": view.device_id},
+                    "confirmation": {"text": f"{texts['reset_button']}?"},
+                },
+            }
+        )
+
+    if not inner:
+        return None
+    return {"type": "vertical-stack", "cards": inner}
+
+
+def _settings_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
+    """Pengaturan yang wajar berubah sesekali, bisa diubah langsung di sini."""
+    rows = [
+        {"entity": entity, "name": texts["rate"]}
+        for key in ("rate_rp_per_kwh",)
+        if (entity := view.tariff_entities.get(key))
+    ]
+    rows.extend(
+        {"entity": entity}
+        for key in (
+            "warning_threshold_days",
+            "critical_threshold_days",
+            "very_critical_threshold_days",
+        )
+        if (entity := view.entity(key))
+    )
+    if not rows:
+        return None
+    return {"type": "entities", "title": texts["settings_title"], "entities": rows}
 
 
 def _topup_button(view: GroupView, preset: Any) -> dict[str, Any]:
@@ -475,6 +649,7 @@ def _maintenance_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any]:
             {
                 "type": "button",
                 "name": texts["maint_button"],
+                "show_icon": False,
                 "icon": "mdi:database-remove",
                 "show_state": False,
                 "tap_action": {
@@ -494,8 +669,7 @@ def build_view(view: GroupView, language: str) -> dict[str, Any]:
     labels = PERIOD_LABELS[language]
 
     cards: list[dict[str, Any]] = []
-    if status := _status_card(view, texts):
-        cards.append(status)
+    cards.extend(_status_cards(view, texts))
     cards.extend(_current_cards(view, texts))
 
     if energy_periods := _period_card(view, "energy", texts["current"], labels):
@@ -506,6 +680,8 @@ def build_view(view: GroupView, language: str) -> dict[str, Any]:
         cards.append(cost_periods)
 
     cards.extend(_token_cards(view, texts))
+    if settings := _settings_card(view, texts):
+        cards.append(settings)
     cards.extend(_history_cards(view, texts))
     cards.append(_maintenance_card(view, texts))
 

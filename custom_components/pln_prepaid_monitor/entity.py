@@ -85,3 +85,29 @@ class PlnBillingGroupEntity(Entity):
             ATTR_MEMBER_SOURCES: self._group.member_names,
             ATTR_MEMBERS_UNAVAILABLE: self._group.unavailable_member_names,
         }
+
+
+class PlnTariffEntity(Entity):
+    """Entity yang mengikuti satu Tarif.
+
+    Tarif adalah subentry tersendiri dan bisa dipakai banyak kelompok tagihan,
+    jadi ia punya perangkatnya sendiri. Kalau tarifnya ditempelkan ke perangkat
+    kelompok, dua kelompok yang berbagi tarif akan punya dua entity yang
+    diam-diam mengubah angka yang sama - membingungkan dan mudah salah.
+    """
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+
+    def __init__(self, subentry_id: str, name: str, key: str) -> None:
+        """Ikat entity ke satu subentry tarif."""
+        self._subentry_id = subentry_id
+        self._key = key
+        self._attr_unique_id = f"{subentry_id}_{key}"
+        self._attr_translation_key = key
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, subentry_id)},
+            name=name,
+            manufacturer="PLN Prepaid Monitor",
+            model="Tariff",
+        )
