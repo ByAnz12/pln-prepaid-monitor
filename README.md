@@ -634,11 +634,15 @@ Integrasi ini bisa **membuatkan dashboard** untuk Anda, lengkap dengan
 
 1. Buka **Developer Tools → Actions**.
 2. Cari **Buatkan dashboard**, klik **Perform action**.
-3. Salin isi `yaml` dari hasilnya.
+3. Salin **seluruh** hasil yang muncul di bagian Response, apa adanya.
 4. Buka **Settings → Dashboards → + Add dashboard → New dashboard from
    scratch**, beri nama.
 5. Buka dashboard barunya → ikon pensil di kanan atas → titik tiga → **Raw
-   configuration editor** → tempelkan, lalu simpan.
+   configuration editor** → **hapus dulu isi yang sudah ada di sana**,
+   tempelkan hasil tadi, lalu simpan.
+
+> Hasil layanan ini memang sudah berupa konfigurasi dashboard yang utuh, jadi
+> tidak ada bagian yang perlu Anda pilah-pilah — salin semuanya.
 
 Ada juga contoh statis di [docs/dashboard-example.yaml](docs/dashboard-example.yaml)
 kalau Anda ingin melihat bentuknya lebih dulu — tapi untuk dipakai sungguhan,

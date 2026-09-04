@@ -585,7 +585,7 @@
     },
     "generate_dashboard": {
       "name": "Buatkan dashboard",
-      "description": "Menyusun konfigurasi dashboard Lovelace untuk seluruh kelompok tagihan Anda, lengkap dengan entity_id yang sudah benar. Hasilnya berupa teks YAML untuk Anda tempelkan sendiri - layanan ini tidak mengubah dashboard yang sudah ada."
+      "description": "Menyusun konfigurasi dashboard Lovelace untuk seluruh kelompok tagihan Anda, lengkap dengan entity_id yang sudah benar. Salin SELURUH hasilnya, lalu tempelkan di Raw configuration editor sebuah dashboard baru - layanan ini tidak mengubah dashboard yang sudah ada."
     },
     "purge_old_data": {
       "name": "Bersihkan data lama",

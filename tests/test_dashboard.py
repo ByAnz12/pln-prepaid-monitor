@@ -314,22 +314,41 @@ async def test_hold_cards_are_hidden_until_needed(hass: HomeAssistant) -> None:
 
 
 async def test_service_returns_pasteable_yaml(hass: HomeAssistant) -> None:
-    """Layanan mengembalikan YAML siap tempel, bukan mengubah dashboard apa pun."""
+    """Layanan mengembalikan konfigurasi siap tempel, tanpa mengubah dashboard."""
     apply_states(hass, MCB_RUMAH)
     await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
 
     response = await _generate(hass)
 
-    assert response["views"] == 1
-    yaml_text = response["yaml"]
-    assert "views:" in yaml_text
-    assert "PLN RUMAH" in yaml_text
-    assert "statistics-graph" in yaml_text
+    assert len(response["views"]) == 1
+    assert response["views"][0]["title"] == "PLN RUMAH"
 
-    # Hasilnya harus benar-benar YAML yang bisa dibaca kembali.
-    from homeassistant.util.yaml import parse_yaml
+    # Developer Tools menampilkan response sebagai YAML; hasil tampilan itulah
+    # yang disalin user, jadi ia harus bisa dibaca kembali sebagai YAML utuh.
+    from homeassistant.util.yaml import dump, parse_yaml
 
-    assert parse_yaml(yaml_text)["views"][0]["title"] == "PLN RUMAH"
+    assert parse_yaml(dump(response)) == response
+
+
+async def test_response_is_nothing_but_the_dashboard_config(
+    hass: HomeAssistant,
+) -> None:
+    """Response tidak boleh punya kunci tambahan di luar skema Lovelace.
+
+    Regresi: response pernah berbentuk ``{"yaml": ..., "views": 1}``. User yang
+    menyalin seluruh response - hal paling wajar dilakukan - ditolak Raw
+    configuration editor dengan "At path: views -- Expected an array value, but
+    received: 1", karena ``views`` di sana berisi jumlah view, bukan daftarnya.
+    """
+    apply_states(hass, MCB_RUMAH)
+    await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    response = await _generate(hass)
+
+    # Persis kunci yang divalidasi frontend Lovelace, tidak satu pun tambahan.
+    assert set(response) == {"views"}
+    assert isinstance(response["views"], list)
+    assert all(isinstance(view, dict) for view in response["views"])
 
 
 async def test_service_refuses_when_there_is_nothing_to_build(
@@ -361,8 +380,5 @@ async def test_two_groups_get_two_pages(hass: HomeAssistant) -> None:
 
     response = await _generate(hass)
 
-    assert response["views"] == 2
-    from homeassistant.util.yaml import parse_yaml
-
-    paths = {view["path"] for view in parse_yaml(response["yaml"])["views"]}
+    paths = {view["path"] for view in response["views"]}
     assert paths == {"pln-rumah", "pln-toko"}

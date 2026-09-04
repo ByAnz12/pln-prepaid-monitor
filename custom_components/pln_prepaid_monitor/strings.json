@@ -585,7 +585,7 @@
     },
     "generate_dashboard": {
       "name": "Generate dashboard",
-      "description": "Builds a Lovelace dashboard configuration for all your billing groups with the correct entity ids already filled in. The result is YAML text for you to paste yourself - this action does not change any existing dashboard."
+      "description": "Builds a Lovelace dashboard configuration for all your billing groups with the correct entity ids already filled in. Copy the WHOLE result and paste it into the Raw configuration editor of a new dashboard - this action does not change any existing dashboard."
     },
     "purge_old_data": {
       "name": "Purge old data",

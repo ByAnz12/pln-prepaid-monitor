@@ -390,11 +390,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
     async def async_generate_dashboard(call: ServiceCall) -> ServiceResponse:
         """Susun konfigurasi dashboard Lovelace untuk kelompok tagihan yang ada.
 
-        Hanya membaca dan mengembalikan teks - tidak menulis file, tidak
+        Hanya membaca dan mengembalikan konfigurasi - tidak menulis file, tidak
         mengubah dashboard yang sudah ada. User yang menempelkannya sendiri.
         """
-        from homeassistant.util.yaml import dump  # noqa: PLC0415
-
         from .dashboard import build_dashboard  # noqa: PLC0415
 
         entries = hass.config_entries.async_entries(DOMAIN)
@@ -411,8 +409,12 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 translation_domain=DOMAIN, translation_key="no_billing_groups"
             )
 
-        config = build_dashboard(hass, runtime_data)
-        return {"yaml": dump(config), "views": len(config["views"])}
+        # Responsnya sengaja berupa konfigurasi dashboard itu sendiri, tanpa
+        # satu pun kunci tambahan. Developer Tools menampilkan response sebagai
+        # YAML dan user menyalinnya bulat-bulat; kunci tambahan apa pun (dulu
+        # "yaml" dan jumlah "views") membuat Raw configuration editor menolak
+        # hasil tempelan itu. Lihat docs/decisions.md D-036.
+        return build_dashboard(hass, runtime_data)
 
     async def async_purge_old_data(call: ServiceCall) -> ServiceResponse:
         """Hapus statistik lama milik integrasi ini saja."""

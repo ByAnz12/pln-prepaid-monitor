@@ -9,6 +9,40 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-036 · Response `generate_dashboard` adalah konfigurasi dashboard itu sendiri
+
+**Tanggal**: 4 September 2026 · **Perbaikan setelah Milestone 8**
+
+Semula layanan mengembalikan `{"yaml": "<teks>", "views": 1}`: teks YAML plus
+jumlah halaman sebagai informasi tambahan.
+
+Itu keliru. Developer Tools menampilkan response sebagai YAML, dan hal paling
+wajar dilakukan user adalah menyalin **seluruh** tampilan itu lalu
+menempelkannya. Yang tertempel kemudian berupa mapping dengan kunci `yaml` dan
+`views`, dan `views` di sana berisi **angka** jumlah halaman - bukan daftar
+halaman. Raw configuration editor menolaknya:
+
+```
+At path: views -- Expected an array value, but received: 1
+```
+
+Kunci `views` pada response bertabrakan dengan kunci `views` pada skema
+Lovelace, dengan arti yang sama sekali berbeda. Instruksi "salin isi `yaml`"
+di README tidak menyelamatkan siapa pun: petunjuk teks tidak bisa menambal
+bentuk data yang memang menjebak.
+
+Sekarang responsnya **persis konfigurasi dashboard**, tanpa satu pun kunci
+tambahan. Apa pun yang user salin dari sana valid.
+
+Yang hilang: jumlah halaman tidak lagi dilaporkan. Itu tidak masalah - jumlah
+halaman terbaca sendiri dari isinya.
+
+Dijaga oleh `test_response_is_nothing_but_the_dashboard_config`, yang mengunci
+kunci tingkat atas response tepat pada `{"views"}` sehingga penambahan metadata
+"sekadar informasi" berikutnya langsung gagal di test.
+
+---
+
 ## D-035 · Retensi diatur untuk seluruh integrasi, bukan per kelompok tagihan
 
 **Tanggal**: 3 September 2026 · **Milestone 8**
