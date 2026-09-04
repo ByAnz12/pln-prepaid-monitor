@@ -68,8 +68,16 @@ from .const import (
     CONF_ENABLED,
     CONF_FIXED_CHARGE_PERIOD,
     CONF_FIXED_CHARGE_RP,
+    CONF_CRITICAL_THRESHOLD_DAYS,
+    CONF_MIN_DATA_POINTS,
     CONF_MONTH_START_DAY,
+    CONF_OUTLIER_FILTER,
+    CONF_PREFERRED_WINDOW,
     CONF_RATE_HISTORY,
+    CONF_SAFETY_MARGIN_PERCENT,
+    CONF_TOKEN_LOW_KWH_THRESHOLD,
+    CONF_VERY_CRITICAL_THRESHOLD_DAYS,
+    CONF_WARNING_THRESHOLD_DAYS,
     CONF_RATE_RP_PER_KWH,
     CONF_ROUNDING_MODE,
     CONF_ROUNDING_UNIT_RP,
@@ -85,8 +93,16 @@ from .const import (
     DEFAULT_DAY_START_TIME,
     DEFAULT_FIXED_CHARGE_PERIOD,
     DEFAULT_FIXED_CHARGE_RP,
+    DEFAULT_CRITICAL_THRESHOLD_DAYS,
+    DEFAULT_MIN_DATA_POINTS,
     DEFAULT_MONTH_START_DAY,
+    DEFAULT_OUTLIER_FILTER,
+    DEFAULT_PREFERRED_WINDOW,
     DEFAULT_RATE_RP_PER_KWH,
+    DEFAULT_SAFETY_MARGIN_PERCENT,
+    DEFAULT_TOKEN_LOW_KWH_THRESHOLD,
+    DEFAULT_VERY_CRITICAL_THRESHOLD_DAYS,
+    DEFAULT_WARNING_THRESHOLD_DAYS,
     DEFAULT_RESET_HOLD_THRESHOLD_KWH,
     DEFAULT_ROUNDING_MODE,
     DEFAULT_ROUNDING_UNIT_RP,
@@ -113,6 +129,7 @@ from .engines.normalization import (
     SourceReport,
     inspect_source,
 )
+from .engines.prediction_engine import OUTLIER_FILTERS, WINDOWS
 from .engines.period import (
     ALL_PERIODS,
     MAX_MONTH_START_DAY,
@@ -834,6 +851,8 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
                     CONF_RESET_HOLD_THRESHOLD_KWH, DEFAULT_RESET_HOLD_THRESHOLD_KWH
                 )
             )
+            if self._group_input[CONF_TOKEN_ENABLED]:
+                return await self.async_step_prediction()
             return await self.async_step_cycles()
 
         return self.async_show_form(
@@ -865,10 +884,116 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
             ),
         )
 
+    async def async_step_prediction(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Langkah 4: kapan token dianggap menipis, dan bagaimana memperkirakannya.
+
+        Hanya muncul kalau pencatatan token diaktifkan - tanpa token, tidak ada
+        yang perlu diperkirakan kapan habisnya.
+        """
+        errors: dict[str, str] = {}
+        defaults = self._group_input
+
+        if user_input is not None:
+            warning = float(user_input[CONF_WARNING_THRESHOLD_DAYS])
+            critical = float(user_input[CONF_CRITICAL_THRESHOLD_DAYS])
+            very_critical = float(user_input[CONF_VERY_CRITICAL_THRESHOLD_DAYS])
+
+            if not warning > critical > very_critical:
+                # Ditolak, bukan diam-diam diurutkan sendiri (spec Bagian E).
+                errors["base"] = "thresholds_out_of_order"
+                defaults = {**defaults, **user_input}
+            else:
+                self._group_input.update(user_input)
+                self._group_input[CONF_MIN_DATA_POINTS] = int(
+                    user_input[CONF_MIN_DATA_POINTS]
+                )
+                return await self.async_step_cycles()
+
+        return self.async_show_form(
+            step_id="prediction",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_WARNING_THRESHOLD_DAYS,
+                        default=float(defaults.get(CONF_WARNING_THRESHOLD_DAYS, DEFAULT_WARNING_THRESHOLD_DAYS)),
+                    ): NumberSelector(
+                        NumberSelectorConfig(min=0, step=0.5, mode=NumberSelectorMode.BOX)
+                    ),
+                    vol.Required(
+                        CONF_CRITICAL_THRESHOLD_DAYS,
+                        default=float(defaults.get(CONF_CRITICAL_THRESHOLD_DAYS, DEFAULT_CRITICAL_THRESHOLD_DAYS)),
+                    ): NumberSelector(
+                        NumberSelectorConfig(min=0, step=0.5, mode=NumberSelectorMode.BOX)
+                    ),
+                    vol.Required(
+                        CONF_VERY_CRITICAL_THRESHOLD_DAYS,
+                        default=float(defaults.get(CONF_VERY_CRITICAL_THRESHOLD_DAYS, DEFAULT_VERY_CRITICAL_THRESHOLD_DAYS)),
+                    ): NumberSelector(
+                        NumberSelectorConfig(min=0, step=0.5, mode=NumberSelectorMode.BOX)
+                    ),
+                    vol.Required(
+                        CONF_TOKEN_LOW_KWH_THRESHOLD,
+                        default=float(defaults.get(CONF_TOKEN_LOW_KWH_THRESHOLD, DEFAULT_TOKEN_LOW_KWH_THRESHOLD)),
+                    ): NumberSelector(
+                        NumberSelectorConfig(min=0, step=0.5, mode=NumberSelectorMode.BOX)
+                    ),
+                    vol.Required(
+                        CONF_PREFERRED_WINDOW,
+                        default=defaults.get(
+                            CONF_PREFERRED_WINDOW, DEFAULT_PREFERRED_WINDOW
+                        ),
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(WINDOWS), translation_key="preferred_window"
+                        )
+                    ),
+                    vol.Required(
+                        CONF_MIN_DATA_POINTS,
+                        default=int(
+                            defaults.get(
+                                CONF_MIN_DATA_POINTS, DEFAULT_MIN_DATA_POINTS
+                            )
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=1, max=30, step=1, mode=NumberSelectorMode.BOX
+                        )
+                    ),
+                    vol.Required(
+                        CONF_OUTLIER_FILTER,
+                        default=defaults.get(
+                            CONF_OUTLIER_FILTER, DEFAULT_OUTLIER_FILTER
+                        ),
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(OUTLIER_FILTERS),
+                            translation_key="outlier_filter",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_SAFETY_MARGIN_PERCENT,
+                        default=float(
+                            defaults.get(
+                                CONF_SAFETY_MARGIN_PERCENT,
+                                DEFAULT_SAFETY_MARGIN_PERCENT,
+                            )
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0, max=100, step=1, mode=NumberSelectorMode.BOX
+                        )
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
     async def async_step_cycles(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Langkah 4: periode apa saja, dan di mana batas siklusnya jatuh."""
+        """Langkah 5: periode apa saja, dan di mana batas siklusnya jatuh."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -892,7 +1017,7 @@ class BillingGroupSubentryFlowHandler(ConfigSubentryFlow):
     async def async_step_review(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Langkah 5: ringkasan sebelum disimpan."""
+        """Langkah terakhir: ringkasan sebelum disimpan."""
         if user_input is None:
             return self.async_show_form(
                 step_id="review",

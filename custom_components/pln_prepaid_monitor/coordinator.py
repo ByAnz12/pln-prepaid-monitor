@@ -27,6 +27,7 @@ from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_interval,
 )
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
@@ -49,6 +50,8 @@ from .const import (
     DEFAULT_CYCLE_PERIODS,
     DEFAULT_RESET_HOLD_THRESHOLD_KWH,
     DEFAULT_TOKEN_ENABLED,
+    DOMAIN,
+    PREDICTION_REFRESH_MINUTES,
     DEFAULT_UNAVAILABLE_GRACE_MINUTES,
     SOURCE_OF_TRUTH_CUMULATIVE,
     SOURCE_OF_TRUTH_INTEGRATED,
@@ -79,7 +82,16 @@ from .engines.energy_calc import (
     PeriodCounterState,
 )
 from .engines.normalization import CHANNEL_SPECS, conversion_factor
+from .engines.prediction_engine import (
+    STATUS_UNKNOWN,
+    PredictionConfig,
+    PredictionResult,
+    TokenThresholds,
+    determine_status,
+    predict,
+)
 from .engines.token_engine import TokenLedger, TokenLedgerState
+from .statistics_helper import async_fetch_window_samples
 from .engines.period import ALL_PERIODS, CycleConfig, next_cycle_start
 
 _LOGGER = logging.getLogger(__name__)
@@ -529,6 +541,10 @@ class BillingGroupRuntime:
         }
 
         self.ledger = TokenLedger(TokenLedgerState.from_dict(stored.get("token")))
+        self.prediction_config = PredictionConfig.from_dict(config)
+        self.thresholds = TokenThresholds.from_dict(config)
+        self.prediction = PredictionResult()
+        self._prediction_unsub: CALLBACK_TYPE | None = None
 
         self._member_unsubs: list[CALLBACK_TYPE] = []
         self._timer_unsubs: dict[str, CALLBACK_TYPE] = {}
@@ -681,6 +697,9 @@ class BillingGroupRuntime:
         for unsub in self._timer_unsubs.values():
             unsub()
         self._timer_unsubs.clear()
+        if self._prediction_unsub is not None:
+            self._prediction_unsub()
+            self._prediction_unsub = None
         self._listeners.clear()
 
     @callback
@@ -850,6 +869,59 @@ class BillingGroupRuntime:
         """Dipanggil sesudah layanan token mengubah ledger."""
         self._async_notify()
         self._on_persist()
+        # Sisa token berubah, jadi perkiraan hari tersisa ikut berubah.
+        self.hass.async_create_task(self.async_refresh_prediction())
+
+    # ------------------------------------------------------------------
+    # prediksi
+    # ------------------------------------------------------------------
+
+    @property
+    def energy_total_statistic_id(self) -> str | None:
+        """entity_id sensor energi grup, yang jadi sumber statistik prediksi."""
+        return er.async_get(self.hass).async_get_entity_id(
+            "sensor", DOMAIN, f"{self.subentry_id}_energy_total"
+        )
+
+    @property
+    def token_status(self) -> str:
+        """Tingkat kegentingan token saat ini."""
+        if not self.token_enabled:
+            return STATUS_UNKNOWN
+        return determine_status(
+            days_remaining=self.prediction.days_remaining,
+            remaining_kwh=self.token_remaining_kwh,
+            thresholds=self.thresholds,
+            on_hold=self.ledger.on_hold,
+        )
+
+    async def async_refresh_prediction(self, _now: datetime | None = None) -> None:
+        """Hitung ulang perkiraan dari long-term statistics."""
+        statistic_id = self.energy_total_statistic_id
+        if statistic_id is None:
+            return
+
+        samples = await async_fetch_window_samples(
+            self.hass, statistic_id, self.prediction_config, dt_util.now()
+        )
+        self.prediction = predict(
+            remaining_kwh=self.token_remaining_kwh,
+            samples_by_window=samples,
+            config=self.prediction_config,
+            now=dt_util.now(),
+        )
+        self._async_notify()
+
+    @callback
+    def async_start_prediction_refresh(self) -> None:
+        """Jadwalkan perhitungan ulang perkiraan secara berkala."""
+        if self._prediction_unsub is not None:
+            return
+        self._prediction_unsub = async_track_time_interval(
+            self.hass,
+            self.async_refresh_prediction,
+            timedelta(minutes=PREDICTION_REFRESH_MINUTES),
+        )
 
     # ------------------------------------------------------------------
     # persistensi
@@ -931,6 +1003,16 @@ class PlnRuntimeData:
             )
             self.billing_groups[subentry_id] = group
             group.async_start()
+
+    async def async_start_predictions(self) -> None:
+        """Hitung perkiraan pertama, lalu jadwalkan pembaruan berkala.
+
+        Dipanggil setelah platform entity siap, karena pembacaan statistik butuh
+        entity_id sensor energi grup yang baru terdaftar di situ.
+        """
+        for group in self.billing_groups.values():
+            await group.async_refresh_prediction()
+            group.async_start_prediction_refresh()
 
     @callback
     def async_schedule_save(self) -> None:

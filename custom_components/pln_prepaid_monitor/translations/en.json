@@ -139,7 +139,8 @@
         "name_required": "The billing group name cannot be empty.",
         "name_duplicate": "A billing group with that name already exists. Use a different name.",
         "no_sources_selected": "Pick at least one energy source for this group.",
-        "no_periods_selected": "Pick at least one period. Without one, no usage counter is created."
+        "no_periods_selected": "Pick at least one period. Without one, no usage counter is created.",
+        "thresholds_out_of_order": "The thresholds must decrease in order: warning greater than critical, and critical greater than very critical."
       },
       "initiate_flow": {
         "reconfigure": "Reconfigure billing group",
@@ -201,6 +202,30 @@
             "token_enabled": "Leave off if this group is on postpaid electricity, or if you only want usage monitoring without token tracking.",
             "reset_hold_threshold_kwh": "A safeguard for a rare event: if the meter resets and the first reading afterwards is larger than this, the system **freezes** the remaining-token figure and asks you first, instead of silently subtracting it from your balance. An ordinary firmware reset drops to nearly zero and will not trigger this. The default of 1 kWh is safe for most cases."
           }
+        },
+        "prediction": {
+          "title": "Warnings and estimates",
+          "description": "Set when the token counts as running low, and how the system estimates the days left.\n\nEstimates come from your own average usage recorded in Home Assistant's history. **While there is not enough data, the system shows no figure at all** - better to admit it does not know than to give a date that sounds certain but was guessed from two days of usage.\n\nIf in doubt, leave everything as it is.",
+          "data": {
+            "warning_threshold_days": "Warn when fewer days remain than",
+            "critical_threshold_days": "Critical when fewer days remain than",
+            "very_critical_threshold_days": "Very critical when fewer days remain than",
+            "token_low_kwh_threshold": "Very critical when remaining kWh drops below",
+            "preferred_window": "Base the average on",
+            "min_data_points": "Minimum data before estimating",
+            "outlier_filter": "Unusual-usage damping",
+            "safety_margin_percent": "Safety margin (%)"
+          },
+          "data_description": {
+            "warning_threshold_days": "The first level. The default of 7 days gives you a week to buy a token without rushing.",
+            "critical_threshold_days": "The second level; must be lower than the warning level.",
+            "very_critical_threshold_days": "The final level; must be lower than critical. This is the level that will later be allowed through quiet hours.",
+            "token_low_kwh_threshold": "An extra safeguard that does not depend on the estimate: whatever the day count says, remaining kWh below this counts as very critical straight away. Enter 0 to switch it off.",
+            "preferred_window": "The time span used to work out your average daily usage. 7 days is the most balanced choice: long enough to smooth out unusual days, short enough to follow changing habits. If there is not enough data, the system falls back to another span and lowers its confidence.",
+            "min_data_points": "How many days (or hours, for the 24-hour span) must be collected before the system will give a figure. Raising it makes estimates more cautious but slower to appear.",
+            "outlier_filter": "How to damp days with unusual usage - guests staying over, air conditioning running all day - so one day does not skew the whole month ahead.",
+            "safety_margin_percent": "Makes the estimate slightly pessimistic: it calculates as if your usage were this many percent higher. The point is to have you top up a little early rather than a little late."
+          }
         }
       }
     },
@@ -249,6 +274,9 @@
       },
       "ledger_hold": {
         "name": "Token ledger hold"
+      },
+      "data_sufficient": {
+        "name": "Data sufficient"
       }
     },
     "sensor": {
@@ -311,6 +339,26 @@
       },
       "token_consumed": {
         "name": "Token consumed"
+      },
+      "avg_daily_usage": {
+        "name": "Average daily usage"
+      },
+      "days_remaining": {
+        "name": "Estimated days remaining"
+      },
+      "empty_date": {
+        "name": "Estimated empty date"
+      },
+      "token_status": {
+        "name": "Token status",
+        "state": {
+          "normal": "Normal",
+          "warning": "Warning",
+          "critical": "Critical",
+          "very_critical": "Very critical",
+          "hold": "On hold",
+          "unknown": "Unknown"
+        }
       }
     }
   },
@@ -369,6 +417,20 @@
         "accept": "Treat as real usage",
         "ignore": "Ignore (meter replaced / false reset)",
         "calibrate": "Calibrate from the meter reading"
+      }
+    },
+    "preferred_window": {
+      "options": {
+        "24h": "Last 24 hours",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days"
+      }
+    },
+    "outlier_filter": {
+      "options": {
+        "none": "None (plain average)",
+        "median": "Median (recommended)",
+        "trim_percent": "Trim the top and bottom"
       }
     }
   },

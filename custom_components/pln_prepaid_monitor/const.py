@@ -81,6 +81,30 @@ CONF_RESET_HOLD_THRESHOLD_KWH: Final = "reset_hold_threshold_kwh"
 DEFAULT_TOKEN_ENABLED: Final = False
 DEFAULT_RESET_HOLD_THRESHOLD_KWH: Final = 1.0
 
+# --- kunci konfigurasi Prediksi & ambang status -------------------------------
+CONF_PREFERRED_WINDOW: Final = "preferred_window"
+CONF_MIN_DATA_POINTS: Final = "min_data_points"
+CONF_OUTLIER_FILTER: Final = "outlier_filter"
+CONF_SAFETY_MARGIN_PERCENT: Final = "safety_margin_percent"
+CONF_WARNING_THRESHOLD_DAYS: Final = "warning_threshold_days"
+CONF_CRITICAL_THRESHOLD_DAYS: Final = "critical_threshold_days"
+CONF_VERY_CRITICAL_THRESHOLD_DAYS: Final = "very_critical_threshold_days"
+CONF_TOKEN_LOW_KWH_THRESHOLD: Final = "token_low_kwh_threshold"
+
+DEFAULT_PREFERRED_WINDOW: Final = "7d"
+DEFAULT_MIN_DATA_POINTS: Final = 3
+DEFAULT_OUTLIER_FILTER: Final = "median"
+DEFAULT_SAFETY_MARGIN_PERCENT: Final = 10.0
+DEFAULT_WARNING_THRESHOLD_DAYS: Final = 7.0
+DEFAULT_CRITICAL_THRESHOLD_DAYS: Final = 3.0
+DEFAULT_VERY_CRITICAL_THRESHOLD_DAYS: Final = 1.0
+DEFAULT_TOKEN_LOW_KWH_THRESHOLD: Final = 0.0
+
+# Seberapa sering perkiraan dihitung ulang. Membaca statistik menyentuh database
+# recorder, jadi ini sengaja jarang - perkiraan hari tersisa tidak berubah
+# bermakna dalam hitungan detik.
+PREDICTION_REFRESH_MINUTES: Final = 30
+
 # --- nama service --------------------------------------------------------------
 SERVICE_ADD_TOKEN_TOPUP: Final = "add_token_topup"
 SERVICE_CALIBRATE_TOKEN_READING: Final = "calibrate_token_reading"
@@ -158,3 +182,8 @@ ATTR_HOLD_SINCE: Final = "hold_since"
 ATTR_HOLD_SOURCE: Final = "hold_source"
 ATTR_HOLD_RESET_FROM: Final = "hold_reset_from_kwh"
 ATTR_HOLD_RESET_TO: Final = "hold_reset_to_kwh"
+ATTR_WINDOW_USED: Final = "window_used"
+ATTR_DATA_POINTS: Final = "data_points"
+ATTR_CONFIDENCE: Final = "confidence"
+ATTR_AVG_DAILY_USAGE: Final = "avg_daily_usage_kwh"
+ATTR_SAFETY_MARGIN: Final = "safety_margin_percent"

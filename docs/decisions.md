@@ -9,6 +9,102 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-025 · Ambang kWh absolut: satu field, bukan tiga (menyelesaikan ambiguitas spec)
+
+**Tanggal**: 3 September 2026 · **Milestone 5**
+
+Spec menyebut ambang kWh absolut dengan dua nama berbeda dan arti berbeda:
+D.1 menamainya `warning_threshold_kwh` ("threshold absolut kWh, opsional selain
+hari"), sedangkan I.1 memakainya sebagai `warning_threshold_kwh_very_critical`
+yang memicu tingkat **sangat kritis**.
+
+Yang diimplementasikan mengikuti **kegunaannya di I.1**: satu field bernama
+`token_low_kwh_threshold`, dan sisa kWh di bawahnya langsung berarti sangat
+kritis, berapa pun perkiraan harinya. Isi 0 untuk mematikannya.
+
+Alasan memilih satu field, bukan tiga (warning/critical/very_critical versi
+kWh): ambang hari sudah menangani tingkatan bertahap. Ambang kWh berperan
+sebagai **jaring pengaman terakhir** yang tidak bergantung pada prediksi sama
+sekali - berguna justru ketika prediksi belum tersedia. Menambah tiga field lagi
+hanya menggandakan hal yang sama tanpa menambah kemampuan.
+
+---
+
+## D-024 · Prediksi dihitung ulang berkala, bukan pada tiap perubahan state
+
+**Tanggal**: 3 September 2026 · **Milestone 5**
+
+Perkiraan dihitung ulang setiap **30 menit**, ditambah segera setelah ledger
+token berubah (top-up, kalibrasi, reset).
+
+Alasannya: membaca long-term statistics menyentuh database recorder. Menghitung
+ulang setiap kali meteran melapor - yang bisa terjadi tiap beberapa detik -
+akan membebani database tanpa manfaat, karena "berapa hari lagi token habis"
+tidak berubah bermakna dalam hitungan detik.
+
+Perhitungan pertama dijalankan setelah platform entity selesai dipasang, karena
+pembacaan statistik butuh `entity_id` sensor energi grup yang baru terdaftar di
+tahap itu.
+
+---
+
+## D-023 · `token_status` punya nilai tambahan `hold`
+
+**Tanggal**: 3 September 2026 · **Milestone 5**
+
+Spec D.2 mendaftarkan lima nilai: normal / warning / critical / very_critical /
+unknown. Ditambahkan satu lagi: **`hold`**, yang berlaku selama ledger token
+dibekukan (lihat [D-007](#d-007--pengaman-ledger-token-saat-reset-besar)).
+
+Alasannya: selama pembekuan, sisa token sengaja dibekukan di angka lama, jadi
+perkiraan hari yang dihitung darinya belum tentu mencerminkan keadaan
+sebenarnya. Menampilkan "aman" di saat itu memberi rasa aman palsu; menampilkan
+"sangat kritis" memberi panik palsu. `hold` mengatakan apa adanya: sistem sedang
+menunggu keputusan Anda.
+
+Ini juga menyiapkan Notification Engine di Milestone 6, supaya notifikasi tidak
+dikirim berdasarkan angka yang sedang dibekukan.
+
+---
+
+## D-022 · Rata-rata pemakaian harian sengaja tanpa `device_class`
+
+**Tanggal**: 3 September 2026 · **Milestone 5**
+
+`sensor.<mu>_average_daily_usage` memakai satuan `kWh/d` tanpa `device_class`.
+
+Spec D.2 memberinya `device_class: energy`, tapi itu tidak sah dua kali: Core
+2026.8.3 tidak mengizinkan `energy` dengan `state_class: measurement` (lihat
+[D-016](#d-016--sisa-token-memakai-energy_storage-bukan-energy-koreksi-spec-d2)),
+dan secara arti pun keliru - ini **laju** (energi per hari), bukan energi yang
+menumpuk. Home Assistant belum punya device_class untuk laju energi, jadi tidak
+memakai satu pun adalah pilihan yang paling jujur.
+
+`state_class: measurement` tetap dipasang, sehingga rata-ratanya tetap masuk
+statistik jangka panjang dan bisa digrafikkan.
+
+---
+
+## D-021 · Statistik dibaca lewat tipe `change`, bukan menghitung selisih `sum` sendiri
+
+**Tanggal**: 3 September 2026 · **Milestone 5** · **Status: VERIFIED**
+
+Konsumsi per hari/jam diambil dengan `statistics_during_period(...,
+types={"change"})`. Diverifikasi ke source Core 2026.8.3
+(`components/recorder/statistics.py`): `change` memang dihitung sebagai
+`_sum - prev_sum`, yaitu persis konsumsi dalam periode itu.
+
+Alternatifnya - membaca `sum` lalu menghitung selisihnya sendiri - berarti
+menduplikasi logika yang sudah ada di Core, termasuk penanganan pergantian
+siklus dan periode yang kosong. Memakai `change` menghilangkan seluruh kelas
+bug itu.
+
+Seluruh akses tetap lewat API resmi dan dijalankan di thread recorder
+(`get_instance(hass).async_add_executor_job`), sesuai spec L.2 - tidak ada query
+SQL manual di mana pun.
+
+---
+
 ## D-020 · `token_status` ditunda ke Milestone 5
 
 **Tanggal**: 3 September 2026 · **Milestone 4**
@@ -22,6 +118,9 @@ milestone depan.
 Sebagai gantinya, Milestone 4 mengirim `binary_sensor.<mu>_token_ledger_hold`
 untuk keadaan yang memang sudah bisa ditentukan sekarang: ledger sedang
 dibekukan menunggu keputusan user.
+
+**Terpasang di Milestone 5**, lengkap dengan satu nilai tambahan `hold` (lihat
+[D-023](#d-023--token_status-punya-nilai-tambahan-hold)).
 
 ---
 

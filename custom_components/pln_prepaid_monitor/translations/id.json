@@ -139,7 +139,8 @@
         "name_required": "Nama kelompok tagihan tidak boleh kosong.",
         "name_duplicate": "Sudah ada kelompok tagihan dengan nama itu. Pakai nama lain.",
         "no_sources_selected": "Pilih minimal satu sumber energi untuk kelompok ini.",
-        "no_periods_selected": "Pilih minimal satu periode. Tanpa itu tidak ada penghitung pemakaian yang dibuat."
+        "no_periods_selected": "Pilih minimal satu periode. Tanpa itu tidak ada penghitung pemakaian yang dibuat.",
+        "thresholds_out_of_order": "Ambang harus berurutan menurun: peringatan lebih besar dari kritis, dan kritis lebih besar dari sangat kritis."
       },
       "initiate_flow": {
         "reconfigure": "Ubah kelompok tagihan",
@@ -201,6 +202,30 @@
             "token_enabled": "Biarkan mati kalau listrik kelompok ini pascabayar, atau kalau Anda hanya ingin memantau pemakaian tanpa mencatat token.",
             "reset_hold_threshold_kwh": "Pengaman untuk kejadian langka: kalau meteran ter-reset dan angka pertama sesudahnya lebih besar dari ini, sistem **membekukan** hitungan sisa token dan bertanya dulu ke Anda, alih-alih diam-diam memotong sisa token Anda. Reset firmware biasa jatuh ke hampir nol dan tidak akan memicu ini. Nilai bawaan 1 kWh aman untuk kebanyakan kasus."
           }
+        },
+        "prediction": {
+          "title": "Peringatan dan perkiraan",
+          "description": "Atur kapan token dianggap menipis, dan bagaimana sistem memperkirakan sisa harinya.\n\nPerkiraan dihitung dari rata-rata pemakaian Anda sendiri yang terekam di riwayat Home Assistant. **Selama datanya belum cukup, sistem tidak akan menampilkan angka apa pun** - lebih baik jujur belum tahu daripada memberi tanggal yang terdengar pasti padahal ditebak dari dua hari pemakaian.\n\nKalau ragu, biarkan saja semuanya apa adanya.",
+          "data": {
+            "warning_threshold_days": "Peringatan bila tersisa kurang dari (hari)",
+            "critical_threshold_days": "Kritis bila tersisa kurang dari (hari)",
+            "very_critical_threshold_days": "Sangat kritis bila tersisa kurang dari (hari)",
+            "token_low_kwh_threshold": "Sangat kritis bila sisa kWh di bawah",
+            "preferred_window": "Rata-rata dihitung dari",
+            "min_data_points": "Minimal data sebelum berani memperkirakan",
+            "outlier_filter": "Peredam pemakaian tidak wajar",
+            "safety_margin_percent": "Margin aman (%)"
+          },
+          "data_description": {
+            "warning_threshold_days": "Tingkat pertama. Angka bawaan 7 hari memberi Anda waktu seminggu untuk membeli token tanpa terburu-buru.",
+            "critical_threshold_days": "Tingkat kedua, harus lebih kecil dari peringatan.",
+            "very_critical_threshold_days": "Tingkat terakhir, harus lebih kecil dari kritis. Di tingkat inilah nanti notifikasi menembus jam tenang.",
+            "token_low_kwh_threshold": "Pengaman tambahan yang tidak bergantung pada perkiraan: berapa pun hasil hitungan harinya, sisa kWh di bawah angka ini langsung dianggap sangat kritis. Isi 0 untuk mematikannya.",
+            "preferred_window": "Rentang waktu yang dipakai menghitung rata-rata pemakaian harian. 7 hari adalah pilihan paling seimbang: cukup panjang untuk meredam hari-hari tidak biasa, cukup pendek untuk mengikuti perubahan kebiasaan. Kalau datanya belum cukup, sistem otomatis turun ke rentang lain dan menurunkan tingkat keyakinannya.",
+            "min_data_points": "Berapa banyak hari (atau jam, untuk rentang 24 jam) yang harus terkumpul sebelum sistem berani memberi angka. Menaikkannya membuat perkiraan lebih hati-hati tapi lebih lama muncul.",
+            "outlier_filter": "Cara meredam hari dengan pemakaian luar biasa - misalnya tamu menginap atau AC menyala seharian - supaya satu hari itu tidak menggeser perkiraan sebulan ke depan.",
+            "safety_margin_percent": "Membuat perkiraan sedikit pesimistis: dihitung seolah pemakaian Anda sekian persen lebih boros. Tujuannya supaya Anda mengisi token sedikit lebih awal, bukan sedikit terlambat."
+          }
         }
       }
     },
@@ -249,6 +274,9 @@
       },
       "ledger_hold": {
         "name": "Penahanan catatan token"
+      },
+      "data_sufficient": {
+        "name": "Data cukup untuk perkiraan"
       }
     },
     "sensor": {
@@ -311,6 +339,26 @@
       },
       "token_consumed": {
         "name": "Token terpakai"
+      },
+      "avg_daily_usage": {
+        "name": "Rata-rata pemakaian harian"
+      },
+      "days_remaining": {
+        "name": "Perkiraan hari tersisa"
+      },
+      "empty_date": {
+        "name": "Perkiraan tanggal habis"
+      },
+      "token_status": {
+        "name": "Status token",
+        "state": {
+          "normal": "Aman",
+          "warning": "Perlu perhatian",
+          "critical": "Kritis",
+          "very_critical": "Sangat kritis",
+          "hold": "Ditahan",
+          "unknown": "Belum diketahui"
+        }
       }
     }
   },
@@ -369,6 +417,20 @@
         "accept": "Anggap pemakaian nyata",
         "ignore": "Abaikan (meteran diganti/reset palsu)",
         "calibrate": "Kalibrasi dari angka meteran"
+      }
+    },
+    "preferred_window": {
+      "options": {
+        "24h": "24 jam terakhir",
+        "7d": "7 hari terakhir",
+        "30d": "30 hari terakhir"
+      }
+    },
+    "outlier_filter": {
+      "options": {
+        "none": "Tidak ada (rata-rata biasa)",
+        "median": "Median (disarankan)",
+        "trim_percent": "Buang ujung atas dan bawah"
       }
     }
   },

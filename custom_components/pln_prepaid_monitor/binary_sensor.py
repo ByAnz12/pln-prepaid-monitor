@@ -17,10 +17,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import (
+    ATTR_CONFIDENCE,
+    ATTR_DATA_POINTS,
     ATTR_HOLD_RESET_FROM,
     ATTR_HOLD_RESET_TO,
     ATTR_HOLD_SINCE,
     ATTR_HOLD_SOURCE,
+    ATTR_WINDOW_USED,
 )
 from .coordinator import BillingGroupRuntime, PlnRuntimeData, SourceRuntime
 from .entity import PlnBillingGroupEntity, PlnSourceEntity
@@ -42,11 +45,12 @@ async def async_setup_entry(
         )
 
     for subentry_id, group in runtime_data.billing_groups.items():
+        entities: list[BinarySensorEntity] = [
+            PlnGroupDataSufficientBinarySensor(group)
+        ]
         if group.token_enabled:
-            async_add_entities(
-                [PlnGroupLedgerHoldBinarySensor(group)],
-                config_subentry_id=subentry_id,
-            )
+            entities.append(PlnGroupLedgerHoldBinarySensor(group))
+        async_add_entities(entities, config_subentry_id=subentry_id)
 
 
 class PlnSourceAvailableBinarySensor(PlnSourceEntity, BinarySensorEntity):
@@ -100,6 +104,38 @@ class PlnGroupLedgerHoldBinarySensor(PlnBillingGroupEntity, BinarySensorEntity):
                 ATTR_HOLD_SOURCE: hold.get("source_name"),
                 ATTR_HOLD_RESET_FROM: hold.get("reset_from"),
                 ATTR_HOLD_RESET_TO: hold.get("reset_to"),
+            }
+        )
+        return attributes
+
+
+class PlnGroupDataSufficientBinarySensor(PlnBillingGroupEntity, BinarySensorEntity):
+    """Menyala saat data pemakaian sudah cukup untuk membuat perkiraan.
+
+    Dipakai dashboard sebagai gerbang: selama ini masih mati, angka perkiraan
+    memang belum ada, dan itu disengaja - lebih baik menampilkan "sedang
+    mengumpulkan data" daripada tanggal yang ditebak dari dua hari pemakaian.
+    """
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor kecukupan data."""
+        super().__init__(group, "data_sufficient")
+
+    @property
+    def is_on(self) -> bool:
+        """True bila perkiraan sudah punya dasar yang layak."""
+        return self._group.prediction.data_sufficient
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Berapa titik data yang sudah terkumpul, dari rentang mana."""
+        prediction = self._group.prediction
+        attributes = super().extra_state_attributes
+        attributes.update(
+            {
+                ATTR_WINDOW_USED: prediction.window_used,
+                ATTR_DATA_POINTS: prediction.data_points,
+                ATTR_CONFIDENCE: prediction.confidence,
             }
         )
         return attributes

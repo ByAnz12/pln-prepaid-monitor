@@ -30,6 +30,7 @@ from homeassistant.const import (
     UnitOfEnergy,
     UnitOfFrequency,
     UnitOfPower,
+    UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -39,7 +40,12 @@ from .const import (
     ATTR_ACCUMULATOR_OFFSET,
     ATTR_ACCUMULATOR_ZERO_POINT,
     ATTR_ACTIVE_RATE,
+    ATTR_AVG_DAILY_USAGE,
+    ATTR_CONFIDENCE,
     ATTR_CONSUMED_SINCE_START,
+    ATTR_DATA_POINTS,
+    ATTR_SAFETY_MARGIN,
+    ATTR_WINDOW_USED,
     ATTR_HOLD_RESET_FROM,
     ATTR_HOLD_RESET_TO,
     ATTR_HOLD_SINCE,
@@ -75,6 +81,7 @@ from .const import (
 )
 from .coordinator import BillingGroupRuntime, PlnRuntimeData, SourceRuntime
 from .engines.cost_engine import apply_rounding
+from .engines.prediction_engine import STATUSES
 from .engines.period import next_cycle_start
 from .entity import PlnBillingGroupEntity, PlnSourceEntity
 
@@ -139,10 +146,16 @@ async def async_setup_entry(
                 PlnGroupPeriodCostSensor(group, period, currency)
                 for period in group.periods
             )
+        # Rata-rata pemakaian berguna untuk siapa pun, tidak hanya pengguna
+        # listrik prabayar - jadi selalu dibuat.
+        group_entities.append(PlnGroupAvgDailyUsageSensor(group))
         # Sensor token hanya dibuat kalau pencatatan token diaktifkan.
         if group.token_enabled:
             group_entities.append(PlnGroupTokenRemainingSensor(group))
             group_entities.append(PlnGroupTokenConsumedSensor(group))
+            group_entities.append(PlnGroupDaysRemainingSensor(group))
+            group_entities.append(PlnGroupEmptyDateSensor(group))
+            group_entities.append(PlnGroupTokenStatusSensor(group))
             if group.has_cost:
                 group_entities.append(PlnGroupTokenValueSensor(group, currency))
         async_add_entities(group_entities, config_subentry_id=subentry_id)
@@ -547,3 +560,146 @@ class PlnGroupTokenConsumedSensor(PlnBillingGroupEntity, SensorEntity):
     def available(self) -> bool:
         """Tersedia begitu pencatatan token dimulai."""
         return self._group.token_consumed_kwh is not None
+
+
+class PlnGroupAvgDailyUsageSensor(PlnBillingGroupEntity, SensorEntity):
+    """Rata-rata pemakaian harian, dasar semua perkiraan.
+
+    Sengaja tanpa ``device_class``: ini bukan besaran energi melainkan
+    *laju* (kWh per hari), dan Home Assistant tidak punya device_class untuk
+    itu. Memakai ``energy`` justru akan salah, karena ``energy`` hanya sah
+    untuk angka yang menumpuk naik.
+    """
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "kWh/d"
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor rata-rata pemakaian harian."""
+        super().__init__(group, "avg_daily_usage")
+
+    @property
+    def native_value(self) -> float | None:
+        """Rata-rata kWh per hari menurut rentang yang terpilih."""
+        return self._group.prediction.avg_daily_kwh
+
+    @property
+    def available(self) -> bool:
+        """Belum tersedia sampai datanya cukup - bukan menampilkan nol palsu."""
+        return self._group.prediction.avg_daily_kwh is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Dari mana angka ini berasal dan seberapa boleh dipercaya."""
+        prediction = self._group.prediction
+        attributes = super().extra_state_attributes
+        attributes.update(
+            {
+                ATTR_WINDOW_USED: prediction.window_used,
+                ATTR_DATA_POINTS: prediction.data_points,
+                ATTR_CONFIDENCE: prediction.confidence,
+            }
+        )
+        return attributes
+
+
+class PlnGroupDaysRemainingSensor(PlnBillingGroupEntity, SensorEntity):
+    """Perkiraan berapa hari lagi token habis."""
+
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTime.DAYS
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor hari tersisa."""
+        super().__init__(group, "days_remaining")
+
+    @property
+    def native_value(self) -> float | None:
+        """Hari tersisa, atau tidak ada nilai kalau datanya belum cukup."""
+        return self._group.prediction.days_remaining
+
+    @property
+    def available(self) -> bool:
+        """Tidak menampilkan angka apa pun sampai layak dihitung (spec H)."""
+        return self._group.prediction.days_remaining is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Sertakan dasar perhitungannya, termasuk margin amannya."""
+        prediction = self._group.prediction
+        attributes = super().extra_state_attributes
+        attributes.update(
+            {
+                ATTR_WINDOW_USED: prediction.window_used,
+                ATTR_DATA_POINTS: prediction.data_points,
+                ATTR_CONFIDENCE: prediction.confidence,
+                ATTR_AVG_DAILY_USAGE: prediction.avg_daily_kwh,
+                ATTR_SAFETY_MARGIN: (
+                    self._group.prediction_config.safety_margin_percent
+                ),
+            }
+        )
+        return attributes
+
+
+class PlnGroupEmptyDateSensor(PlnBillingGroupEntity, SensorEntity):
+    """Perkiraan tanggal token habis."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor tanggal habis."""
+        super().__init__(group, "empty_date")
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Tanggal perkiraan habis, atau tidak ada nilai bila belum bisa."""
+        return self._group.prediction.empty_date
+
+    @property
+    def available(self) -> bool:
+        """Ikut perkiraan hari tersisa."""
+        return self._group.prediction.empty_date is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Tingkat keyakinan, supaya tanggalnya tidak dibaca sebagai kepastian."""
+        attributes = super().extra_state_attributes
+        attributes[ATTR_CONFIDENCE] = self._group.prediction.confidence
+        attributes[ATTR_WINDOW_USED] = self._group.prediction.window_used
+        return attributes
+
+
+class PlnGroupTokenStatusSensor(PlnBillingGroupEntity, SensorEntity):
+    """Tingkat kegentingan token: aman sampai sangat kritis."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = list(STATUSES)
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor status token."""
+        super().__init__(group, "token_status")
+
+    @property
+    def native_value(self) -> str:
+        """Status sekarang menurut ambang yang diatur user."""
+        return self._group.token_status
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Ambang yang dipakai, supaya statusnya bisa ditelusuri."""
+        thresholds = self._group.thresholds
+        attributes = super().extra_state_attributes
+        attributes.update(
+            {
+                "warning_threshold_days": thresholds.warning_days,
+                "critical_threshold_days": thresholds.critical_days,
+                "very_critical_threshold_days": thresholds.very_critical_days,
+                "token_low_kwh_threshold": thresholds.low_kwh,
+                ATTR_CONFIDENCE: self._group.prediction.confidence,
+            }
+        )
+        return attributes

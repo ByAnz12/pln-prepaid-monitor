@@ -23,11 +23,12 @@ kapan token habis, dan mengingatkan Anda sebelum listrik padam.
 6. [Membuat kelompok tagihan](#membuat-kelompok-tagihan)
 7. [Mengatur tarif dan menghitung biaya](#mengatur-tarif-dan-menghitung-biaya)
 8. [Mencatat token PLN](#mencatat-token-pln)
-9. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
-10. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
-11. [Troubleshooting](#troubleshooting)
-12. [Untuk pengembang](#untuk-pengembang)
-13. [Rencana pengembangan](#rencana-pengembangan)
+9. [Memperkirakan kapan token habis](#memperkirakan-kapan-token-habis)
+10. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
+11. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
+12. [Troubleshooting](#troubleshooting)
+13. [Untuk pengembang](#untuk-pengembang)
+14. [Rencana pengembangan](#rencana-pengembangan)
 
 ---
 
@@ -49,9 +50,11 @@ Integrasi ini dibangun bertahap. Yang **sudah selesai dan bisa dipakai**:
 - **Pencatatan sisa token PLN** yang berdiri sendiri: Anda catat tiap
   pengisian, sistem mengurangi sesuai pemakaian nyata, lengkap dengan koreksi
   salah input dan pengaman saat meteran ter-reset.
+- **Perkiraan kapan token habis** dari pemakaian Anda sendiri, lengkap dengan
+  tingkat keyakinan - dan diam saja selama datanya belum cukup.
 
-Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): prediksi
-hari tersisa, notifikasi Telegram, dan dashboard siap pakai.
+Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): notifikasi
+Telegram dan dashboard siap pakai.
 
 ---
 
@@ -453,6 +456,72 @@ lebih besar.
 
 ---
 
+## Memperkirakan kapan token habis
+
+Setelah beberapa hari berjalan, sistem mulai bisa memperkirakan kapan token Anda
+habis - dihitung dari **pemakaian Anda sendiri** yang terekam di riwayat Home
+Assistant, bukan dari angka umum.
+
+| Entity | Isinya |
+|---|---|
+| `sensor.pln_rumah_average_daily_usage` | Rata-rata pemakaian per hari |
+| `sensor.pln_rumah_estimated_days_remaining` | Perkiraan berapa hari lagi habis |
+| `sensor.pln_rumah_estimated_empty_date` | Perkiraan tanggalnya |
+| `sensor.pln_rumah_token_status` | Aman / perlu perhatian / kritis / sangat kritis |
+| `binary_sensor.pln_rumah_data_sufficient` | Apakah datanya sudah cukup |
+
+### Selama data belum cukup, tidak ada angka sama sekali
+
+Ini disengaja. Sensor perkiraan akan **kosong** (`unavailable`) sampai riwayat
+pemakaian Anda memadai, dan `binary_sensor.<kelompok>_data_sufficient` mati.
+Lebih baik jujur belum tahu daripada memberi tanggal yang terdengar pasti
+padahal ditebak dari dua hari pemakaian.
+
+Baru dipasang? Tunggu beberapa hari. Kalau ingin lebih cepat, sistem otomatis
+turun ke rentang **24 jam** begitu ada 6 jam data — dengan tingkat keyakinan
+yang diturunkan, dan itu tercantum di atribut `confidence`.
+
+### Bagaimana angkanya dihitung
+
+1. **Rata-rata harian** diambil dari rentang pilihan Anda (bawaan 7 hari).
+2. **Peredam anomali** (bawaan: median) menahan satu hari luar biasa — tamu
+   menginap, AC seharian — agar tidak menggeser perkiraan sebulan ke depan.
+3. **Margin aman** (bawaan 10%) membuat perkiraan sedikit pesimistis, supaya
+   Anda mengisi token sedikit lebih awal, bukan sedikit terlambat.
+4. **Hari tersisa** = sisa kWh ÷ rata-rata yang sudah diberi margin.
+
+Setiap sensor perkiraan membawa atribut `window_used`, `data_points`, dan
+`confidence`, jadi Anda selalu bisa melihat angka itu berdasarkan apa.
+
+| `confidence` | Artinya |
+|---|---|
+| `high` | 7 hari penuh data, atau 30 hari penuh |
+| `medium` | Rentang 24 jam, atau 3–6 hari data |
+| `low` | Rentang 30 hari yang belum penuh |
+| `insufficient_data` | Belum cukup data — sensor kosong |
+| `insufficient_usage` | Pemakaian nyaris nol, hari tersisa tidak bisa dihitung |
+
+### Status token
+
+| Status | Kapan |
+|---|---|
+| **Aman** | Di atas ambang peringatan |
+| **Perlu perhatian** | Tersisa ≤ 7 hari (bisa diatur) |
+| **Kritis** | Tersisa ≤ 3 hari (bisa diatur) |
+| **Sangat kritis** | Tersisa ≤ 1 hari, **atau** sisa kWh di bawah ambang kWh |
+| **Ditahan** | Ledger sedang dibekukan menunggu keputusan Anda |
+| **Belum diketahui** | Data belum cukup untuk menyimpulkan |
+
+Ambang kWh adalah jaring pengaman yang **tidak bergantung pada prediksi** —
+berguna justru saat perkiraan belum tersedia. Isi 0 untuk mematikannya.
+
+Semua ambang dan cara perhitungan diatur di langkah **Peringatan dan perkiraan**
+saat membuat atau mengubah kelompok tagihan. Sistem menolak ambang yang tidak
+berurutan (peringatan harus lebih besar dari kritis, kritis lebih besar dari
+sangat kritis) — bukan diam-diam membetulkannya.
+
+---
+
 ## Kenapa angkanya beda dengan aplikasi meteran?
 
 Sensor `..._energy` buatan integrasi ini **dimulai dari angka yang sama** dengan
@@ -563,6 +632,22 @@ Dua kemungkinan, dan keduanya wajar:
    nilai listrik yang dipakai dari tarif dasar; sedangkan saat beli token, uang
    Anda dipotong biaya admin dan PPJ dulu. Uang yang keluar selalu lebih besar.
 
+### Perkiraan hari tersisa kosong terus
+
+Cek `binary_sensor.<kelompok>_data_sufficient` dan atribut `confidence` pada
+sensor perkiraan. Penyebab yang paling sering:
+
+- **Baru dipasang.** Riwayat pemakaian belum terkumpul. Tunggu beberapa hari.
+- **Pemakaian nyaris nol** (`confidence: insufficient_usage`). Tanpa pemakaian,
+  "berapa hari lagi habis" memang tidak punya jawaban.
+- **Belum ada token dicatat.** Perkiraan hari butuh sisa token; rata-rata
+  pemakaian tetap tampil walaupun token belum dicatat.
+- **Recorder dimatikan.** Perkiraan membaca riwayat jangka panjang Home
+  Assistant; tanpa recorder, tidak ada yang bisa dibaca.
+
+Perkiraan dihitung ulang setiap 30 menit, jadi perubahan tidak langsung terlihat
+detik itu juga.
+
 ### Grafik histori masih kosong
 
 Long-term statistics dihitung Home Assistant sekali per jam, jadi setelah
@@ -602,7 +687,7 @@ sensor yang sama.
 | 2 | Kelompok tagihan + penghitung per periode + statistik jangka panjang | **Selesai** |
 | 3 | Perhitungan biaya rupiah (tarif bisa diatur penuh) | **Selesai** |
 | 4 | Pencatatan token: isi ulang, sisa kWh, kalibrasi manual | **Selesai** |
-| 5 | Prediksi hari tersisa & tanggal habis | Belum |
+| 5 | Prediksi hari tersisa & tanggal habis | **Selesai** |
 | 6 | Notifikasi Telegram bertingkat | Belum |
 | 7 | Dashboard | Belum |
 | 8 | Pembersihan data lama | Belum |
