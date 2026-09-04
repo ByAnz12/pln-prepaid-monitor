@@ -422,7 +422,7 @@ async def test_presets_can_be_set_in_the_form(hass: HomeAssistant) -> None:
         if subentry.subentry_type == SUBENTRY_TYPE_BILLING_GROUP
     )
     assert group.data[CONF_TOKEN_PRESETS] == [
-        {"nominal_rp": STRUK_NOMINAL, "kwh": STRUK_KWH}
+        {"nominal_rp": STRUK_NOMINAL, "kwh": STRUK_KWH, "name": None}
     ]
 
 

@@ -48,6 +48,11 @@
         "default": "mdi:alert-circle-outline"
       }
     },
+    "select": {
+      "topup_template": {
+        "default": "mdi:playlist-check"
+      }
+    },
     "sensor": {
       "energy": {
         "default": "mdi:meter-electric-outline"
@@ -83,6 +88,11 @@
           "hold": "mdi:pause-circle",
           "unknown": "mdi:help-circle-outline"
         }
+      }
+    },
+    "text": {
+      "template_name": {
+        "default": "mdi:rename-outline"
       }
     }
   },

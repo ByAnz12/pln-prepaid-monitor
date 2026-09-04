@@ -783,6 +783,34 @@ Template dengan angka yang sama persis ditolak, supaya tidak ada dua tombol
 kembar yang membingungkan. Untuk **menghapus** atau mengubah template, buka
 **Ubah kelompok tagihan → Pencatatan token PLN → Template pengisian**.
 
+### Memakai template yang sudah disimpan
+
+Di kartu **Isi token**, baris paling atas adalah **Pilih template**. Memilih
+salah satu langsung mengisi kotak **Jumlah kWh** dan **Nominal pembelian** di
+bawahnya — lalu tekan **Catat pengisian**.
+
+Memilih **tidak langsung mencatat**. Daftar pilihan tidak punya dialog
+konfirmasi, sementara mencatat pengisian mengubah catatan token Anda. Dengan
+mengisi kotaknya dulu, angkanya terlihat sebelum Anda menekan tombolnya.
+
+Daftar ini dibaca **hidup-hidup**, jadi template yang baru saja Anda simpan
+langsung ada di sana — tanpa perlu membuat ulang dashboard.
+
+### Memberi nama template
+
+Isi **Nama template baru** sebelum menekan **Simpan sebagai template**.
+Namanya jadi label di daftar pilihan dan di tombolnya.
+
+Boleh dikosongkan — template tanpa nama memakai angkanya sendiri sebagai
+label, misalnya "Rp 1.002.500 (825,00 kWh)".
+
+Dua template dengan nama yang sama ditolak, karena daftar pilihannya jadi
+ambigu.
+
+> Nama tidak pernah menggantikan angkanya. Dialog konfirmasi tombol template
+> selalu menyebut keduanya — *"Beli besar — Rp 1.002.500 (825,00 kWh)?"* —
+> karena "Beli besar" saja tidak memberi tahu berapa yang akan tercatat.
+
 ### Kalau harga per kWh berubah
 
 Pengisian yang menyebut **kedua** angka adalah struk — dan dari struk, harga

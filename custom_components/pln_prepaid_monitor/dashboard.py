@@ -62,7 +62,7 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
             "yang Anda atur di **Configure**. Bersifat **permanen**. Entity "
             "dan data lain di Home Assistant Anda tidak tersentuh."
         ),
-        "maint_button": "Bersihkan data lama",
+        "maint_button": "Bersihkan data",
         "status_waiting": (
             "**Perkiraan belum bisa dihitung.** Sistem butuh beberapa hari data "
             "pemakaian dulu sebelum bisa menebak kapan token habis, jadi status "
@@ -79,7 +79,7 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "meter_reading": "Angka di layar meteran",
         "calibrate": "Samakan",
-        "reset_button": "Reset sisa token ke nol",
+        "reset_button": "Reset ke nol",
         "reset_note": (
             "Mulai pencatatan token dari nol. Seluruh pengisian yang masih "
             "aktif dianggap sudah tidak berlaku. **Tidak bisa dibatalkan.**"
@@ -129,14 +129,12 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "rate_yes": "Ya, pakai harga baru",
         "rate_no": "Tidak, biarkan",
         "hacs_note": (
-            "**Dashboard ini butuh dua kartu dari HACS.** Kalau belum "
-            "terpasang, beberapa kartu di bawah akan tampil sebagai kotak "
-            "merah *Custom element doesn't exist*.\n\n"
-            "Pasang lewat **HACS → Frontend**:\n\n"
-            "* **Mushroom** — status token dan baris ringkas sumber energi\n"
-            "* **apexcharts-card** — grafik pemakaian dan biaya harian\n\n"
-            "Setelah dipasang, muat ulang halaman dengan **Ctrl+Shift+R**."
+            "Butuh **Mushroom** dan **apexcharts-card** dari **HACS → "
+            "Frontend**. Kartu yang belum terpasang tampil sebagai kotak merah; "
+            "sesudah dipasang, muat ulang dengan **Ctrl+Shift+R**."
         ),
+        "template_pick": "Pilih template",
+        "template_name": "Nama template baru",
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
     },
@@ -164,7 +162,7 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
             "limit you set under **Configure**. This is **permanent**. Your "
             "other entities and data are not touched."
         ),
-        "maint_button": "Purge old data",
+        "maint_button": "Purge data",
         "status_waiting": (
             "**No estimate yet.** The system needs a few days of usage data "
             "before it can guess when the token runs out, so the status and "
@@ -181,7 +179,7 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "meter_reading": "Figure on the meter",
         "calibrate": "Match",
-        "reset_button": "Reset remaining token to zero",
+        "reset_button": "Reset to zero",
         "reset_note": (
             "Start token tracking from zero. Every top-up still counted is "
             "treated as no longer valid. **This cannot be undone.**"
@@ -231,13 +229,12 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "rate_yes": "Yes, use the new price",
         "rate_no": "No, leave it",
         "hacs_note": (
-            "**This dashboard needs two cards from HACS.** Without them, some "
-            "cards below show up as a red *Custom element doesn't exist* box."
-            "\n\nInstall them via **HACS → Frontend**:\n\n"
-            "* **Mushroom** — token status and the compact source row\n"
-            "* **apexcharts-card** — daily usage and cost charts\n\n"
-            "Then hard-reload the page with **Ctrl+Shift+R**."
+            "Needs **Mushroom** and **apexcharts-card** from **HACS → "
+            "Frontend**. Cards that are not installed show up as a red box; "
+            "once installed, hard-reload with **Ctrl+Shift+R**."
         ),
+        "template_pick": "Pick a template",
+        "template_name": "Name for the new template",
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
     },
@@ -306,7 +303,7 @@ def _resolve(hass: HomeAssistant, subentry_id: str, keys: list[str]) -> dict[str
     registry = er.async_get(hass)
     resolved: dict[str, str] = {}
     for key in keys:
-        for platform in ("sensor", "binary_sensor", "number", "button"):
+        for platform in ("sensor", "binary_sensor", "number", "button", "select", "text"):
             entity_id = registry.async_get_entity_id(
                 platform, DOMAIN, f"{subentry_id}_{key}"
             )
@@ -331,11 +328,13 @@ GROUP_KEYS = [
     "ledger_hold",
     # Isian dan tombol, supaya seluruh pencatatan token bisa dilakukan dari
     # dashboard tanpa membuka Developer Tools.
+    "topup_template",
     "topup_kwh",
     "topup_rp",
     "rate_change_pending",
     "meter_reading_kwh",
     "record_topup",
+    "template_name",
     "save_template",
     "calibrate_token",
     "warning_threshold_days",
@@ -523,7 +522,11 @@ def _period_card(
     for row in view.detail_rows:
         value = f"s.get('{row}')"
         shown = (
-            f"{{{{ '%.2f' | format({value}) }}}}{' ' + unit if unit else ''}"
+            (
+                f"{{{{ '{{:,.2f}}'.format({value}) | replace(',', '@') "
+                f"| replace('.', ',') | replace('@', '.') }}}}"
+                f"{' ' + unit if unit else ''}"
+            )
             if prefix == "energy"
             else (
                 f"{view.currency} "
@@ -611,11 +614,15 @@ def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
     rows = [
         {"entity": entity, "name": texts[label]}
         for key, label in (
+            # Memilih template langsung mengisi dua kotak di bawahnya, jadi ia
+            # duduk paling atas - urutannya mengikuti urutan mengerjakannya.
+            ("topup_template", "template_pick"),
             ("topup_kwh", "topup_amount"),
             ("topup_rp", "topup_nominal"),
             ("record_topup", "topup_record"),
             # Cara paling alami membuat template adalah tepat sesudah mengetik
             # angkanya, bukan dengan membuka layar pengaturan terpisah.
+            ("template_name", "template_name"),
             ("save_template", "save_template"),
         )
         if (entity := view.entity(key))
@@ -800,7 +807,15 @@ def _topup_button(view: GroupView, preset: Any) -> dict[str, Any]:
             "perform_action": f"{DOMAIN}.add_token_topup",
             "target": {"device_id": view.device_id},
             "data": data,
-            "confirmation": {"text": f"{preset.label}?"},
+            # Nama template tidak memberi tahu berapa yang akan tercatat, jadi
+            # dialog konfirmasinya selalu menyebutkan angkanya juga.
+            "confirmation": {
+                "text": (
+                    f"{preset.label} - {preset.detail}?"
+                    if preset.name
+                    else f"{preset.detail}?"
+                )
+            },
         },
     }
 
@@ -993,7 +1008,15 @@ def _mushroom_status(view: GroupView, texts: dict[str, str]) -> dict[str, Any] |
         "entity": status,
     }
     if remaining:
-        card["secondary"] = "{{ states('" + remaining + "') }} kWh"
+        # Angkanya diformat gaya Indonesia, sama seperti kartu lain. Tanpa ini
+        # kartu paling menonjol di halaman justru satu-satunya yang menulis
+        # angka dengan gaya berbeda.
+        card["secondary"] = (
+            "{{ '{:,.2f}'.format(states('"
+            + remaining
+            + "') | float(0)) | replace(',', '@') | replace('.', ',') "
+            "| replace('@', '.') }} kWh"
+        )
     return card
 
 
@@ -1075,13 +1098,14 @@ def _view_groups(
     if token:
         groups.append((texts["sec_token"], token))
 
-    if settings := _settings_card(view, texts):
-        groups.append((texts["sec_settings"], [settings]))
+    settings = _settings_card(view, texts)
+    upkeep = [*([settings] if settings else []), *_maintenance_cards(view, texts)]
+    if upkeep:
+        groups.append((texts["sec_settings"], upkeep))
 
     if graphs := _history_cards(view, texts):
         groups.append((texts["sec_graphs"], graphs))
 
-    groups.append((texts["sec_maintenance"], _maintenance_cards(view, texts)))
     return groups
 
 

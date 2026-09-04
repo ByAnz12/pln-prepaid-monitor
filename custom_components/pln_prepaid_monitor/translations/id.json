@@ -313,6 +313,55 @@
         "name": "Usulan harga menunggu keputusan"
       }
     },
+    "button": {
+      "record_topup": {
+        "name": "Catat pengisian"
+      },
+      "calibrate_token": {
+        "name": "Samakan dengan angka meteran"
+      },
+      "save_template": {
+        "name": "Simpan sebagai template"
+      }
+    },
+    "number": {
+      "topup_kwh": {
+        "name": "Jumlah kWh pengisian",
+        "description": "Isi berapa kWh yang masuk menurut struk atau layar meteran, lalu tekan Catat pengisian. Angka ini belum tercatat apa-apa sampai tombolnya ditekan."
+      },
+      "meter_reading_kwh": {
+        "name": "Sisa token di layar meteran",
+        "description": "Isi angka sisa token yang tertera di layar meteran fisik, lalu tekan Samakan dengan angka meteran. Dipakai kalau hitungan sistem sudah melenceng dari meteran."
+      },
+      "warning_threshold_days": {
+        "name": "Ambang peringatan",
+        "description": "Status token berubah jadi Peringatan kalau perkiraan sisa waktunya turun di bawah angka ini. Harus lebih besar dari ambang Kritis."
+      },
+      "critical_threshold_days": {
+        "name": "Ambang kritis",
+        "description": "Status token berubah jadi Kritis di bawah angka ini. Harus di antara ambang Peringatan dan Sangat kritis."
+      },
+      "very_critical_threshold_days": {
+        "name": "Ambang sangat kritis",
+        "description": "Status token berubah jadi Sangat kritis di bawah angka ini. Harus lebih kecil dari ambang Kritis."
+      },
+      "rate_rp_per_kwh": {
+        "name": "Tarif per kWh",
+        "description": "Harga listrik per kWh. Mengubahnya membuat versi tarif baru - biaya yang sudah tercatat tetap memakai tarif yang berlaku saat pemakaian itu terjadi, jadi masa lalu tidak ditulis ulang."
+      },
+      "topup_rp": {
+        "name": "Nominal pembelian",
+        "description": "Berapa rupiah yang Anda bayar. Boleh diisi sendiri - jumlah kWh-nya dihitung dari tarif - atau bersama kotak Jumlah kWh, yang justru paling tepat karena keduanya tertulis di struk. Perlu diketahui: hasil konversi dari nominal hanya perkiraan, karena pembelian token sungguhan masih dipotong biaya admin, PPJ, dan materai."
+      }
+    },
+    "select": {
+      "topup_template": {
+        "name": "Template pengisian",
+        "state": {
+          "-": "Belum ada template"
+        }
+      }
+    },
     "sensor": {
       "energy": {
         "name": "Energi"
@@ -395,45 +444,10 @@
         }
       }
     },
-    "number": {
-      "topup_kwh": {
-        "name": "Jumlah kWh pengisian",
-        "description": "Isi berapa kWh yang masuk menurut struk atau layar meteran, lalu tekan Catat pengisian. Angka ini belum tercatat apa-apa sampai tombolnya ditekan."
-      },
-      "meter_reading_kwh": {
-        "name": "Sisa token di layar meteran",
-        "description": "Isi angka sisa token yang tertera di layar meteran fisik, lalu tekan Samakan dengan angka meteran. Dipakai kalau hitungan sistem sudah melenceng dari meteran."
-      },
-      "warning_threshold_days": {
-        "name": "Ambang peringatan",
-        "description": "Status token berubah jadi Peringatan kalau perkiraan sisa waktunya turun di bawah angka ini. Harus lebih besar dari ambang Kritis."
-      },
-      "critical_threshold_days": {
-        "name": "Ambang kritis",
-        "description": "Status token berubah jadi Kritis di bawah angka ini. Harus di antara ambang Peringatan dan Sangat kritis."
-      },
-      "very_critical_threshold_days": {
-        "name": "Ambang sangat kritis",
-        "description": "Status token berubah jadi Sangat kritis di bawah angka ini. Harus lebih kecil dari ambang Kritis."
-      },
-      "rate_rp_per_kwh": {
-        "name": "Tarif per kWh",
-        "description": "Harga listrik per kWh. Mengubahnya membuat versi tarif baru - biaya yang sudah tercatat tetap memakai tarif yang berlaku saat pemakaian itu terjadi, jadi masa lalu tidak ditulis ulang."
-      },
-      "topup_rp": {
-        "name": "Nominal pembelian",
-        "description": "Berapa rupiah yang Anda bayar. Boleh diisi sendiri - jumlah kWh-nya dihitung dari tarif - atau bersama kotak Jumlah kWh, yang justru paling tepat karena keduanya tertulis di struk. Perlu diketahui: hasil konversi dari nominal hanya perkiraan, karena pembelian token sungguhan masih dipotong biaya admin, PPJ, dan materai."
-      }
-    },
-    "button": {
-      "record_topup": {
-        "name": "Catat pengisian"
-      },
-      "calibrate_token": {
-        "name": "Samakan dengan angka meteran"
-      },
-      "save_template": {
-        "name": "Simpan sebagai template"
+    "text": {
+      "template_name": {
+        "name": "Nama template",
+        "description": "Beri nama supaya mudah dikenali, misalnya \"Beli besar\". Boleh dikosongkan - template tanpa nama memakai angkanya sendiri sebagai label."
       }
     }
   },
@@ -739,6 +753,9 @@
     },
     "template_already_exists": {
       "message": "Template dengan angka yang sama persis sudah ada."
+    },
+    "template_name_taken": {
+      "message": "Sudah ada template dengan nama itu. Pakai nama lain."
     }
   },
   "issues": {

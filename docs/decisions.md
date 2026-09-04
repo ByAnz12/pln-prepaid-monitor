@@ -9,6 +9,49 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-047 · `select` dikeluarkan dari daftar terlarang, karena daftarnya salah kaprah
+
+**Tanggal**: 5 September 2026
+
+Template yang baru disimpan tidak bisa langsung dipakai: tombol template di
+dashboard adalah **YAML statis**, jadi ia baru muncul setelah dashboardnya
+dibuat ulang. User menemukan ini dan melaporkannya - dengan benar.
+
+Daftar hidup butuh entity `select`, yang ada di `FORBIDDEN_PLATFORMS`.
+
+### Kenapa daftar itu memang salah kaprah
+
+`FORBIDDEN_PLATFORMS` semula disusun berdasarkan **nama platform**. Itu murah
+dan salah sasaran: yang berbahaya adalah **apa yang dilakukan entity-nya**,
+bukan nama platformnya. `select` yang memilih mode operasi AC memang berbahaya;
+`select` yang memilih template pengisian milik integrasi ini sendiri tidak
+mengirim apa pun ke perangkat mana pun.
+
+Ini sudah diakui sejak D-039, ketika jaminannya diubah jadi berbasis perilaku:
+`test_pressing_every_button_leaves_relays_untouched` menggerakkan **seluruh**
+entity lalu memastikan tidak satu pun relay milik user bergerak. Test itu kini
+juga mengubah setiap isian teks dan memilih **setiap** pilihan pada setiap
+`select`.
+
+`switch` dan kerabatnya tetap terlarang selamanya.
+
+### Memilih tidak pernah langsung mencatat
+
+Memilih dari daftar **tidak punya dialog konfirmasi**, sementara mencatat
+pengisian mengubah ledger. Karena itu memilih template hanya **mengisi kotak**
+jumlah kWh dan nominal; yang mencatat tetap tombol **Catat pengisian**, dan
+angkanya terlihat lebih dulu.
+
+### Nama template tidak pernah menggantikan angkanya
+
+Nama seperti "Beli besar" tidak memberi tahu apa pun soal berapa yang akan
+tercatat. Jadi di mana pun nama dipakai untuk sesuatu yang mengubah ledger,
+angkanya ikut ditampilkan - dialog konfirmasi tombol template berbunyi
+"Beli besar - Rp 1.002.500 (825,00 kWh)?", bukan "Beli besar?". Dijaga oleh
+`test_the_button_confirmation_always_shows_the_figures`.
+
+---
+
 ## D-046 · Varian HACS ada, tapi batasnya disebutkan apa adanya
 
 **Tanggal**: 5 September 2026 · **Atas permintaan user**

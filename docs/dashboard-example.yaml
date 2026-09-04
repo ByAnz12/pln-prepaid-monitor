@@ -94,44 +94,49 @@ views:
 
         |---|--:|
 
-        {% if s.get(''avg_hourly'') is not none %}| Rata-rata per jam | {{ ''%.2f''
-        | format(s.get(''avg_hourly'')) }} kWh |{% else %}| Rata-rata per jam | -
-        |{% endif %}
+        {% if s.get(''avg_hourly'') is not none %}| Rata-rata per jam | {{ ''{:,.2f}''.format(s.get(''avg_hourly''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Rata-rata per jam | - |{% endif %}
 
-        {% if s.get(''avg_daily'') is not none %}| Rata-rata harian | {{ ''%.2f''
-        | format(s.get(''avg_daily'')) }} kWh |{% else %}| Rata-rata harian | - |{%
-        endif %}
+        {% if s.get(''avg_daily'') is not none %}| Rata-rata harian | {{ ''{:,.2f}''.format(s.get(''avg_daily''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Rata-rata harian | - |{% endif %}
 
-        {% if s.get(''avg_monthly'') is not none %}| Rata-rata bulanan | {{ ''%.2f''
-        | format(s.get(''avg_monthly'')) }} kWh |{% else %}| Rata-rata bulanan | -
-        |{% endif %}
+        {% if s.get(''avg_monthly'') is not none %}| Rata-rata bulanan | {{ ''{:,.2f}''.format(s.get(''avg_monthly''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Rata-rata bulanan | - |{% endif %}
 
-        {% if s.get(''this_day'') is not none %}| Hari ini | {{ ''%.2f'' | format(s.get(''this_day''))
-        }} kWh |{% else %}| Hari ini | - |{% endif %}
+        {% if s.get(''this_day'') is not none %}| Hari ini | {{ ''{:,.2f}''.format(s.get(''this_day''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Hari ini | - |{% endif %}
 
-        {% if s.get(''prev_day_1'') is not none %}| Hari kemarin | {{ ''%.2f'' | format(s.get(''prev_day_1''))
-        }} kWh |{% else %}| Hari kemarin | - |{% endif %}
+        {% if s.get(''prev_day_1'') is not none %}| Hari kemarin | {{ ''{:,.2f}''.format(s.get(''prev_day_1''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Hari kemarin | - |{% endif %}
 
-        {% if s.get(''prev_day_2'') is not none %}| 2 hari lalu | {{ ''%.2f'' | format(s.get(''prev_day_2''))
-        }} kWh |{% else %}| 2 hari lalu | - |{% endif %}
+        {% if s.get(''prev_day_2'') is not none %}| 2 hari lalu | {{ ''{:,.2f}''.format(s.get(''prev_day_2''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| 2 hari lalu | - |{% endif %}
 
-        {% if s.get(''prev_day_3'') is not none %}| 3 hari lalu | {{ ''%.2f'' | format(s.get(''prev_day_3''))
-        }} kWh |{% else %}| 3 hari lalu | - |{% endif %}
+        {% if s.get(''prev_day_3'') is not none %}| 3 hari lalu | {{ ''{:,.2f}''.format(s.get(''prev_day_3''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| 3 hari lalu | - |{% endif %}
 
-        {% if s.get(''this_month'') is not none %}| Bulan ini | {{ ''%.2f'' | format(s.get(''this_month''))
-        }} kWh |{% else %}| Bulan ini | - |{% endif %}
+        {% if s.get(''this_month'') is not none %}| Bulan ini | {{ ''{:,.2f}''.format(s.get(''this_month''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Bulan ini | - |{% endif %}
 
-        {% if s.get(''prev_month_1'') is not none %}| Bulan kemarin | {{ ''%.2f''
-        | format(s.get(''prev_month_1'')) }} kWh |{% else %}| Bulan kemarin | - |{%
-        endif %}
+        {% if s.get(''prev_month_1'') is not none %}| Bulan kemarin | {{ ''{:,.2f}''.format(s.get(''prev_month_1''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Bulan kemarin | - |{% endif %}
 
-        {% if s.get(''prev_month_2'') is not none %}| 2 bulan lalu | {{ ''%.2f'' |
-        format(s.get(''prev_month_2'')) }} kWh |{% else %}| 2 bulan lalu | - |{% endif
-        %}
+        {% if s.get(''prev_month_2'') is not none %}| 2 bulan lalu | {{ ''{:,.2f}''.format(s.get(''prev_month_2''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| 2 bulan lalu | - |{% endif %}
 
-        {% if s.get(''prev_month_3'') is not none %}| 3 bulan lalu | {{ ''%.2f'' |
-        format(s.get(''prev_month_3'')) }} kWh |{% else %}| 3 bulan lalu | - |{% endif
-        %}'
+        {% if s.get(''prev_month_3'') is not none %}| 3 bulan lalu | {{ ''{:,.2f}''.format(s.get(''prev_month_3''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| 3 bulan lalu | - |{% endif %}'
     - type: markdown
       content: '### Biaya
 
@@ -239,12 +244,16 @@ views:
     - type: entities
       title: Isi token
       entities:
+      - entity: select.pln_rumah_template_pengisian
+        name: Pilih template
       - entity: number.pln_rumah_jumlah_kwh_pengisian
         name: Jumlah kWh
       - entity: number.pln_rumah_nominal_pembelian
         name: Nominal pembelian
       - entity: button.pln_rumah_catat_pengisian
         name: Catat pengisian
+      - entity: text.pln_rumah_nama_template
+        name: Nama template baru
       - entity: button.pln_rumah_simpan_sebagai_template
         name: Simpan sebagai template
     - type: markdown
@@ -254,7 +263,7 @@ views:
       square: false
       cards:
       - type: button
-        name: Rp 1.002.500 (825,00 kWh)
+        name: Beli besar
         icon: mdi:cash-plus
         show_state: false
         tap_action:
@@ -266,9 +275,9 @@ views:
             kwh_credited: 825.0
             nominal_rp: 1002500.0
           confirmation:
-            text: Rp 1.002.500 (825,00 kWh)?
+            text: Beli besar - Rp 1.002.500 (825,00 kWh)?
       - type: button
-        name: Rp 503.000 (425,00 kWh)
+        name: Beli kecil
         icon: mdi:cash-plus
         show_state: false
         tap_action:
@@ -280,7 +289,7 @@ views:
             kwh_credited: 425.0
             nominal_rp: 503000.0
           confirmation:
-            text: Rp 503.000 (425,00 kWh)?
+            text: Beli kecil - Rp 503.000 (425,00 kWh)?
     - type: conditional
       conditions:
       - entity: binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan
@@ -361,7 +370,7 @@ views:
       content: Mulai pencatatan token dari nol. Seluruh pengisian yang masih aktif
         dianggap sudah tidak berlaku. **Tidak bisa dibatalkan.**
     - type: button
-      name: Reset sisa token ke nol
+      name: Reset ke nol
       show_icon: false
       show_state: false
       tap_action:
@@ -370,7 +379,7 @@ views:
         target:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         confirmation:
-          text: Reset sisa token ke nol?
+          text: Reset ke nol?
     - type: markdown
       content: '### Riwayat pengisian
 
@@ -427,6 +436,25 @@ views:
         name: Ambang kritis
       - entity: number.pln_rumah_ambang_sangat_kritis
         name: Ambang sangat kritis
+    - type: markdown
+      content: '### Perawatan
+
+
+        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
+        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
+        Assistant Anda tidak tersentuh.'
+    - type: button
+      name: Bersihkan data
+      show_icon: false
+      icon: mdi:database-remove
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.purge_old_data
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        confirmation:
+          text: Bersihkan data?
   - type: grid
     cards:
     - type: heading
@@ -450,30 +478,6 @@ views:
       period: day
       days_to_show: 30
       chart_type: bar
-  - type: grid
-    cards:
-    - type: heading
-      heading: Perawatan
-      heading_style: title
-    - type: markdown
-      content: '### Perawatan
-
-
-        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
-        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
-        Assistant Anda tidak tersentuh.'
-    - type: button
-      name: Bersihkan data lama
-      show_icon: false
-      icon: mdi:database-remove
-      show_state: false
-      tap_action:
-        action: perform-action
-        perform_action: pln_prepaid_monitor.purge_old_data
-        target:
-          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
-        confirmation:
-          text: Bersihkan data lama?
 - title: PLN TOKO
   path: pln-toko
   type: sections
@@ -553,44 +557,49 @@ views:
 
         |---|--:|
 
-        {% if s.get(''avg_hourly'') is not none %}| Rata-rata per jam | {{ ''%.2f''
-        | format(s.get(''avg_hourly'')) }} kWh |{% else %}| Rata-rata per jam | -
-        |{% endif %}
+        {% if s.get(''avg_hourly'') is not none %}| Rata-rata per jam | {{ ''{:,.2f}''.format(s.get(''avg_hourly''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Rata-rata per jam | - |{% endif %}
 
-        {% if s.get(''avg_daily'') is not none %}| Rata-rata harian | {{ ''%.2f''
-        | format(s.get(''avg_daily'')) }} kWh |{% else %}| Rata-rata harian | - |{%
-        endif %}
+        {% if s.get(''avg_daily'') is not none %}| Rata-rata harian | {{ ''{:,.2f}''.format(s.get(''avg_daily''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Rata-rata harian | - |{% endif %}
 
-        {% if s.get(''avg_monthly'') is not none %}| Rata-rata bulanan | {{ ''%.2f''
-        | format(s.get(''avg_monthly'')) }} kWh |{% else %}| Rata-rata bulanan | -
-        |{% endif %}
+        {% if s.get(''avg_monthly'') is not none %}| Rata-rata bulanan | {{ ''{:,.2f}''.format(s.get(''avg_monthly''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Rata-rata bulanan | - |{% endif %}
 
-        {% if s.get(''this_day'') is not none %}| Hari ini | {{ ''%.2f'' | format(s.get(''this_day''))
-        }} kWh |{% else %}| Hari ini | - |{% endif %}
+        {% if s.get(''this_day'') is not none %}| Hari ini | {{ ''{:,.2f}''.format(s.get(''this_day''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Hari ini | - |{% endif %}
 
-        {% if s.get(''prev_day_1'') is not none %}| Hari kemarin | {{ ''%.2f'' | format(s.get(''prev_day_1''))
-        }} kWh |{% else %}| Hari kemarin | - |{% endif %}
+        {% if s.get(''prev_day_1'') is not none %}| Hari kemarin | {{ ''{:,.2f}''.format(s.get(''prev_day_1''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Hari kemarin | - |{% endif %}
 
-        {% if s.get(''prev_day_2'') is not none %}| 2 hari lalu | {{ ''%.2f'' | format(s.get(''prev_day_2''))
-        }} kWh |{% else %}| 2 hari lalu | - |{% endif %}
+        {% if s.get(''prev_day_2'') is not none %}| 2 hari lalu | {{ ''{:,.2f}''.format(s.get(''prev_day_2''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| 2 hari lalu | - |{% endif %}
 
-        {% if s.get(''prev_day_3'') is not none %}| 3 hari lalu | {{ ''%.2f'' | format(s.get(''prev_day_3''))
-        }} kWh |{% else %}| 3 hari lalu | - |{% endif %}
+        {% if s.get(''prev_day_3'') is not none %}| 3 hari lalu | {{ ''{:,.2f}''.format(s.get(''prev_day_3''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| 3 hari lalu | - |{% endif %}
 
-        {% if s.get(''this_month'') is not none %}| Bulan ini | {{ ''%.2f'' | format(s.get(''this_month''))
-        }} kWh |{% else %}| Bulan ini | - |{% endif %}
+        {% if s.get(''this_month'') is not none %}| Bulan ini | {{ ''{:,.2f}''.format(s.get(''this_month''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Bulan ini | - |{% endif %}
 
-        {% if s.get(''prev_month_1'') is not none %}| Bulan kemarin | {{ ''%.2f''
-        | format(s.get(''prev_month_1'')) }} kWh |{% else %}| Bulan kemarin | - |{%
-        endif %}
+        {% if s.get(''prev_month_1'') is not none %}| Bulan kemarin | {{ ''{:,.2f}''.format(s.get(''prev_month_1''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| Bulan kemarin | - |{% endif %}
 
-        {% if s.get(''prev_month_2'') is not none %}| 2 bulan lalu | {{ ''%.2f'' |
-        format(s.get(''prev_month_2'')) }} kWh |{% else %}| 2 bulan lalu | - |{% endif
-        %}
+        {% if s.get(''prev_month_2'') is not none %}| 2 bulan lalu | {{ ''{:,.2f}''.format(s.get(''prev_month_2''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| 2 bulan lalu | - |{% endif %}
 
-        {% if s.get(''prev_month_3'') is not none %}| 3 bulan lalu | {{ ''%.2f'' |
-        format(s.get(''prev_month_3'')) }} kWh |{% else %}| 3 bulan lalu | - |{% endif
-        %}'
+        {% if s.get(''prev_month_3'') is not none %}| 3 bulan lalu | {{ ''{:,.2f}''.format(s.get(''prev_month_3''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
+        kWh |{% else %}| 3 bulan lalu | - |{% endif %}'
     - type: markdown
       content: '### Biaya
 
@@ -698,12 +707,16 @@ views:
     - type: entities
       title: Isi token
       entities:
+      - entity: select.pln_toko_template_pengisian
+        name: Pilih template
       - entity: number.pln_toko_jumlah_kwh_pengisian
         name: Jumlah kWh
       - entity: number.pln_toko_nominal_pembelian
         name: Nominal pembelian
       - entity: button.pln_toko_catat_pengisian
         name: Catat pengisian
+      - entity: text.pln_toko_nama_template
+        name: Nama template baru
       - entity: button.pln_toko_simpan_sebagai_template
         name: Simpan sebagai template
     - type: conditional
@@ -786,7 +799,7 @@ views:
       content: Mulai pencatatan token dari nol. Seluruh pengisian yang masih aktif
         dianggap sudah tidak berlaku. **Tidak bisa dibatalkan.**
     - type: button
-      name: Reset sisa token ke nol
+      name: Reset ke nol
       show_icon: false
       show_state: false
       tap_action:
@@ -795,7 +808,7 @@ views:
         target:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         confirmation:
-          text: Reset sisa token ke nol?
+          text: Reset ke nol?
     - type: markdown
       content: '### Riwayat pengisian
 
@@ -852,6 +865,25 @@ views:
         name: Ambang kritis
       - entity: number.pln_toko_ambang_sangat_kritis
         name: Ambang sangat kritis
+    - type: markdown
+      content: '### Perawatan
+
+
+        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
+        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
+        Assistant Anda tidak tersentuh.'
+    - type: button
+      name: Bersihkan data
+      show_icon: false
+      icon: mdi:database-remove
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.purge_old_data
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        confirmation:
+          text: Bersihkan data?
   - type: grid
     cards:
     - type: heading
@@ -875,27 +907,3 @@ views:
       period: day
       days_to_show: 30
       chart_type: bar
-  - type: grid
-    cards:
-    - type: heading
-      heading: Perawatan
-      heading_style: title
-    - type: markdown
-      content: '### Perawatan
-
-
-        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
-        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
-        Assistant Anda tidak tersentuh.'
-    - type: button
-      name: Bersihkan data lama
-      show_icon: false
-      icon: mdi:database-remove
-      show_state: false
-      tap_action:
-        action: perform-action
-        perform_action: pln_prepaid_monitor.purge_old_data
-        target:
-          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
-        confirmation:
-          text: Bersihkan data lama?

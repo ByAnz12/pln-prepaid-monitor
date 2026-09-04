@@ -45,6 +45,8 @@ def test_platform_list_is_locked() -> None:
         Platform.BINARY_SENSOR,
         Platform.NUMBER,
         Platform.BUTTON,
+        Platform.SELECT,
+        Platform.TEXT,
     }
 
 
@@ -275,7 +277,10 @@ async def test_pressing_every_button_leaves_relays_untouched(
         if state.entity_id.startswith("number.pln_")
     ]
     buttons = [state.entity_id for state in hass.states.async_all("button")]
+    selects = [state.entity_id for state in hass.states.async_all("select")]
+    texts = [state.entity_id for state in hass.states.async_all("text")]
     assert numbers and buttons, "platform baru harus benar-benar membuat entity"
+    assert selects and texts, "select dan text juga harus benar-benar dibuat"
 
     # Sebagian nilai memang akan ditolak - misalnya menyamakan ketiga ambang
     # jadi 1.0 melanggar urutan wajibnya. Yang diuji di sini bukan apakah
@@ -294,6 +299,32 @@ async def test_pressing_every_button_leaves_relays_untouched(
         except HomeAssistantError:
             pass
         await hass.async_block_till_done()
+
+    for entity_id in texts:
+        try:
+            await hass.services.async_call(
+                "text",
+                "set_value",
+                {"entity_id": entity_id, "value": "uji"},
+                blocking=True,
+            )
+        except HomeAssistantError:
+            pass
+        await hass.async_block_till_done()
+
+    for entity_id in selects:
+        state = hass.states.get(entity_id)
+        for option in state.attributes.get("options", []):
+            try:
+                await hass.services.async_call(
+                    "select",
+                    "select_option",
+                    {"entity_id": entity_id, "option": option},
+                    blocking=True,
+                )
+            except HomeAssistantError:
+                pass
+            await hass.async_block_till_done()
 
     for entity_id in buttons:
         try:

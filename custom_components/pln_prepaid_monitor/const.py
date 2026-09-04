@@ -27,14 +27,21 @@ PLATFORMS: Final[list[Platform]] = [
     Platform.BINARY_SENSOR,
     Platform.NUMBER,
     Platform.BUTTON,
+    Platform.SELECT,
+    Platform.TEXT,
 ]
 
 # Platform yang tidak boleh dipakai integrasi ini, apa pun alasannya: semuanya
 # mengirim perintah ke perangkat fisik.
+#
+# ``select`` pernah ada di daftar ini dan dikeluarkan di D-047. Alasannya:
+# daftar ini semula disusun berdasarkan NAMA platform, padahal yang berbahaya
+# adalah apa yang dilakukan entity-nya. ``select`` di sini hanya memilih
+# template pengisian milik integrasi ini sendiri - dibuktikan oleh test yang
+# menggerakkan seluruh entity lalu memastikan tidak ada relay yang bergerak.
 FORBIDDEN_PLATFORMS: Final[frozenset[Platform]] = frozenset(
     {
         Platform.SWITCH,
-        Platform.SELECT,
         Platform.CLIMATE,
         Platform.COVER,
         Platform.FAN,

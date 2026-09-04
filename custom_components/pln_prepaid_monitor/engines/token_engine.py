@@ -361,19 +361,31 @@ class TokenPreset:
 
     kwh: float
     nominal_rp: float | None = None
+    name: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Bentuk yang disimpan di subentry."""
-        return {"nominal_rp": self.nominal_rp, "kwh": self.kwh}
+        return {"nominal_rp": self.nominal_rp, "kwh": self.kwh, "name": self.name}
 
     @property
-    def label(self) -> str:
-        """Label ringkas untuk tombol dashboard."""
+    def detail(self) -> str:
+        """Angka-angkanya, selalu ditulis lengkap."""
         kwh = format_kwh(self.kwh)
         if self.nominal_rp is None:
             return f"{kwh} kWh"
         nominal = f"{self.nominal_rp:,.0f}".replace(",", ".")
         return f"Rp {nominal} ({kwh} kWh)"
+
+    @property
+    def label(self) -> str:
+        """Nama yang user beri, atau angkanya kalau belum diberi nama.
+
+        Nama sengaja tidak pernah menggantikan angka sepenuhnya: di mana pun
+        label ini dipakai untuk sesuatu yang mengubah ledger, ``detail``
+        ditampilkan berdampingan. "Beli besar" tidak memberi tahu apa pun soal
+        berapa yang akan tercatat.
+        """
+        return self.name or self.detail
 
 
 def parse_rupiah(text: str) -> float | None:
@@ -404,10 +416,11 @@ def parse_kwh(text: str) -> float | None:
 def parse_presets(text: str | None) -> tuple[list[TokenPreset], list[str]]:
     """Baca daftar preset dari teks, satu baris satu nilai.
 
-    Dua bentuk diterima:
+    Tiga bentuk diterima:
 
     * ``1.000.000 = 826,50`` - nominal pembelian beserta kWh-nya.
     * ``826,50`` - kWh saja, untuk yang tidak mau repot dengan nominal.
+    * ``Beli besar | 1.000.000 = 826,50`` - dengan nama di depan.
 
     Mengembalikan pasangan (preset yang berhasil dibaca, baris yang gagal).
     """
@@ -418,6 +431,14 @@ def parse_presets(text: str | None) -> tuple[list[TokenPreset], list[str]]:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
+
+        # Nama ditulis di depan, dipisah garis tegak. Memakai "=" untuk dua hal
+        # berbeda dalam satu baris hanya akan membingungkan.
+        name: str | None = None
+        if "|" in line:
+            name_part, _, rest = line.partition("|")
+            name = name_part.strip() or None
+            line = rest.strip()
 
         left, separator, right = line.partition("=")
 
@@ -432,7 +453,7 @@ def parse_presets(text: str | None) -> tuple[list[TokenPreset], list[str]]:
             if kwh is None or kwh <= 0 or implausible_kwh_hint(kwh) is not None:
                 bad_lines.append(line)
                 continue
-            presets.append(TokenPreset(kwh=kwh))
+            presets.append(TokenPreset(kwh=kwh, name=name))
             continue
 
         nominal = parse_rupiah(left)
@@ -446,7 +467,7 @@ def parse_presets(text: str | None) -> tuple[list[TokenPreset], list[str]]:
             bad_lines.append(line)
             continue
 
-        presets.append(TokenPreset(kwh=kwh, nominal_rp=nominal))
+        presets.append(TokenPreset(kwh=kwh, nominal_rp=nominal, name=name))
 
     return presets, bad_lines
 
@@ -458,10 +479,12 @@ def format_presets(presets: list[dict[str, Any]] | None) -> str:
         kwh = f"{float(preset['kwh']):.2f}".replace(".", ",")
         nominal_rp = preset.get("nominal_rp")
         if nominal_rp is None:
-            lines.append(kwh)
-            continue
-        nominal = f"{float(nominal_rp):,.0f}".replace(",", ".")
-        lines.append(f"{nominal} = {kwh}")
+            body = kwh
+        else:
+            nominal = f"{float(nominal_rp):,.0f}".replace(",", ".")
+            body = f"{nominal} = {kwh}"
+        name = preset.get("name")
+        lines.append(f"{name} | {body}" if name else body)
     return "\n".join(lines)
 
 
@@ -471,10 +494,12 @@ def load_presets(data: list[dict[str, Any]] | None) -> list[TokenPreset]:
     for entry in data or []:
         try:
             nominal_rp = entry.get("nominal_rp")
+            name = entry.get("name")
             presets.append(
                 TokenPreset(
                     kwh=float(entry["kwh"]),
                     nominal_rp=None if nominal_rp is None else float(nominal_rp),
+                    name=str(name) if name else None,
                 )
             )
         except (KeyError, TypeError, ValueError):

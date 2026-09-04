@@ -582,6 +582,14 @@ class BillingGroupRuntime:
             dict(stored["pending_rate"]) if stored.get("pending_rate") else None
         )
 
+        # Isian yang berupa teks (nama template, template yang sedang dipilih).
+        # Dipisah dari ``inputs`` yang berisi angka supaya tidak ada nilai
+        # bercampur tipe di satu tempat.
+        self.inputs_text: dict[str, str] = {
+            str(key): str(value)
+            for key, value in (stored.get("inputs_text") or {}).items()
+        }
+
         self.inputs: dict[str, float] = {
             str(key): float(value)
             for key, value in (stored.get("inputs") or {}).items()
@@ -917,6 +925,13 @@ class BillingGroupRuntime:
         self._async_notify()
         self._on_persist()
 
+    @callback
+    def async_set_input_text(self, key: str, value: str) -> None:
+        """Simpan isian teks, dan beri tahu entity yang menampilkannya."""
+        self.inputs_text[key] = value
+        self._async_notify()
+        self._on_persist()
+
     def record_topup(
         self,
         *,
@@ -1196,6 +1211,7 @@ class BillingGroupRuntime:
             "token": self.ledger.state.as_dict(),
             "notifier": self.notifier_state.as_dict(),
             "inputs": dict(self.inputs),
+            "inputs_text": dict(self.inputs_text),
             "pending_rate": dict(self.pending_rate) if self.pending_rate else None,
         }
 

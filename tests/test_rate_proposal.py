@@ -223,7 +223,7 @@ async def test_saving_a_template_from_what_is_typed(hass: HomeAssistant) -> None
     await _press(hass, _entity_id(hass, "button", "save_template"))
 
     assert entry.subentries[GROUP_ID].data[CONF_TOKEN_PRESETS] == [
-        {"kwh": 825.0, "nominal_rp": 1_002_500}
+        {"kwh": 825.0, "nominal_rp": 1_002_500, "name": None}
     ]
 
 
@@ -295,3 +295,167 @@ async def test_saved_templates_become_buttons(hass: HomeAssistant) -> None:
         and card["tap_action"]["perform_action"].endswith("add_token_topup")
     ]
     assert "Rp 1.002.500 (825,00 kWh)" in names
+
+
+# --- memakai dan menamai template --------------------------------------------
+
+
+async def _save(hass: HomeAssistant, kwh: float, nominal: float, name: str = "") -> None:
+    """Isi kotaknya, beri nama kalau ada, lalu simpan sebagai template."""
+    await _set_number(hass, _entity_id(hass, "number", "topup_kwh"), kwh)
+    await _set_number(hass, _entity_id(hass, "number", "topup_rp"), nominal)
+    if name:
+        await hass.services.async_call(
+            "text",
+            "set_value",
+            {"entity_id": _entity_id(hass, "text", "template_name"), "value": name},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+    await _press(hass, _entity_id(hass, "button", "save_template"))
+
+
+async def _pick(hass: HomeAssistant, option: str) -> None:
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": _entity_id(hass, "select", "topup_template"), "option": option},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+
+async def test_a_saved_template_is_usable_right_away(hass: HomeAssistant) -> None:
+    """Inti keluhan user: simpan template, lalu bisa langsung dipakai.
+
+    Tombol template di dashboard adalah YAML statis, jadi template baru tidak
+    muncul sampai dashboardnya dibuat ulang. Daftar pada pemilih dibaca
+    hidup-hidup, jadi tidak ada jeda sama sekali.
+    """
+    apply_states(hass, MCB_RUMAH)
+    await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+
+    picker = hass.states.get(_entity_id(hass, "select", "topup_template"))
+    assert "Beli besar" in picker.attributes["options"]
+
+
+async def test_picking_a_template_fills_both_boxes(hass: HomeAssistant) -> None:
+    """Memilih hanya mengisi kotaknya - angkanya terlihat sebelum dicatat.
+
+    Memilih dari daftar tidak punya dialog konfirmasi, sementara mencatat
+    pengisian mengubah ledger. Karena itu memilih tidak pernah langsung
+    mencatat.
+    """
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+    await _pick(hass, "Beli besar")
+
+    # Menyimpan template menulis ke konfigurasi, yang memuat ulang entry -
+    # jadi runtime-nya diambil ulang sesudah itu, bukan sebelum.
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+    assert group.inputs["topup_kwh"] == 825.0
+    assert group.inputs["topup_rp"] == 1_002_500
+    # Belum ada yang tercatat sampai tombolnya ditekan.
+    assert group.ledger.state.entries == []
+
+    await _press(hass, _entity_id(hass, "button", "record_topup"))
+    assert group.token_remaining_kwh == pytest.approx(825.0, abs=0.01)
+
+
+async def test_two_named_templates_side_by_side(hass: HomeAssistant) -> None:
+    """Contoh user: dua template dengan nama masing-masing."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+    await _save(hass, 425.0, 503_000, "Beli kecil")
+
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+    assert [preset.label for preset in group.token_presets] == [
+        "Beli besar",
+        "Beli kecil",
+    ]
+
+    await _pick(hass, "Beli kecil")
+    assert group.inputs["topup_kwh"] == 425.0
+
+
+async def test_the_name_box_is_cleared_after_saving(hass: HomeAssistant) -> None:
+    """Kalau namanya tertinggal, template berikutnya diam-diam memakai nama itu."""
+    apply_states(hass, MCB_RUMAH)
+    await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+
+    assert hass.states.get(_entity_id(hass, "text", "template_name")).state == ""
+
+
+async def test_the_same_name_twice_is_refused(hass: HomeAssistant) -> None:
+    """Dua template bernama sama membuat pemilihnya ambigu."""
+    apply_states(hass, MCB_RUMAH)
+    await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+
+    with pytest.raises(HomeAssistantError):
+        await _save(hass, 700.0, 850_000, "Beli besar")
+
+
+async def test_a_template_without_a_name_still_works(hass: HomeAssistant) -> None:
+    """Nama boleh dikosongkan; labelnya memakai angkanya sendiri."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500)
+
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+    assert group.token_presets[0].label == "Rp 1.002.500 (825,00 kWh)"
+
+
+async def test_the_button_confirmation_always_shows_the_figures(
+    hass: HomeAssistant,
+) -> None:
+    """"Beli besar?" tidak memberi tahu berapa yang akan tercatat."""
+    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+
+    def _walk(cards):
+        for card in cards:
+            yield card
+            yield from _walk(card.get("cards", []))
+            if nested := card.get("card"):
+                yield nested
+                yield from _walk(nested.get("cards", []))
+
+    buttons = [
+        card
+        for page in build_dashboard(hass, entry.runtime_data)["views"]
+        for card in _walk(view_cards(page))
+        if card.get("type") == "button"
+        and card["tap_action"]["perform_action"].endswith("add_token_topup")
+    ]
+    assert buttons
+    text = buttons[0]["tap_action"]["confirmation"]["text"]
+    assert "Beli besar" in text
+    assert "825,00 kWh" in text
+
+
+async def test_the_picker_survives_a_restart(hass: HomeAssistant) -> None:
+    """Template tersimpan di konfigurasi, jadi tetap ada sesudah restart."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    picker = hass.states.get(_entity_id(hass, "select", "topup_template"))
+    assert "Beli besar" in picker.attributes["options"]

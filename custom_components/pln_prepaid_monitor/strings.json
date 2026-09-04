@@ -313,6 +313,55 @@
         "name": "Rate proposal pending"
       }
     },
+    "button": {
+      "record_topup": {
+        "name": "Record top-up"
+      },
+      "calibrate_token": {
+        "name": "Match the meter reading"
+      },
+      "save_template": {
+        "name": "Save as template"
+      }
+    },
+    "number": {
+      "topup_kwh": {
+        "name": "Top-up amount",
+        "description": "Enter how many kWh went in according to the receipt or the meter display, then press Record top-up. Nothing is recorded until you press the button."
+      },
+      "meter_reading_kwh": {
+        "name": "Remaining token on the meter",
+        "description": "Enter the remaining token shown on the physical meter, then press Match the meter reading. Use this when the system's figure has drifted from the meter."
+      },
+      "warning_threshold_days": {
+        "name": "Warning threshold",
+        "description": "Token status becomes Warning below this many days remaining. Must be larger than the Critical threshold."
+      },
+      "critical_threshold_days": {
+        "name": "Critical threshold",
+        "description": "Token status becomes Critical below this many days. Must sit between Warning and Very critical."
+      },
+      "very_critical_threshold_days": {
+        "name": "Very critical threshold",
+        "description": "Token status becomes Very critical below this many days. Must be smaller than the Critical threshold."
+      },
+      "rate_rp_per_kwh": {
+        "name": "Rate per kWh",
+        "description": "Price of electricity per kWh. Changing it creates a new rate version - costs already recorded keep the rate that applied when that usage happened, so the past is never rewritten."
+      },
+      "topup_rp": {
+        "name": "Purchase amount",
+        "description": "How much you paid. You can fill in just this - the kWh figure is worked out from the tariff - or fill it in alongside the kWh box, which is the most accurate since both are printed on the receipt. Note: converting from the amount is only an estimate, because a real token purchase also carries admin fees, tax and stamp duty."
+      }
+    },
+    "select": {
+      "topup_template": {
+        "name": "Top-up template",
+        "state": {
+          "-": "No template yet"
+        }
+      }
+    },
     "sensor": {
       "energy": {
         "name": "Energy"
@@ -395,45 +444,10 @@
         }
       }
     },
-    "number": {
-      "topup_kwh": {
-        "name": "Top-up amount",
-        "description": "Enter how many kWh went in according to the receipt or the meter display, then press Record top-up. Nothing is recorded until you press the button."
-      },
-      "meter_reading_kwh": {
-        "name": "Remaining token on the meter",
-        "description": "Enter the remaining token shown on the physical meter, then press Match the meter reading. Use this when the system's figure has drifted from the meter."
-      },
-      "warning_threshold_days": {
-        "name": "Warning threshold",
-        "description": "Token status becomes Warning below this many days remaining. Must be larger than the Critical threshold."
-      },
-      "critical_threshold_days": {
-        "name": "Critical threshold",
-        "description": "Token status becomes Critical below this many days. Must sit between Warning and Very critical."
-      },
-      "very_critical_threshold_days": {
-        "name": "Very critical threshold",
-        "description": "Token status becomes Very critical below this many days. Must be smaller than the Critical threshold."
-      },
-      "rate_rp_per_kwh": {
-        "name": "Rate per kWh",
-        "description": "Price of electricity per kWh. Changing it creates a new rate version - costs already recorded keep the rate that applied when that usage happened, so the past is never rewritten."
-      },
-      "topup_rp": {
-        "name": "Purchase amount",
-        "description": "How much you paid. You can fill in just this - the kWh figure is worked out from the tariff - or fill it in alongside the kWh box, which is the most accurate since both are printed on the receipt. Note: converting from the amount is only an estimate, because a real token purchase also carries admin fees, tax and stamp duty."
-      }
-    },
-    "button": {
-      "record_topup": {
-        "name": "Record top-up"
-      },
-      "calibrate_token": {
-        "name": "Match the meter reading"
-      },
-      "save_template": {
-        "name": "Save as template"
+    "text": {
+      "template_name": {
+        "name": "Template name",
+        "description": "Give it a name you will recognise, for example \"Big purchase\". Optional - an unnamed template uses its own figures as the label."
       }
     }
   },
@@ -739,6 +753,9 @@
     },
     "template_already_exists": {
       "message": "A template with exactly these figures already exists."
+    },
+    "template_name_taken": {
+      "message": "A template with that name already exists. Use a different name."
     }
   },
   "issues": {

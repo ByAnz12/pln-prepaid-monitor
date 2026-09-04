@@ -310,17 +310,37 @@ def async_save_template(hass: HomeAssistant, group: Any) -> None:
     entry = hass.config_entries.async_get_entry(group.entry_id)
     if entry is None:
         return
+
+    name = (group.inputs_text.get("template_name") or "").strip() or None
+    if name and any(item.get("name") == name for item in existing):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="template_name_taken"
+        )
+
+    # Kosongkan isian namanya SEBELUM menulis konfigurasi: menulis konfigurasi
+    # memuat ulang entry, dan runtime yang lama ikut dibuang bersamanya. Kalau
+    # dikosongkan sesudahnya, yang dikosongkan adalah objek yang sudah mati -
+    # dan namanya diam-diam tertinggal untuk template berikutnya.
+    group.async_set_input_text("template_name", "")
+
     subentry = entry.subentries[group.subentry_id]
     hass.config_entries.async_update_subentry(
         entry,
         subentry,
         data={
             **subentry.data,
-            CONF_TOKEN_PRESETS: [*existing, {"kwh": kwh, "nominal_rp": nominal}],
+            CONF_TOKEN_PRESETS: [
+                *existing,
+                {"kwh": kwh, "nominal_rp": nominal, "name": name},
+            ],
         },
     )
     _LOGGER.info(
-        "Template pengisian '%s' disimpan: %s kWh / %s", group.name, kwh, nominal
+        "Template pengisian '%s' disimpan: %s (%s kWh / %s)",
+        group.name,
+        name or "tanpa nama",
+        kwh,
+        nominal,
     )
 
 
