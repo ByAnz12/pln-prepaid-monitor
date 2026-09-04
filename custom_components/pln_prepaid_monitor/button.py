@@ -25,6 +25,7 @@ from .coordinator import BillingGroupRuntime, PlnRuntimeData
 from .entity import PlnBillingGroupEntity
 
 TOPUP_INPUT = "topup_kwh"
+NOMINAL_INPUT = "topup_rp"
 METER_INPUT = "meter_reading_kwh"
 
 
@@ -68,16 +69,46 @@ class _PlnLedgerButton(PlnBillingGroupEntity, ButtonEntity):
 
 
 class PlnRecordTopupButton(_PlnLedgerButton):
-    """Catat pengisian sebanyak angka pada isian jumlah kWh."""
+    """Catat pengisian dari isian jumlah kWh, nominal pembelian, atau keduanya."""
 
     def __init__(self, group: BillingGroupRuntime) -> None:
         """Buat tombol pencatatan pengisian."""
         super().__init__(group, "record_topup")
 
     async def async_press(self) -> None:
-        """Catat pengisiannya, lalu kosongkan isiannya."""
-        self._group.record_topup(kwh_credited=self._amount(TOPUP_INPUT))
+        """Catat pengisiannya, lalu kosongkan kedua isiannya.
+
+        Tiga cara mengisi, semuanya sah:
+
+        * **kWh saja** - nominalnya dihitung dari tarif.
+        * **Nominal saja** - kWh-nya dihitung dari tarif.
+        * **Keduanya** - dipakai apa adanya. Ini yang paling tepat, karena
+          keduanya tertulis di struk dan tidak perlu ditebak sama sekali.
+        """
+        kwh = self._group.inputs.get(TOPUP_INPUT, 0.0)
+        nominal = self._group.inputs.get(NOMINAL_INPUT, 0.0)
+
+        if kwh <= 0 and nominal <= 0:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="amount_not_set"
+            )
+
+        if kwh <= 0:
+            rate = self._group.active_rate
+            if not rate:
+                # Tanpa tarif, nominal tidak bisa diubah jadi kWh. Ditolak
+                # dengan pesan yang menyebut jalan keluarnya, bukan mencatat
+                # angka tebakan ke dalam ledger.
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN, translation_key="no_rate_for_conversion"
+                )
+            kwh = round(nominal / rate, 2)
+
+        self._group.record_topup(
+            kwh_credited=kwh, nominal_rp=nominal if nominal > 0 else None
+        )
         self._clear(TOPUP_INPUT)
+        self._clear(NOMINAL_INPUT)
 
 
 class PlnCalibrateButton(_PlnLedgerButton):

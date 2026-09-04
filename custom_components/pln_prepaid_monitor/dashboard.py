@@ -21,7 +21,7 @@ from homeassistant.helpers import entity_registry as er
 from .const import CONF_DETAIL_ROWS, CONF_TARIFF_ID, DOMAIN
 from .engines.period_summary import selected_rows
 from .engines.token_engine import presets_from_history
-from .messages import PERIOD_LABELS, pick_language
+from .messages import PERIOD_LABELS, currency_symbol, pick_language
 
 # Tata letak halaman. "sections" bawaan Home Assistant, dan satu-satunya
 # yang mendukung geser kartu dengan drag & drop.
@@ -101,6 +101,16 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
             "Tanda bintang berarti pengisian itu sudah digantikan penyamaan "
             "atau reset, jadi tidak lagi ikut dihitung."
         ),
+        "topup_nominal": "Nominal pembelian",
+        "threshold_warning": "Ambang peringatan",
+        "threshold_critical": "Ambang kritis",
+        "threshold_very_critical": "Ambang sangat kritis",
+        "sec_overview": "Ringkasan",
+        "sec_usage": "Pemakaian & biaya",
+        "sec_token": "Token",
+        "sec_settings": "Pengaturan",
+        "sec_graphs": "Grafik",
+        "sec_maintenance": "Perawatan",
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
     },
@@ -174,6 +184,16 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
             "An asterisk means that top-up was superseded by a match or a "
             "reset, so it no longer counts."
         ),
+        "topup_nominal": "Purchase amount",
+        "threshold_warning": "Warning threshold",
+        "threshold_critical": "Critical threshold",
+        "threshold_very_critical": "Very critical threshold",
+        "sec_overview": "Overview",
+        "sec_usage": "Usage & cost",
+        "sec_token": "Token",
+        "sec_settings": "Settings",
+        "sec_graphs": "Charts",
+        "sec_maintenance": "Maintenance",
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
     },
@@ -200,6 +220,7 @@ class GroupView:
     presets: list[Any] = field(default_factory=list)
     detail_rows: list[str] = field(default_factory=list)
     thresholds: Any = None
+    currency: str = ""
     entities: dict[str, str] = field(default_factory=dict)
     tariff_entities: dict[str, str] = field(default_factory=dict)
     sources: list[SourceView] = field(default_factory=list)
@@ -267,6 +288,7 @@ GROUP_KEYS = [
     # Isian dan tombol, supaya seluruh pencatatan token bisa dilakukan dari
     # dashboard tanpa membuka Developer Tools.
     "topup_kwh",
+    "topup_rp",
     "meter_reading_kwh",
     "record_topup",
     "calibrate_token",
@@ -305,6 +327,7 @@ def collect_views(hass: HomeAssistant, runtime_data: Any) -> list[GroupView]:
                 presets=_usable_presets(group),
                 detail_rows=selected_rows(group.config.get(CONF_DETAIL_ROWS)),
                 thresholds=group.thresholds,
+                currency=currency_symbol(hass.config.currency),
                 entities=_resolve(hass, subentry_id, keys),
                 tariff_entities=(
                     _resolve(hass, tariff_id, TARIFF_KEYS)
@@ -352,18 +375,29 @@ def _status_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]
     # Titik fokus halaman: satu angka besar yang langsung menjawab "masih aman
     # atau tidak". Warnanya memakai ambang yang user atur sendiri, jadi merah di
     # sini berarti persis apa yang mereka tetapkan sebagai sangat kritis.
-    if (days := view.entity("days_remaining")) and view.thresholds is not None:
+    days = view.entity("days_remaining")
+    sufficient = view.entity("data_sufficient")
+    if days and sufficient and view.thresholds is not None:
+        # Digantung pada "data cukup", bukan langsung ditampilkan: sebelum
+        # datanya cukup, sensor hari tersisa memang belum punya nilai, dan
+        # gauge yang menunjuk entity tanpa nilai memasang kartu peringatan
+        # merah di puncak halaman. Peringatan itu terlihat seperti kerusakan,
+        # padahal keadaannya normal untuk pemasangan baru.
         cards.append(
             {
-                "type": "gauge",
-                "entity": days,
-                "name": texts["days_remaining"],
-                "min": 0,
-                "max": round(float(view.thresholds.warning_days) * 3),
-                "severity": {
-                    "green": float(view.thresholds.warning_days),
-                    "yellow": float(view.thresholds.critical_days),
-                    "red": 0,
+                "type": "conditional",
+                "conditions": [{"entity": sufficient, "state": "on"}],
+                "card": {
+                    "type": "gauge",
+                    "entity": days,
+                    "name": texts["days_remaining"],
+                    "min": 0,
+                    "max": round(float(view.thresholds.warning_days) * 3),
+                    "severity": {
+                        "green": float(view.thresholds.warning_days),
+                        "yellow": float(view.thresholds.critical_days),
+                        "red": 0,
+                    },
                 },
             }
         )
@@ -445,7 +479,10 @@ def _period_card(
         shown = (
             f"{{{{ '%.2f' | format({value}) }}}}{' ' + unit if unit else ''}"
             if prefix == "energy"
-            else f"{{{{ '{{:,.0f}}'.format({value}) | replace(',', '.') }}}}"
+            else (
+                f"{view.currency} "
+                f"{{{{ '{{:,.0f}}'.format({value}) | replace(',', '.') }}}}"
+            )
         )
         lines.append(
             f"{{% if {value} is not none %}}"
@@ -515,15 +552,13 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
             }
         )
 
-    if topup := _topup_card(view, texts):
-        cards.append(topup)
-    if fix := _fix_card(view, texts):
-        cards.append(fix)
+    cards.extend(_topup_cards(view, texts))
+    cards.extend(_fix_cards(view, texts))
 
     return cards
 
 
-def _topup_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
+def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
     """Semua cara mengisi token, dalam satu tumpukan yang tidak bisa terpisah.
 
     Digabung jadi satu ``vertical-stack`` dengan sengaja: tata letak masonry
@@ -537,6 +572,7 @@ def _topup_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None
         {"entity": entity, "name": texts[label]}
         for key, label in (
             ("topup_kwh", "topup_amount"),
+            ("topup_rp", "topup_nominal"),
             ("record_topup", "topup_record"),
         )
         if (entity := view.entity(key))
@@ -557,12 +593,10 @@ def _topup_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None
             }
         )
 
-    if not inner:
-        return None
-    return {"type": "vertical-stack", "cards": inner}
+    return inner
 
 
-def _fix_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
+def _fix_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
     """Penyamaan dengan meteran dan reset ledger, jadi satu tumpukan."""
     inner: list[dict[str, Any]] = []
 
@@ -600,9 +634,7 @@ def _fix_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
             }
         )
 
-    if not inner:
-        return None
-    return {"type": "vertical-stack", "cards": inner}
+    return inner
 
 
 def _settings_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | None:
@@ -613,11 +645,11 @@ def _settings_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any] | N
         if (entity := view.tariff_entities.get(key))
     ]
     rows.extend(
-        {"entity": entity}
-        for key in (
-            "warning_threshold_days",
-            "critical_threshold_days",
-            "very_critical_threshold_days",
+        {"entity": entity, "name": texts[label]}
+        for key, label in (
+            ("warning_threshold_days", "threshold_warning"),
+            ("critical_threshold_days", "threshold_critical"),
+            ("very_critical_threshold_days", "threshold_very_critical"),
         )
         if (entity := view.entity(key))
     )
@@ -671,9 +703,9 @@ def _hold_button(view: GroupView, name: str, action: str, icon: str) -> dict[str
     }
 
 
-def _topup_history_card(
+def _topup_history_cards(
     view: GroupView, texts: dict[str, str]
-) -> dict[str, Any] | None:
+) -> list[dict[str, Any]]:
     """Tabel riwayat pengisian, terbaru di atas, jumlah barisnya bisa diatur.
 
     Kartu markdown adalah satu-satunya kartu bawaan Home Assistant yang bisa
@@ -684,7 +716,7 @@ def _topup_history_card(
     """
     token = view.entity("token_remaining")
     if not token:
-        return None
+        return []
 
     rows_entity = view.entity("history_rows")
     limit = f"states('{rows_entity}') | int(10)" if rows_entity else "10"
@@ -698,7 +730,7 @@ def _topup_history_card(
 {{%- for row in rows %}}
 | {{{{ row.no }}}} | {{{{ (row.at | as_datetime | as_local).strftime('%d/%m/%y %H:%M') }}}} \
 | {{{{ '%.2f' | format(row.kwh) }}}}{{{{ ' *' if row.superseded else '' }}}} \
-| {{{{ '{{:,.0f}}'.format(row.rp) | replace(',', '.') if row.rp else '-' }}}} |
+| {{{{ ('{view.currency} ' ~ '{{:,.0f}}'.format(row.rp) | replace(',', '.')) if row.rp else '-' }}}} |
 {{%- endfor %}}
 
 {{% if log | selectattr('superseded') | list | count > 0 -%}}
@@ -716,7 +748,7 @@ def _topup_history_card(
                 "entities": [{"entity": rows_entity, "name": texts["history_rows"]}],
             }
         )
-    return {"type": "vertical-stack", "cards": cards}
+    return cards
 
 
 def _history_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
@@ -752,7 +784,9 @@ def _history_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any
     return cards
 
 
-def _maintenance_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any]:
+def _maintenance_cards(
+    view: GroupView, texts: dict[str, str]
+) -> list[dict[str, Any]]:
     """Kartu perawatan data, dengan tombol yang wajib dikonfirmasi.
 
     Ditaruh paling bawah dan dibuat sepolos mungkin: aksinya permanen, jadi
@@ -780,7 +814,7 @@ def _maintenance_card(view: GroupView, texts: dict[str, str]) -> dict[str, Any]:
                 },
             }
         )
-    return {"type": "vertical-stack", "cards": cards}
+    return cards
 
 
 def view_cards(page: dict[str, Any]) -> list[dict[str, Any]]:
@@ -801,17 +835,17 @@ def view_cards(page: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _view_groups(
     view: GroupView, texts: dict[str, str], labels: dict[str, str]
-) -> list[list[dict[str, Any]]]:
-    """Kartu halaman, sudah dikelompokkan menurut isinya.
+) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Kartu halaman, dikelompokkan menurut isinya, masing-masing dengan judul.
 
-    Pengelompokan ini yang jadi *section* pada tata letak sections. Pada tata
-    letak masonry semuanya diratakan lagi jadi satu daftar, jadi satu tempat ini
-    saja yang menentukan urutan kartu untuk kedua tata letak.
+    Satu tempat ini saja yang menentukan urutan kartu untuk kedua tata letak:
+    pada sections tiap kelompok jadi satu bagian berjudul, pada masonry tiap
+    kelompok dibungkus tumpukan supaya kartu yang berkaitan tetap berdampingan.
     """
-    groups: list[list[dict[str, Any]]] = []
+    groups: list[tuple[str, list[dict[str, Any]]]] = []
 
     if overview := [*_status_cards(view, texts), *_current_cards(view, texts)]:
-        groups.append(overview)
+        groups.append((texts["sec_overview"], overview))
 
     usage: list[dict[str, Any]] = []
     if energy_periods := _period_card(view, "energy", texts["usage"], labels):
@@ -821,21 +855,21 @@ def _view_groups(
     ):
         usage.append(cost_periods)
     if usage:
-        groups.append(usage)
+        groups.append((texts["sec_usage"], usage))
 
     token = list(_token_cards(view, texts))
-    if view.token_enabled and (log := _topup_history_card(view, texts)):
-        token.append(log)
+    if view.token_enabled:
+        token.extend(_topup_history_cards(view, texts))
     if token:
-        groups.append(token)
+        groups.append((texts["sec_token"], token))
 
     if settings := _settings_card(view, texts):
-        groups.append([settings])
+        groups.append((texts["sec_settings"], [settings]))
 
     if graphs := _history_cards(view, texts):
-        groups.append(graphs)
+        groups.append((texts["sec_graphs"], graphs))
 
-    groups.append([_maintenance_card(view, texts)])
+    groups.append((texts["sec_maintenance"], _maintenance_cards(view, texts)))
     return groups
 
 
@@ -852,12 +886,30 @@ def build_view(
         # Tata letak sections adalah satu-satunya yang mendukung geser kartu
         # dengan drag & drop, dan itu bawaan Home Assistant - bukan fitur kartu
         # pihak ketiga. Lihat docs/decisions.md D-040.
+        #
+        # Kartu sengaja TIDAK dibungkus vertical-stack di sini: isi tumpukan
+        # tidak bisa digeser satu per satu, jadi membungkusnya justru mematikan
+        # alasan memilih tata letak ini. Yang mengelompokkan sudah section-nya.
         page["type"] = "sections"
         page["max_columns"] = 3
-        page["sections"] = [{"type": "grid", "cards": cards} for cards in groups]
+        page["sections"] = [
+            {
+                "type": "grid",
+                "cards": [
+                    {"type": "heading", "heading": heading, "heading_style": "title"},
+                    *cards,
+                ],
+            }
+            for heading, cards in groups
+        ]
         return page
 
-    page["cards"] = [card for cards in groups for card in cards]
+    # Masonry menyebar kartu ke kolom mana pun yang kosong, jadi di sini justru
+    # kebalikannya: tiap kelompok dibungkus supaya tidak terpisah antar kolom.
+    page["cards"] = [
+        cards[0] if len(cards) == 1 else {"type": "vertical-stack", "cards": cards}
+        for _, cards in groups
+    ]
     return page
 
 

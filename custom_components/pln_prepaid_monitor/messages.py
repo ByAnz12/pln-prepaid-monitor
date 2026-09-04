@@ -424,3 +424,33 @@ def notification_text(
         )
 
     return title, "\n".join(lines)
+
+
+# Simbol yang dipakai Home Assistant sendiri untuk mata uang yang sering dipakai
+# di sekitar Indonesia. Kartu markdown tidak bisa memanggil pemformat mata uang
+# milik frontend, jadi supaya angka di kartu Biaya tampil sama seperti di sensor
+# biaya (yang diformat frontend), simbolnya diambil dari sini.
+#
+# Ini bukan daftar lengkap dan tidak perlu lengkap: mata uang yang tidak ada di
+# sini ditampilkan memakai kode ISO-nya, yang tetap jelas dan tidak pernah salah.
+CURRENCY_SYMBOLS: dict[str, str] = {
+    "IDR": "Rp",
+    "MYR": "RM",
+    "SGD": "S$",
+    "PHP": "₱",
+    "THB": "฿",
+    "VND": "₫",
+    "INR": "₹",
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "JPY": "¥",
+    "AUD": "A$",
+}
+
+
+def currency_symbol(code: str | None) -> str:
+    """Simbol mata uang, atau kode ISO-nya kalau simbolnya tidak dikenal."""
+    if not code:
+        return ""
+    return CURRENCY_SYMBOLS.get(code.upper(), code.upper())

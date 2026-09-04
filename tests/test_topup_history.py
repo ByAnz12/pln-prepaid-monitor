@@ -175,3 +175,33 @@ async def test_any_row_count_is_accepted(hass: HomeAssistant, rows: int) -> None
     state = hass.states.get(_entity_id(hass, "number", "history_rows"))
     assert float(state.state) == rows
     assert GROUP_ID  # dipakai lewat _entity_id
+
+
+async def test_history_shows_the_amount_in_currency(hass: HomeAssistant) -> None:
+    """Kolom nominal tidak boleh kosong hanya karena user mengisi lewat kWh."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_kwh"), 826.50)
+    await _press(hass, _entity_id(hass, "button", "record_topup"))
+
+    rendered = _render(hass, _history_markdown(hass, entry.runtime_data))
+
+    assert "Rp" in rendered
+    assert "| - |" not in rendered
+
+
+async def test_history_shows_kwh_when_recorded_by_amount(
+    hass: HomeAssistant,
+) -> None:
+    """Dan sebaliknya: mengisi lewat nominal tetap menampilkan kWh-nya."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_rp"), 1_000_000)
+    await _press(hass, _entity_id(hass, "button", "record_topup"))
+
+    rendered = _render(hass, _history_markdown(hass, entry.runtime_data))
+
+    assert "692.19" in rendered
+    assert "Rp" in rendered

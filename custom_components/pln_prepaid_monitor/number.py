@@ -58,6 +58,10 @@ MAX_RATE_RP = 100_000.0
 # Cukup untuk melihat beberapa pembelian terakhir tanpa kartunya jadi panjang.
 DEFAULT_HISTORY_ROWS = 10.0
 
+# Batas atas nominal pembelian. Longgar, sekadar mencegah salah ketik yang
+# ekstrem - bukan pernyataan tentang berapa yang wajar dibeli orang.
+MAX_NOMINAL_RP = 1_000_000_000.0
+
 # (kunci konfigurasi, nama field di TokenThresholds, translation_key entity)
 THRESHOLD_KEYS = (
     (CONF_WARNING_THRESHOLD_DAYS, "warning_days", "warning_threshold_days"),
@@ -83,6 +87,7 @@ async def async_setup_entry(
             continue
         entities: list[NumberEntity] = [
             PlnTopupAmountNumber(group),
+            PlnTopupNominalNumber(hass, group),
             PlnMeterReadingNumber(group),
             PlnHistoryRowsNumber(group),
         ]
@@ -133,6 +138,33 @@ class PlnTopupAmountNumber(_PlnInputNumber):
     def __init__(self, group: BillingGroupRuntime) -> None:
         """Buat isian jumlah kWh pengisian."""
         super().__init__(group, "topup_kwh")
+
+
+class PlnTopupNominalNumber(PlnBillingGroupEntity, NumberEntity):
+    """Nominal pembelian, untuk yang lebih hafal harga daripada jumlah kWh.
+
+    Boleh diisi sendirian - kWh-nya dihitung dari tarif - atau bersama kotak
+    kWh, yang justru paling tepat karena keduanya tertulis di struk.
+    """
+
+    _attr_native_min_value = 0.0
+    _attr_native_max_value = MAX_NOMINAL_RP
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+
+    def __init__(self, hass: HomeAssistant, group: BillingGroupRuntime) -> None:
+        """Buat isian nominal pembelian, bersatuan mata uang Home Assistant."""
+        super().__init__(group, "topup_rp")
+        self._attr_native_unit_of_measurement = hass.config.currency or None
+
+    @property
+    def native_value(self) -> float:
+        """Angka yang sedang tersimpan untuk isian ini."""
+        return self._group.inputs.get(self._key, 0.0)
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Simpan angkanya saja - tidak ada yang tercatat sampai tombol ditekan."""
+        self._group.async_set_input(self._key, value)
 
 
 class PlnMeterReadingNumber(_PlnInputNumber):

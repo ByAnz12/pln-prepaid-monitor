@@ -180,6 +180,10 @@ async def test_only_built_in_cards_are_used(hass: HomeAssistant) -> None:
         "entities",
         "gauge",
         "glance",
+        "grid",
+        # Kartu judul bawaan Home Assistant sejak 2024.9, dipakai sebagai
+        # judul tiap bagian pada tata letak sections.
+        "heading",
         "markdown",
         "button",
         "conditional",

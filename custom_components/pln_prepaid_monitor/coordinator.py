@@ -919,6 +919,14 @@ class BillingGroupRuntime:
         layanan dan oleh tombol di dashboard - supaya keduanya tidak mungkin
         berperilaku berbeda.
         """
+        if nominal_rp is None and (rate := self.active_rate):
+            # Riwayat pengisian menampilkan kolom nominal. Kalau user hanya
+            # mengisi kWh, nominalnya dihitung dari tarif yang berlaku SAAT INI
+            # lalu disimpan - bukan dihitung ulang tiap kali ditampilkan.
+            # Kenaikan tarif nanti tidak boleh menulis ulang harga pembelian
+            # yang sudah lewat.
+            nominal_rp = round(float(kwh_credited) * rate, 2)
+
         entry = self.ledger.add_topup(
             kwh_credited=kwh_credited,
             group_total=self.total_kwh,

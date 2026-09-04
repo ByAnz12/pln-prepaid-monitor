@@ -416,6 +416,10 @@
       "rate_rp_per_kwh": {
         "name": "Rate per kWh",
         "description": "Price of electricity per kWh. Changing it creates a new rate version - costs already recorded keep the rate that applied when that usage happened, so the past is never rewritten."
+      },
+      "topup_rp": {
+        "name": "Purchase amount",
+        "description": "How much you paid. You can fill in just this - the kWh figure is worked out from the tariff - or fill it in alongside the kWh box, which is the most accurate since both are printed on the receipt. Note: converting from the amount is only an estimate, because a real token purchase also carries admin fees, tax and stamp duty."
       }
     },
     "button": {
@@ -701,6 +705,9 @@
     },
     "thresholds_out_of_order": {
       "message": "The thresholds are out of order. Warning must be larger than Critical, and Critical larger than Very critical."
+    },
+    "no_rate_for_conversion": {
+      "message": "This group has no tariff, so a purchase amount cannot be converted into kWh. Fill in the kWh box instead, or link this group to a tariff first."
     }
   },
   "issues": {

@@ -175,3 +175,30 @@ async def test_the_checklist_decides_which_rows_appear(
 
     assert rendered.count("\n|") == len(rows) + 2  # header + pemisah
     assert entry.runtime_data.billing_groups[GROUP_ID]
+
+
+async def test_cost_rows_carry_the_currency(hass: HomeAssistant) -> None:
+    """Angka biaya tanpa mata uang ambigu - "230" itu rupiah atau kWh?"""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    contents = _summary_cards(hass, entry.runtime_data)
+    cost = [c for c in contents if "cost_total" in c or "total_biaya" in c]
+    assert len(cost) == 1
+
+    rendered = _render(hass, cost[0])
+    assert "Rp" in rendered
+
+
+async def test_energy_rows_carry_the_unit(hass: HomeAssistant) -> None:
+    """Sama untuk pemakaian: angka telanjang tidak memberi tahu apa-apa."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    energy = [
+        c
+        for c in _summary_cards(hass, entry.runtime_data)
+        if "cost_total" not in c and "total_biaya" not in c
+    ]
+    assert len(energy) == 1
+    assert "kWh" in _render(hass, energy[0])

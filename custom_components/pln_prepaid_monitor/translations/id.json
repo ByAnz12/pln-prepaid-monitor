@@ -416,6 +416,10 @@
       "rate_rp_per_kwh": {
         "name": "Tarif per kWh",
         "description": "Harga listrik per kWh. Mengubahnya membuat versi tarif baru - biaya yang sudah tercatat tetap memakai tarif yang berlaku saat pemakaian itu terjadi, jadi masa lalu tidak ditulis ulang."
+      },
+      "topup_rp": {
+        "name": "Nominal pembelian",
+        "description": "Berapa rupiah yang Anda bayar. Boleh diisi sendiri - jumlah kWh-nya dihitung dari tarif - atau bersama kotak Jumlah kWh, yang justru paling tepat karena keduanya tertulis di struk. Perlu diketahui: hasil konversi dari nominal hanya perkiraan, karena pembelian token sungguhan masih dipotong biaya admin, PPJ, dan materai."
       }
     },
     "button": {
@@ -701,6 +705,9 @@
     },
     "thresholds_out_of_order": {
       "message": "Urutan ambang tidak masuk akal. Peringatan harus lebih besar dari Kritis, dan Kritis lebih besar dari Sangat kritis."
+    },
+    "no_rate_for_conversion": {
+      "message": "Kelompok ini belum punya tarif, jadi nominal pembelian tidak bisa diubah jadi kWh. Isi kotak Jumlah kWh, atau hubungkan kelompok ini ke sebuah tarif lebih dulu."
     }
   },
   "issues": {

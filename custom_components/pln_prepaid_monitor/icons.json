@@ -17,23 +17,26 @@
       }
     },
     "number": {
-      "topup_kwh": {
-        "default": "mdi:cash-plus"
+      "critical_threshold_days": {
+        "default": "mdi:alert-circle"
       },
       "meter_reading_kwh": {
         "default": "mdi:meter-electric-outline"
       },
-      "warning_threshold_days": {
-        "default": "mdi:alert-circle-outline"
+      "rate_rp_per_kwh": {
+        "default": "mdi:cash"
       },
-      "critical_threshold_days": {
-        "default": "mdi:alert-circle"
+      "topup_kwh": {
+        "default": "mdi:cash-plus"
+      },
+      "topup_rp": {
+        "default": "mdi:cash"
       },
       "very_critical_threshold_days": {
         "default": "mdi:alert-octagon"
       },
-      "rate_rp_per_kwh": {
-        "default": "mdi:cash"
+      "warning_threshold_days": {
+        "default": "mdi:alert-circle-outline"
       }
     },
     "sensor": {

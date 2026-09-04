@@ -315,3 +315,107 @@ async def test_dashboard_offers_reset_behind_a_confirmation(
         for state in hass.states.async_all("button")
         if "reset" in state.entity_id
     ]
+
+
+# --- mengisi token dengan nominal, bukan kWh ---------------------------------
+
+
+async def test_topup_by_purchase_amount_converts_to_kwh(
+    hass: HomeAssistant,
+) -> None:
+    """Isi nominalnya saja; kWh dihitung dari tarif yang berlaku."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_rp"), 1_000_000)
+    await _press(hass, _entity_id(hass, "button", "record_topup"))
+
+    # 1.000.000 / 1.444,70 = 692,19 kWh
+    assert group.token_remaining_kwh == pytest.approx(692.19, abs=0.01)
+    entry_row = group.ledger.state.entries[-1]
+    assert entry_row["nominal_rp"] == 1_000_000
+
+
+async def test_topup_by_kwh_fills_in_the_amount(hass: HomeAssistant) -> None:
+    """Isi kWh-nya saja; nominalnya dihitung supaya riwayat tidak kosong."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_kwh"), 826.50)
+    await _press(hass, _entity_id(hass, "button", "record_topup"))
+
+    # 826,50 x 1.444,70 = 1.194.044,55
+    assert group.ledger.state.entries[-1]["nominal_rp"] == pytest.approx(
+        1_194_044.55, abs=0.01
+    )
+
+
+async def test_filling_in_both_uses_both_as_given(hass: HomeAssistant) -> None:
+    """Struk menyebut keduanya; kalau user menyalin keduanya, jangan ditebak ulang.
+
+    Ini kasus paling tepat: tidak ada satu pun angka yang perlu dikonversi, jadi
+    tidak ada satu pun yang bisa meleset.
+    """
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_kwh"), 826.50)
+    await _set_number(hass, _entity_id(hass, "number", "topup_rp"), 1_000_000)
+    await _press(hass, _entity_id(hass, "button", "record_topup"))
+
+    row = group.ledger.state.entries[-1]
+    assert row["kwh_credited"] == 826.50
+    assert row["nominal_rp"] == 1_000_000
+
+
+async def test_both_boxes_are_cleared_after_recording(hass: HomeAssistant) -> None:
+    """Kalau salah satu tertinggal terisi, tekanan berikutnya jadi salah diam-diam."""
+    apply_states(hass, MCB_RUMAH)
+    await _setup(hass)
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_kwh"), 826.50)
+    await _set_number(hass, _entity_id(hass, "number", "topup_rp"), 1_000_000)
+    await _press(hass, _entity_id(hass, "button", "record_topup"))
+
+    for key in ("topup_kwh", "topup_rp"):
+        assert hass.states.get(_entity_id(hass, "number", key)).state == "0.0"
+
+
+async def test_amount_without_a_tariff_is_refused(hass: HomeAssistant) -> None:
+    """Tanpa tarif, nominal tidak bisa jadi kWh - ditolak, bukan ditebak."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, group_overrides={CONF_TARIFF_ID: None})
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_rp"), 1_000_000)
+
+    with pytest.raises(HomeAssistantError):
+        await _press(hass, _entity_id(hass, "button", "record_topup"))
+
+    assert group.ledger.state.entries == []
+
+
+async def test_a_later_rate_change_does_not_rewrite_past_purchases(
+    hass: HomeAssistant,
+) -> None:
+    """Harga pembelian yang sudah lewat tidak boleh ikut berubah saat tarif naik."""
+    from homeassistant.helpers import entity_registry as er
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_kwh"), 100.0)
+    await _press(hass, _entity_id(hass, "button", "record_topup"))
+    before = group.ledger.state.entries[-1]["nominal_rp"]
+
+    rate_entity = er.async_get(hass).async_get_entity_id(
+        "number", DOMAIN, f"{TARIFF_ID}_rate_rp_per_kwh"
+    )
+    await _set_number(hass, rate_entity, 2000.0)
+
+    after = entry.runtime_data.billing_groups[GROUP_ID].ledger.state.entries[-1]
+    assert after["nominal_rp"] == before

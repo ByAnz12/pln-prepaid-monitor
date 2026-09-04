@@ -9,6 +9,77 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-043 · Mengisi token boleh lewat nominal, tapi konversinya disebut perkiraan
+
+**Tanggal**: 5 September 2026
+
+User meminta bisa mengisi token dengan nominal mata uang, bukan hanya kWh, dan
+meminta kolom nominal di riwayat terisi lewat konversi.
+
+Tiga cara mengisi, semuanya sah:
+
+| Yang diisi | Yang terjadi |
+|---|---|
+| kWh saja | Nominal dihitung dari tarif |
+| Nominal saja | kWh dihitung dari tarif |
+| **Keduanya** | Dipakai apa adanya, tidak ada yang dikonversi |
+
+Cara ketiga yang paling tepat dan itu perlu dikatakan ke user: struk PLN memuat
+**kedua** angka, jadi menyalin keduanya berarti tidak ada satu pun angka yang
+perlu ditebak.
+
+### Kenapa konversinya hanya perkiraan
+
+Pembelian token sungguhan tidak sesederhana `nominal / tarif`. Nominal yang
+dibayar masih dipotong biaya admin bank, PPJ (pajak penerangan jalan) yang
+besarnya beda-beda per daerah, dan bea materai untuk pembelian besar. Karena itu
+`Rp 1.000.000` **tidak** menghasilkan `1.000.000 / tarif` kWh.
+
+Kebetulan angka user sendiri sangat dekat - struk mereka menunjukkan
+Rp 1.000.000 menghasilkan 826,50 kWh, setara Rp 1.209,9/kWh, sementara tarif
+yang mereka atur 1.212. Tapi kedekatan itu kebetulan, bukan jaminan, dan tidak
+berlaku untuk golongan daya atau daerah lain.
+
+Jadi konversi tetap disediakan karena berguna, tapi disebut **perkiraan** di
+teks bantuannya - bukan dibiarkan terlihat seperti angka pasti.
+
+### Hasil konversi disimpan, bukan dihitung ulang tiap ditampilkan
+
+Nominal yang dihitung dari kWh **disimpan ke entri riwayat saat pencatatan**.
+Kalau dihitung ulang setiap kali ditampilkan, kenaikan tarif akan menulis ulang
+harga pembelian yang sudah lewat - masa lalu berubah sendiri, persis yang
+dihindari sistem ini sejak K.7. Dijaga oleh
+`test_a_later_rate_change_does_not_rewrite_past_purchases`.
+
+### Tanpa tarif, nominal ditolak
+
+Kelompok tagihan tanpa tarif tidak bisa mengubah nominal jadi kWh. Ditolak
+dengan pesan yang menyebut jalan keluarnya, bukan mencatat angka tebakan ke
+dalam ledger.
+
+---
+
+## D-044 · Di tata letak sections, kartu tidak dibungkus tumpukan
+
+**Tanggal**: 5 September 2026
+
+Kartu yang berkaitan semula dibungkus `vertical-stack` supaya tidak terpisah
+antar kolom pada masonry. Di tata letak sections itu justru merugikan: **isi
+tumpukan tidak bisa digeser satu per satu**, sehingga membungkusnya mematikan
+alasan utama memilih sections.
+
+Sekarang pembungkusannya bergantung tata letak: sections memakai kartu lepas
+dengan `heading` bawaan Home Assistant sebagai judul bagian, masonry tetap
+membungkus tiap kelompok jadi satu tumpukan.
+
+Ikut diperbaiki dari tangkapan layar user: gauge sisa hari sekarang digantung
+pada "data cukup untuk perkiraan". Sebelumnya gauge menunjuk sensor yang belum
+punya nilai, dan Home Assistant memasang kartu peringatan merah di puncak
+halaman - terlihat seperti kerusakan, padahal keadaannya normal untuk
+pemasangan baru.
+
+---
+
 ## D-041 · Rincian per periode disimpan sebagai satu atribut, bukan belasan entity
 
 **Tanggal**: 5 September 2026

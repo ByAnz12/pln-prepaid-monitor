@@ -716,6 +716,35 @@ Saat menjalankan **Buatkan dashboard**, ada pilihan **Tata letak**:
 > kemampuan menggesernya. Karena itu dashboard di sini tetap memakai kartu
 > bawaan saja — tidak ada yang perlu dipasang lebih dulu.
 
+### Mengisi token: kWh, nominal, atau keduanya
+
+Kartu **Isi token** punya dua kotak. Isi salah satu, atau keduanya:
+
+| Yang Anda isi | Yang terjadi |
+|---|---|
+| **Jumlah kWh** saja | Nominalnya dihitung dari tarif |
+| **Nominal pembelian** saja | kWh-nya dihitung dari tarif |
+| **Keduanya** | Dipakai apa adanya, tidak ada yang dikonversi |
+
+**Cara ketiga yang paling tepat.** Struk PLN memuat kedua angka, jadi menyalin
+keduanya berarti tidak ada satu pun angka yang perlu ditebak.
+
+> ### ⚠️ Konversi hanya perkiraan
+>
+> Pembelian token sungguhan tidak sesederhana *nominal ÷ tarif*. Nominal yang
+> Anda bayar masih dipotong **biaya admin bank**, **PPJ** yang besarnya
+> beda-beda per daerah, dan **bea materai** untuk pembelian besar.
+>
+> Jadi Rp 1.000.000 **tidak** menghasilkan tepat `1.000.000 ÷ tarif` kWh. Kalau
+> struk Anda ada di tangan, isi kedua kotaknya — hasilnya pasti benar.
+
+Kelompok tagihan yang belum punya tarif tidak bisa mengisi lewat nominal, dan
+akan menolak dengan pesan yang jelas — bukan mencatat angka tebakan.
+
+Nominal yang dihitung dari kWh **disimpan saat pencatatan**, bukan dihitung ulang
+tiap ditampilkan. Jadi kalau tarif naik nanti, harga pembelian yang sudah lewat
+tidak ikut berubah.
+
 ### Riwayat pengisian
 
 Kartu **Riwayat pengisian** menampilkan pembelian token Anda, **yang terbaru di
