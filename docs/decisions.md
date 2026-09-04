@@ -9,6 +9,81 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-032 · Tombol "catat pengisian" tidak dibuat satu klik
+
+**Tanggal**: 3 September 2026 · **Milestone 7**
+
+Spec J meminta "tombol/shortcut ke form `add_token_topup`". Yang ada di
+dashboard: **kartu petunjuk**, bukan tombol.
+
+Alasannya jujur saja - Home Assistant tidak punya kartu bawaan yang bisa
+menampilkan *form berisi angka* lalu memanggil layanan dengan isian itu. Tombol
+Lovelace hanya bisa memanggil layanan dengan nilai yang sudah ditentukan
+sebelumnya, sedangkan mencatat pengisian token justru butuh angka kWh yang
+berbeda setiap kali.
+
+Tiga jalan yang dipertimbangkan:
+
+1. **Tombol dengan nilai tetap** - salah: setiap pengisian nilainya beda.
+2. **Mewajibkan user membuat helper `input_number`** - berarti integrasi ini
+   memaksa user membuat benda yang bukan miliknya, dan tetap butuh dua langkah.
+3. **Petunjuk ke Developer Tools -> Actions** - dipilih. Form bawaannya sudah
+   rapi, seluruh field-nya sudah punya penjelasan berbahasa awam dari
+   `services.yaml`, dan tidak ada yang perlu disiapkan lebih dulu.
+
+Yang **memang** dibuat sebagai tombol: dua keputusan penahanan ledger
+(`abaikan` dan `anggap pemakaian nyata`), karena keduanya tidak butuh isian
+angka. Keduanya memakai dialog konfirmasi dan hanya muncul saat sedang ditahan.
+
+---
+
+## D-031 · Hanya kartu bawaan Home Assistant, Mushroom tidak dipakai
+
+**Tanggal**: 3 September 2026 · **Milestone 7**
+
+Spec J membolehkan Mushroom untuk tampilan yang lebih ringkas, dengan syarat
+setiap kartu kritikal punya padanan bawaan. Yang dibuat: **hanya kartu bawaan**,
+tanpa Mushroom sama sekali.
+
+Alasannya, memenuhi syarat itu dengan dua versi kartu berarti memelihara dua
+jalur tampilan sekaligus - dan yang bergantung pada HACS justru yang lebih
+mudah rusak saat Mushroom diperbarui. Satu jalur yang pasti jalan lebih berharga
+daripada dua jalur yang salah satunya rapuh.
+
+Dikunci oleh test `test_only_built_in_cards_are_used`, yang gagal kalau ada
+kartu `custom:` masuk. User yang ingin tampilan Mushroom tetap bisa
+menambahkannya sendiri di atas dashboard ini.
+
+---
+
+## D-030 · Dashboard dibuatkan lewat layanan, bukan disalin dari contoh statis
+
+**Tanggal**: 3 September 2026 · **Milestone 7**
+
+Spec L.3 menyebut dashboard sebagai "deliverable terpisah (Lovelace
+config/blueprint)". Yang dibuat: layanan **Buatkan dashboard** yang menghasilkan
+YAML berisi `entity_id` nyata milik instalasi user, plus satu contoh statis di
+`docs/dashboard-example.yaml` sebagai rujukan.
+
+Alasannya: `entity_id` di dashboard bergantung pada nama kelompok tagihan dan
+sumber energi yang dipilih user sendiri. Contoh statis berarti user harus
+mengganti belasan `entity_id` secara manual, dan satu salah ketik menghasilkan
+kartu kosong **tanpa pesan kesalahan apa pun** - jenis kegagalan yang paling
+membingungkan untuk ditelusuri.
+
+Layanan ini juga menyesuaikan isinya dengan keadaan: kelompok tanpa tarif tidak
+mendapat kartu biaya, kelompok tanpa token tidak mendapat kartu token, dan
+periode yang tidak diaktifkan tidak muncul. Diuji lewat
+`test_every_referenced_entity_actually_exists`, yang memastikan setiap entity
+yang dirujuk memang ada.
+
+Layanan ini murni membaca: ia mengembalikan teks, tidak menulis file dan tidak
+menyentuh dashboard yang sudah ada. Karena itu ia lolos tinjauan daftar layanan
+di `test_only_bookkeeping_services_are_registered` - yang memang sengaja gagal
+lebih dulu supaya penambahan layanan baru selalu ditinjau sadar.
+
+---
+
 ## D-029 · Notifikasi di dalam Home Assistant menyala secara bawaan
 
 **Tanggal**: 3 September 2026 · **Milestone 6**

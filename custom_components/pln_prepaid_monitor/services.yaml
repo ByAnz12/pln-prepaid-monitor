@@ -151,3 +151,6 @@ resolve_ledger_hold:
       required: false
       selector:
         text:
+
+generate_dashboard:
+  fields: {}

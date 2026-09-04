@@ -16,7 +16,13 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 
 from homeassistant.const import ATTR_DEVICE_ID
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.util import dt as dt_util
@@ -34,6 +40,7 @@ from .const import (
     DOMAIN,
     SERVICE_ADD_TOKEN_TOPUP,
     SERVICE_CALIBRATE_TOKEN_READING,
+    SERVICE_GENERATE_DASHBOARD,
     SERVICE_DELETE_TOPUP,
     SERVICE_EDIT_TOPUP,
     SERVICE_RESET_TOKEN_LEDGER,
@@ -90,6 +97,8 @@ DELETE_TOPUP_SCHEMA = vol.Schema(
 RESET_LEDGER_SCHEMA = vol.Schema(
     {**TARGET_SCHEMA, vol.Optional(ATTR_NOTE): cv.string}
 )
+
+GENERATE_DASHBOARD_SCHEMA = vol.Schema({})
 
 RESOLVE_HOLD_SCHEMA = vol.Schema(
     {
@@ -270,6 +279,33 @@ def async_setup_services(hass: HomeAssistant) -> None:
             )
             group.async_ledger_changed()
 
+    async def async_generate_dashboard(call: ServiceCall) -> ServiceResponse:
+        """Susun konfigurasi dashboard Lovelace untuk kelompok tagihan yang ada.
+
+        Hanya membaca dan mengembalikan teks - tidak menulis file, tidak
+        mengubah dashboard yang sudah ada. User yang menempelkannya sendiri.
+        """
+        from homeassistant.util.yaml import dump  # noqa: PLC0415
+
+        from .dashboard import build_dashboard  # noqa: PLC0415
+
+        entries = hass.config_entries.async_entries(DOMAIN)
+        runtime_data = next(
+            (
+                entry.runtime_data
+                for entry in entries
+                if getattr(entry, "runtime_data", None) is not None
+            ),
+            None,
+        )
+        if runtime_data is None or not runtime_data.billing_groups:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="no_billing_groups"
+            )
+
+        config = build_dashboard(hass, runtime_data)
+        return {"yaml": dump(config), "views": len(config["views"])}
+
     hass.services.async_register(
         DOMAIN, SERVICE_ADD_TOKEN_TOPUP, async_add_topup, schema=ADD_TOPUP_SCHEMA
     )
@@ -297,6 +333,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
         async_resolve_hold,
         schema=RESOLVE_HOLD_SCHEMA,
     )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GENERATE_DASHBOARD,
+        async_generate_dashboard,
+        schema=GENERATE_DASHBOARD_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
 
 
 @callback
@@ -309,5 +352,6 @@ def async_unload_services(hass: HomeAssistant) -> None:
         SERVICE_DELETE_TOPUP,
         SERVICE_RESET_TOKEN_LEDGER,
         SERVICE_RESOLVE_LEDGER_HOLD,
+        SERVICE_GENERATE_DASHBOARD,
     ):
         hass.services.async_remove(DOMAIN, service)

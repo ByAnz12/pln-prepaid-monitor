@@ -570,6 +570,10 @@
           "description": "Catatan bebas."
         }
       }
+    },
+    "generate_dashboard": {
+      "name": "Buatkan dashboard",
+      "description": "Menyusun konfigurasi dashboard Lovelace untuk seluruh kelompok tagihan Anda, lengkap dengan entity_id yang sudah benar. Hasilnya berupa teks YAML untuk Anda tempelkan sendiri - layanan ini tidak mengubah dashboard yang sudah ada."
     }
   },
   "exceptions": {
@@ -587,6 +591,9 @@
     },
     "calibration_needs_reading": {
       "message": "Pilihan 'Kalibrasi' membutuhkan angka sisa kWh yang tertera di layar meteran."
+    },
+    "no_billing_groups": {
+      "message": "Belum ada kelompok tagihan, jadi belum ada yang bisa dibuatkan dashboard."
     }
   },
   "issues": {

@@ -1,0 +1,269 @@
+# Contoh dashboard PLN Prepaid Monitor
+#
+# JANGAN disalin mentah-mentah. entity_id di bawah ini mengikuti nama kelompok
+# tagihan "PLN RUMAH" dan "PLN TOKO"; punya Anda kemungkinan berbeda.
+#
+# Cara mendapatkan versi yang sudah benar untuk instalasi Anda sendiri:
+#   Developer Tools -> Actions -> "Buatkan dashboard" -> Perform action
+# Hasilnya berupa YAML yang entity_id-nya sudah diisi otomatis.
+#
+# Cara memakainya:
+#   Settings -> Dashboards -> + Add dashboard -> New dashboard from scratch
+#   -> buka dashboard barunya -> pensil (kanan atas) -> titik tiga
+#   -> Raw configuration editor -> tempelkan seluruh isi di bawah ini.
+#
+# Semua kartu di sini bawaan Home Assistant. Tidak perlu HACS.
+
+views:
+- title: PLN RUMAH
+  path: pln-rumah
+  cards:
+  - type: entities
+    title: Status
+    entities:
+    - sensor.pln_rumah_token_status
+    - sensor.pln_rumah_estimated_days_remaining
+    - sensor.pln_rumah_estimated_empty_date
+    - binary_sensor.pln_rumah_data_sufficient
+  - type: gauge
+    entity: sensor.pln_rumah_power
+    name: Sekarang
+    needle: true
+    min: 0
+    max: 5000
+  - type: glance
+    title: Sumber energi
+    entities:
+    - sensor.pln_rumah_energy_total
+    - sensor.mcb_rumah_voltage
+    - sensor.mcb_rumah_current
+    - sensor.mcb_rumah_frequency
+    - binary_sensor.mcb_rumah_connection_status
+  - type: entities
+    title: Sekarang
+    entities:
+    - entity: sensor.pln_rumah_energy_this_hour
+      name: Jam ini
+    - entity: sensor.pln_rumah_energy_this_day
+      name: Hari ini
+    - entity: sensor.pln_rumah_energy_this_week
+      name: Minggu ini
+    - entity: sensor.pln_rumah_energy_this_month
+      name: Bulan ini
+    - entity: sensor.pln_rumah_energy_this_year
+      name: Tahun ini
+  - type: entities
+    title: Biaya
+    entities:
+    - entity: sensor.pln_rumah_cost_this_hour
+      name: Jam ini
+    - entity: sensor.pln_rumah_cost_this_day
+      name: Hari ini
+    - entity: sensor.pln_rumah_cost_this_week
+      name: Minggu ini
+    - entity: sensor.pln_rumah_cost_this_month
+      name: Bulan ini
+    - entity: sensor.pln_rumah_cost_this_year
+      name: Tahun ini
+  - type: entities
+    title: Token
+    entities:
+    - sensor.pln_rumah_token_remaining
+    - sensor.pln_rumah_token_remaining_value
+    - sensor.pln_rumah_token_consumed
+    - sensor.pln_rumah_average_daily_usage
+  - type: conditional
+    conditions:
+    - entity: binary_sensor.pln_rumah_token_ledger_hold
+      state: 'on'
+    card:
+      type: vertical-stack
+      cards:
+      - type: markdown
+        content: '### Pencatatan token ditahan
+
+
+          Meteran ter-reset dan angka sesudahnya cukup besar, jadi sisa token dibekukan
+          supaya tidak hangus salah. Pilih salah satu di bawah, atau buka **Developer
+          Tools -> Actions -> Putuskan penahanan token** untuk memasukkan angka dari
+          layar meteran.'
+      - type: entities
+        entities:
+        - binary_sensor.pln_rumah_token_ledger_hold
+      - type: horizontal-stack
+        cards:
+        - type: button
+          name: Abaikan (meteran diganti)
+          icon: mdi:close
+          show_state: false
+          tap_action:
+            action: perform-action
+            perform_action: pln_prepaid_monitor.resolve_ledger_hold
+            target:
+              device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+            data:
+              action: ignore
+            confirmation:
+              text: Abaikan (meteran diganti)?
+        - type: button
+          name: Anggap pemakaian nyata
+          icon: mdi:check
+          show_state: false
+          tap_action:
+            action: perform-action
+            perform_action: pln_prepaid_monitor.resolve_ledger_hold
+            target:
+              device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+            data:
+              action: accept
+            confirmation:
+              text: Anggap pemakaian nyata?
+  - type: markdown
+    content: '### Cara mencatat pengisian token
+
+
+      Buka **Developer Tools -> Actions**, cari **Catat pengisian token**, pilih perangkat
+      kelompok tagihan ini, lalu isi berapa kWh yang masuk menurut struk atau layar
+      meteran.
+
+
+      Kalau angka sistem mulai melenceng dari layar meteran, pakai **Samakan dengan
+      angka meteran**.'
+  - type: statistics-graph
+    title: Pemakaian harian
+    entities:
+    - sensor.pln_rumah_energy_total
+    stat_types:
+    - change
+    period: day
+    days_to_show: 30
+    chart_type: bar
+  - type: statistics-graph
+    title: Biaya harian
+    entities:
+    - sensor.pln_rumah_cost_total
+    stat_types:
+    - change
+    period: day
+    days_to_show: 30
+    chart_type: bar
+- title: PLN TOKO
+  path: pln-toko
+  cards:
+  - type: entities
+    title: Status
+    entities:
+    - sensor.pln_toko_token_status
+    - sensor.pln_toko_estimated_days_remaining
+    - sensor.pln_toko_estimated_empty_date
+    - binary_sensor.pln_toko_data_sufficient
+  - type: gauge
+    entity: sensor.pln_toko_power
+    name: Sekarang
+    needle: true
+    min: 0
+    max: 5000
+  - type: glance
+    title: Sumber energi
+    entities:
+    - sensor.pln_toko_energy_total
+    - sensor.mcb_toko_voltage
+    - sensor.mcb_toko_current
+    - sensor.mcb_toko_frequency
+    - binary_sensor.mcb_toko_connection_status
+  - type: entities
+    title: Sekarang
+    entities:
+    - entity: sensor.pln_toko_energy_this_day
+      name: Hari ini
+    - entity: sensor.pln_toko_energy_this_month
+      name: Bulan ini
+  - type: entities
+    title: Biaya
+    entities:
+    - entity: sensor.pln_toko_cost_this_day
+      name: Hari ini
+    - entity: sensor.pln_toko_cost_this_month
+      name: Bulan ini
+  - type: entities
+    title: Token
+    entities:
+    - sensor.pln_toko_token_remaining
+    - sensor.pln_toko_token_remaining_value
+    - sensor.pln_toko_token_consumed
+    - sensor.pln_toko_average_daily_usage
+  - type: conditional
+    conditions:
+    - entity: binary_sensor.pln_toko_token_ledger_hold
+      state: 'on'
+    card:
+      type: vertical-stack
+      cards:
+      - type: markdown
+        content: '### Pencatatan token ditahan
+
+
+          Meteran ter-reset dan angka sesudahnya cukup besar, jadi sisa token dibekukan
+          supaya tidak hangus salah. Pilih salah satu di bawah, atau buka **Developer
+          Tools -> Actions -> Putuskan penahanan token** untuk memasukkan angka dari
+          layar meteran.'
+      - type: entities
+        entities:
+        - binary_sensor.pln_toko_token_ledger_hold
+      - type: horizontal-stack
+        cards:
+        - type: button
+          name: Abaikan (meteran diganti)
+          icon: mdi:close
+          show_state: false
+          tap_action:
+            action: perform-action
+            perform_action: pln_prepaid_monitor.resolve_ledger_hold
+            target:
+              device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+            data:
+              action: ignore
+            confirmation:
+              text: Abaikan (meteran diganti)?
+        - type: button
+          name: Anggap pemakaian nyata
+          icon: mdi:check
+          show_state: false
+          tap_action:
+            action: perform-action
+            perform_action: pln_prepaid_monitor.resolve_ledger_hold
+            target:
+              device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+            data:
+              action: accept
+            confirmation:
+              text: Anggap pemakaian nyata?
+  - type: markdown
+    content: '### Cara mencatat pengisian token
+
+
+      Buka **Developer Tools -> Actions**, cari **Catat pengisian token**, pilih perangkat
+      kelompok tagihan ini, lalu isi berapa kWh yang masuk menurut struk atau layar
+      meteran.
+
+
+      Kalau angka sistem mulai melenceng dari layar meteran, pakai **Samakan dengan
+      angka meteran**.'
+  - type: statistics-graph
+    title: Pemakaian harian
+    entities:
+    - sensor.pln_toko_energy_total
+    stat_types:
+    - change
+    period: day
+    days_to_show: 30
+    chart_type: bar
+  - type: statistics-graph
+    title: Biaya harian
+    entities:
+    - sensor.pln_toko_cost_total
+    stat_types:
+    - change
+    period: day
+    days_to_show: 30
+    chart_type: bar

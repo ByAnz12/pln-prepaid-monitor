@@ -134,6 +134,7 @@ SERVICE_EDIT_TOPUP: Final = "edit_topup"
 SERVICE_DELETE_TOPUP: Final = "delete_topup"
 SERVICE_RESET_TOKEN_LEDGER: Final = "reset_token_ledger"
 SERVICE_RESOLVE_LEDGER_HOLD: Final = "resolve_ledger_hold"
+SERVICE_GENERATE_DASHBOARD: Final = "generate_dashboard"
 
 ATTR_KWH_CREDITED: Final = "kwh_credited"
 ATTR_NOMINAL_RP: Final = "nominal_rp"

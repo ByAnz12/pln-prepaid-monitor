@@ -570,6 +570,10 @@
           "description": "Free text."
         }
       }
+    },
+    "generate_dashboard": {
+      "name": "Generate dashboard",
+      "description": "Builds a Lovelace dashboard configuration for all your billing groups with the correct entity ids already filled in. The result is YAML text for you to paste yourself - this action does not change any existing dashboard."
     }
   },
   "exceptions": {
@@ -587,6 +591,9 @@
     },
     "calibration_needs_reading": {
       "message": "The 'Calibrate' option needs the remaining kWh shown on the meter."
+    },
+    "no_billing_groups": {
+      "message": "There are no billing groups yet, so there is nothing to build a dashboard for."
     }
   },
   "issues": {

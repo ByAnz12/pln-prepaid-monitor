@@ -25,11 +25,12 @@ kapan token habis, dan mengingatkan Anda sebelum listrik padam.
 8. [Mencatat token PLN](#mencatat-token-pln)
 9. [Memperkirakan kapan token habis](#memperkirakan-kapan-token-habis)
 10. [Notifikasi token](#notifikasi-token)
-11. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
-12. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
-13. [Troubleshooting](#troubleshooting)
-14. [Untuk pengembang](#untuk-pengembang)
-15. [Rencana pengembangan](#rencana-pengembangan)
+11. [Dashboard](#dashboard)
+12. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
+13. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
+14. [Troubleshooting](#troubleshooting)
+15. [Untuk pengembang](#untuk-pengembang)
+16. [Rencana pengembangan](#rencana-pengembangan)
 
 ---
 
@@ -55,9 +56,11 @@ Integrasi ini dibangun bertahap. Yang **sudah selesai dan bisa dipakai**:
   tingkat keyakinan - dan diam saja selama datanya belum cukup.
 - **Notifikasi bertingkat** ke Telegram dan/atau Home Assistant, dikirim hanya
   saat status berpindah tingkat, menghormati jam tenang.
+- **Dashboard yang dibuatkan otomatis**, dengan entity_id yang sudah benar dan
+  hanya memakai kartu bawaan Home Assistant.
 
-Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): dashboard
-siap pakai dan pembersihan data lama.
+Yang **belum** (lihat [Rencana pengembangan](#rencana-pengembangan)): pembersihan
+data lama.
 
 ---
 
@@ -582,6 +585,68 @@ pilihan keputusan Anda. Kartu itu hilang sendiri begitu Anda memutuskan.
 
 ---
 
+## Dashboard
+
+Integrasi ini bisa **membuatkan dashboard** untuk Anda, lengkap dengan
+`entity_id` yang sudah benar.
+
+### Cara membuatnya
+
+1. Buka **Developer Tools → Actions**.
+2. Cari **Buatkan dashboard**, klik **Perform action**.
+3. Salin isi `yaml` dari hasilnya.
+4. Buka **Settings → Dashboards → + Add dashboard → New dashboard from
+   scratch**, beri nama.
+5. Buka dashboard barunya → ikon pensil di kanan atas → titik tiga → **Raw
+   configuration editor** → tempelkan, lalu simpan.
+
+Ada juga contoh statis di [docs/dashboard-example.yaml](docs/dashboard-example.yaml)
+kalau Anda ingin melihat bentuknya lebih dulu — tapi untuk dipakai sungguhan,
+pakai hasil dari layanan di atas, karena `entity_id`-nya sudah disesuaikan
+dengan nama kelompok tagihan Anda sendiri.
+
+### Isinya
+
+Satu halaman per kelompok tagihan, berisi:
+
+| Bagian | Isinya |
+|---|---|
+| **Status** | Status token, perkiraan hari tersisa, tanggal habis, kecukupan data |
+| **Sekarang** | Gauge daya, tegangan/arus/frekuensi per meteran, status koneksi |
+| **Pemakaian** | Penghitung jam ini / hari ini / minggu ini / bulan ini / tahun ini |
+| **Biaya** | Penghitung biaya untuk periode yang sama |
+| **Token** | Sisa kWh, nilai Rupiah, terpakai, rata-rata harian |
+| **Riwayat** | Grafik batang pemakaian dan biaya harian 30 hari terakhir |
+
+Kartu penahanan ledger **hanya muncul saat memang sedang ditahan**, lengkap
+dengan dua tombol keputusan yang meminta konfirmasi dulu.
+
+Dashboard menyesuaikan diri: kelompok tanpa tarif tidak mendapat kartu biaya,
+kelompok tanpa token tidak mendapat kartu token, dan periode yang tidak Anda
+aktifkan tidak ikut muncul.
+
+### Semua kartu bawaan Home Assistant
+
+Tidak ada kartu HACS, Mushroom, atau pihak ketiga mana pun — dashboard ini jalan
+di Home Assistant polos. Kalau Anda suka tampilan Mushroom, silakan tambahkan
+sendiri di atasnya.
+
+Dua hal yang mungkin ingin Anda sesuaikan setelah menempel:
+
+- **Batas atas gauge daya** diisi 5000 W. Ubah `max:` sesuai daya terpasang
+  Anda supaya jarumnya proporsional.
+- **Rentang grafik riwayat** diisi 30 hari (`days_to_show`).
+
+### Mencatat pengisian token dari dashboard
+
+Kartu **Cara mencatat pengisian token** di halaman itu menjelaskan langkahnya.
+Pencatatan sendiri dilakukan lewat **Developer Tools → Actions**, bukan tombol
+di dashboard — Home Assistant tidak punya kartu bawaan yang bisa menampilkan
+form berisi angka lalu memanggil layanan dengan isian itu, dan setiap pengisian
+token nilainya berbeda.
+
+---
+
 ## Kenapa angkanya beda dengan aplikasi meteran?
 
 Sensor `..._energy` buatan integrasi ini **dimulai dari angka yang sama** dengan
@@ -767,7 +832,7 @@ sensor yang sama.
 | 4 | Pencatatan token: isi ulang, sisa kWh, kalibrasi manual | **Selesai** |
 | 5 | Prediksi hari tersisa & tanggal habis | **Selesai** |
 | 6 | Notifikasi Telegram bertingkat | **Selesai** |
-| 7 | Dashboard | Belum |
+| 7 | Dashboard | **Selesai** |
 | 8 | Pembersihan data lama | Belum |
 
 Semua tarif, ambang batas, dan periode akan selalu bisa diatur dari antarmuka -
