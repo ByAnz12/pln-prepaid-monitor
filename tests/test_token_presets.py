@@ -124,12 +124,21 @@ def test_format_presets_round_trips() -> None:
 
 def test_preset_label_is_readable() -> None:
     """Label tombol memakai penulisan angka gaya Indonesia."""
-    assert TokenPreset(STRUK_NOMINAL, STRUK_KWH).label == "Rp 1.000.000 (826,50 kWh)"
+    assert (
+        TokenPreset(kwh=STRUK_KWH, nominal_rp=STRUK_NOMINAL).label
+        == "Rp 1.000.000 (826,50 kWh)"
+    )
+    # Tanpa nominal, labelnya cukup angka kWh-nya saja.
+    assert TokenPreset(kwh=STRUK_KWH).label == "826,50 kWh"
 
 
 def test_find_preset_matches_the_amount() -> None:
     """Preset dicari berdasarkan nominal pembelian."""
-    presets = [TokenPreset(STRUK_NOMINAL, STRUK_KWH), TokenPreset(500000, 413.25)]
+    presets = [
+        TokenPreset(kwh=STRUK_KWH, nominal_rp=STRUK_NOMINAL),
+        TokenPreset(kwh=413.25, nominal_rp=500000),
+        TokenPreset(kwh=100.0),
+    ]
 
     assert find_preset(presets, 1000000).kwh == pytest.approx(STRUK_KWH)
     assert find_preset(presets, 500000).kwh == pytest.approx(413.25)
@@ -308,7 +317,10 @@ async def test_presets_become_dashboard_buttons(hass: HomeAssistant) -> None:
     assert len(buttons) == 1
     button = buttons[0]
     assert button["name"] == "Rp 1.000.000 (826,50 kWh)"
-    assert button["tap_action"]["data"] == {"nominal_rp": STRUK_NOMINAL}
+    assert button["tap_action"]["data"] == {
+        "kwh_credited": STRUK_KWH,
+        "nominal_rp": STRUK_NOMINAL,
+    }
     # Mengubah catatan token, jadi wajib konfirmasi dulu.
     assert "confirmation" in button["tap_action"]
 
@@ -444,3 +456,131 @@ async def test_bad_preset_format_is_rejected_in_the_form(
 
     assert result["step_id"] == "token"
     assert result["errors"] == {"base": "preset_format_invalid"}
+
+
+# --- tombol muncul tanpa perlu mengatur apa pun -----------------------------
+
+
+def test_a_bare_kwh_line_is_enough() -> None:
+    """Menulis angka kWh saja sah - tidak semua orang peduli nominalnya."""
+    presets, bad = parse_presets("826,50\n413,25")
+
+    assert bad == []
+    assert [preset.kwh for preset in presets] == [826.50, 413.25]
+    assert all(preset.nominal_rp is None for preset in presets)
+    # Ditulis kembali apa adanya, bukan dipaksa jadi bentuk "nominal = kWh".
+    assert format_presets([preset.as_dict() for preset in presets]) == "826,50\n413,25"
+
+
+def test_forgetting_the_equals_sign_is_still_rejected() -> None:
+    """Regresi: baris tanpa "=" tidak boleh terbaca sebagai satu angka raksasa.
+
+    Sejak baris berisi kWh saja diterima, "1.000.000 826,50" berisiko terbaca
+    sebagai 1.000.000.826,50 kWh. Salah ketik harus ditolak, bukan diam-diam
+    diterima sebagai angka yang mustahil.
+    """
+    presets, bad = parse_presets("1.000.000 826,50")
+
+    assert presets == []
+    assert bad == ["1.000.000 826,50"]
+
+
+@pytest.mark.parametrize("text", ["82650", "1.000.000 = 82650"])
+def test_receipt_unit_mistake_is_rejected_when_configuring(text: str) -> None:
+    """Angka satuan KWM dari struk ditolak saat diatur, bukan saat tombol ditekan."""
+    presets, bad = parse_presets(text)
+
+    assert presets == []
+    assert bad == [text]
+
+
+def test_history_supplies_values_the_user_actually_used() -> None:
+    """Nilai diambil dari riwayat: terbaru dulu, tanpa pengulangan."""
+    from custom_components.pln_prepaid_monitor.engines.token_engine import (
+        presets_from_history,
+    )
+
+    entries = [
+        {"kind": "topup", "kwh_credited": STRUK_KWH, "nominal_rp": None},
+        {"kind": "calibrate", "kwh_credited": 999.0},
+        {"kind": "topup", "kwh_credited": 413.25, "nominal_rp": 500000.0},
+        {"kind": "topup", "kwh_credited": STRUK_KWH, "nominal_rp": STRUK_NOMINAL},
+    ]
+
+    presets = presets_from_history(entries)
+
+    assert [preset.kwh for preset in presets] == [STRUK_KWH, 413.25]
+    # Nilai yang sama muncul dua kali; yang punya nominal yang dipakai.
+    assert presets[0].nominal_rp == STRUK_NOMINAL
+    # Kalibrasi bukan pengisian, jadi tidak ikut.
+    assert 999.0 not in [preset.kwh for preset in presets]
+
+
+def _topup_buttons(hass: HomeAssistant, runtime_data) -> list[dict]:
+    """Semua tombol pencatatan pengisian di dashboard."""
+    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
+
+    def _walk(cards):
+        for card in cards:
+            yield card
+            yield from _walk(card.get("cards", []))
+            if nested := card.get("card"):
+                yield nested
+                yield from _walk(nested.get("cards", []))
+
+    config = build_dashboard(hass, runtime_data)
+    return [
+        card
+        for view in config["views"]
+        for card in _walk(view["cards"])
+        if card["type"] == "button"
+        and card["tap_action"]["perform_action"].endswith("add_token_topup")
+    ]
+
+
+async def test_one_topup_is_enough_to_get_a_button(hass: HomeAssistant) -> None:
+    """Tanpa mengatur apa pun, satu pengisian sudah memunculkan tombolnya.
+
+    Inilah yang membuat fitur ini bisa ditemukan: kebanyakan orang tidak akan
+    pernah membuka pengaturan untuk mengisi nilai siap pakai lebih dulu.
+    """
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, _group(presets=[]))
+
+    assert _topup_buttons(hass, entry.runtime_data) == []
+
+    await _topup(hass, kwh_credited=STRUK_KWH, nominal_rp=STRUK_NOMINAL)
+
+    buttons = _topup_buttons(hass, entry.runtime_data)
+    assert len(buttons) == 1
+    assert buttons[0]["name"] == "Rp 1.000.000 (826,50 kWh)"
+    assert buttons[0]["tap_action"]["data"]["kwh_credited"] == STRUK_KWH
+
+
+async def test_without_any_value_the_card_explains_how(hass: HomeAssistant) -> None:
+    """Belum ada tombol bukan berarti kartunya kosong tanpa penjelasan."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, _group(presets=[]))
+
+    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
+
+    text = "\n".join(
+        card.get("content", "")
+        for view in build_dashboard(hass, entry.runtime_data)["views"]
+        for card in view["cards"]
+    )
+
+    assert "Catat pengisian token" in text or "Record token top-up" in text
+
+
+async def test_configured_values_come_before_remembered_ones(
+    hass: HomeAssistant,
+) -> None:
+    """Yang diatur user didahulukan - itu keputusan sadar mereka."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, _group())
+
+    await _topup(hass, kwh_credited=100.0)
+
+    names = [button["name"] for button in _topup_buttons(hass, entry.runtime_data)]
+    assert names == ["Rp 1.000.000 (826,50 kWh)", "100,00 kWh"]

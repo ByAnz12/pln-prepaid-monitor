@@ -257,6 +257,14 @@ masukkan semuanya ke satu kelompok - pemakaiannya akan dijumlahkan.
 
 Untuk kelompok bernama "PLN Rumah":
 
+> **`entity_id` mengikuti bahasa Home Assistant Anda.** Tabel di bawah memakai
+> penamaan bahasa Inggris. Kalau Home Assistant Anda berbahasa Indonesia,
+> `entity_id`-nya juga berbahasa Indonesia — misalnya
+> `sensor.pln_rumah_total_energi`, bukan `sensor.pln_rumah_energy_total`. Nama
+> pastinya bisa Anda lihat di **Settings → Devices & Services → Entities**, dan
+> dashboard yang dibuatkan sistem selalu memakai nama yang benar dengan
+> sendirinya.
+
 | Entity | Isinya |
 |---|---|
 | `sensor.pln_rumah_energy_total` | Total kWh gabungan seluruh anggota, selalu naik |
@@ -413,8 +421,21 @@ fisik.
 Kalau Anda selalu membeli token dengan nominal yang sama, daftarkan sekali dan
 Anda tidak perlu mengetik ulang angka kWh setiap kali.
 
-Buka **Ubah kelompok tagihan → Pencatatan token PLN**, lalu isi kotak **Nilai
-pengisian siap pakai**, satu baris satu nilai:
+**Cara termudah: tidak usah mengatur apa-apa.** Catat satu pengisian seperti
+biasa, lalu jalankan **Buatkan dashboard** lagi. Nilai yang baru saja Anda catat
+langsung jadi tombol di dashboard. Sistem mengingat nilai yang benar-benar
+pernah Anda pakai, jadi angkanya pasti angka Anda sendiri.
+
+Kalau ingin tombolnya ada lebih dulu, buka **Ubah kelompok tagihan → Pencatatan
+token PLN**, lalu isi kotak **Nilai pengisian siap pakai**. Satu baris satu
+nilai, dan cukup tulis angka kWh-nya saja:
+
+```
+826,50
+413,25
+```
+
+Kalau nominal pembeliannya ingin ikut tercatat, tulis **nominal = kWh**:
 
 ```
 1.000.000 = 826,50
@@ -683,10 +704,21 @@ Dua hal yang mungkin ingin Anda sesuaikan setelah menempel:
 
 ### Mencatat pengisian token dari dashboard
 
-Kalau Anda sudah mendaftarkan [nilai pengisian siap
-pakai](#nilai-pengisian-siap-pakai), dashboard menampilkan **tombol sekali
-klik** untuk tiap nilai — misalnya "Rp 1.000.000 (826,50 kWh)". Tombolnya
-meminta konfirmasi dulu sebelum mencatat.
+Dashboard punya bagian **Isi token** berisi **tombol sekali klik** — misalnya
+"Rp 1.000.000 (826,50 kWh)". Tombolnya meminta konfirmasi dulu, dan angka yang
+akan dicatat tertulis di tombol maupun di dialog konfirmasinya.
+
+Tombol itu muncul dari dua sumber:
+
+1. [Nilai pengisian siap pakai](#nilai-pengisian-siap-pakai) yang Anda atur
+   sendiri.
+2. **Pengisian yang pernah Anda catat.** Begitu ada satu pengisian tercatat,
+   nilainya otomatis tersedia sebagai tombol — tanpa mengatur apa pun.
+
+Keduanya baru masuk ke dashboard saat dashboardnya dibuat. Jadi setelah
+pengisian pertama, jalankan **Buatkan dashboard** sekali lagi dan tempelkan
+hasilnya. Selama belum ada nilai apa pun, bagian **Isi token** berisi petunjuk
+cara memunculkan tombolnya, bukan ruang kosong.
 
 Untuk pengisian dengan angka bebas, kartu **Cara mencatat pengisian token**
 menjelaskan langkahnya lewat **Developer Tools → Actions**. Home Assistant tidak

@@ -21,12 +21,12 @@ views:
   - type: entities
     title: Status
     entities:
-    - sensor.pln_rumah_token_status
-    - sensor.pln_rumah_estimated_days_remaining
-    - sensor.pln_rumah_estimated_empty_date
-    - binary_sensor.pln_rumah_data_sufficient
+    - sensor.pln_rumah_status_token
+    - sensor.pln_rumah_perkiraan_hari_tersisa
+    - sensor.pln_rumah_perkiraan_tanggal_habis
+    - binary_sensor.pln_rumah_data_cukup_untuk_perkiraan
   - type: gauge
-    entity: sensor.pln_rumah_power
+    entity: sensor.pln_rumah_daya
     name: Sekarang
     needle: true
     min: 0
@@ -34,47 +34,46 @@ views:
   - type: glance
     title: Sumber energi
     entities:
-    - sensor.pln_rumah_energy_total
-    - sensor.mcb_rumah_voltage
-    - sensor.mcb_rumah_current
-    - sensor.mcb_rumah_frequency
-    - binary_sensor.mcb_rumah_connection_status
+    - sensor.pln_rumah_total_energi
+    - sensor.mcb_rumah_tegangan
+    - sensor.mcb_rumah_arus
+    - sensor.mcb_rumah_frekuensi
+    - binary_sensor.mcb_rumah_status_koneksi
   - type: entities
     title: Sekarang
     entities:
-    - entity: sensor.pln_rumah_energy_this_hour
+    - entity: sensor.pln_rumah_energi_jam_ini
       name: Jam ini
-    - entity: sensor.pln_rumah_energy_this_day
+    - entity: sensor.pln_rumah_energi_hari_ini
       name: Hari ini
-    - entity: sensor.pln_rumah_energy_this_week
+    - entity: sensor.pln_rumah_energi_minggu_ini
       name: Minggu ini
-    - entity: sensor.pln_rumah_energy_this_month
+    - entity: sensor.pln_rumah_energi_bulan_ini
       name: Bulan ini
-    - entity: sensor.pln_rumah_energy_this_year
+    - entity: sensor.pln_rumah_energi_tahun_ini
       name: Tahun ini
   - type: entities
     title: Biaya
     entities:
-    - entity: sensor.pln_rumah_cost_this_hour
+    - entity: sensor.pln_rumah_biaya_jam_ini
       name: Jam ini
-    - entity: sensor.pln_rumah_cost_this_day
+    - entity: sensor.pln_rumah_biaya_hari_ini
       name: Hari ini
-    - entity: sensor.pln_rumah_cost_this_week
+    - entity: sensor.pln_rumah_biaya_minggu_ini
       name: Minggu ini
-    - entity: sensor.pln_rumah_cost_this_month
+    - entity: sensor.pln_rumah_biaya_bulan_ini
       name: Bulan ini
-    - entity: sensor.pln_rumah_cost_this_year
+    - entity: sensor.pln_rumah_biaya_tahun_ini
       name: Tahun ini
   - type: entities
     title: Token
     entities:
-    - sensor.pln_rumah_token_remaining
-    - sensor.pln_rumah_token_remaining_value
-    - sensor.pln_rumah_token_consumed
-    - sensor.pln_rumah_average_daily_usage
+    - sensor.pln_rumah_sisa_token
+    - sensor.pln_rumah_nilai_sisa_token
+    - sensor.pln_rumah_token_terpakai
   - type: conditional
     conditions:
-    - entity: binary_sensor.pln_rumah_token_ledger_hold
+    - entity: binary_sensor.pln_rumah_penahanan_catatan_token
       state: 'on'
     card:
       type: vertical-stack
@@ -89,7 +88,7 @@ views:
           layar meteran.'
       - type: entities
         entities:
-        - binary_sensor.pln_rumah_token_ledger_hold
+        - binary_sensor.pln_rumah_penahanan_catatan_token
       - type: horizontal-stack
         cards:
         - type: button
@@ -118,6 +117,8 @@ views:
               action: accept
             confirmation:
               text: Anggap pemakaian nyata?
+  - type: markdown
+    content: '### Isi token'
   - type: horizontal-stack
     cards:
     - type: button
@@ -130,6 +131,7 @@ views:
         target:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         data:
+          kwh_credited: 826.5
           nominal_rp: 1000000.0
         confirmation:
           text: Rp 1.000.000 (826,50 kWh)?
@@ -143,6 +145,7 @@ views:
         target:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         data:
+          kwh_credited: 413.25
           nominal_rp: 500000.0
         confirmation:
           text: Rp 500.000 (413,25 kWh)?
@@ -160,7 +163,7 @@ views:
   - type: statistics-graph
     title: Pemakaian harian
     entities:
-    - sensor.pln_rumah_energy_total
+    - sensor.pln_rumah_total_energi
     stat_types:
     - change
     period: day
@@ -169,7 +172,7 @@ views:
   - type: statistics-graph
     title: Biaya harian
     entities:
-    - sensor.pln_rumah_cost_total
+    - sensor.pln_rumah_total_biaya
     stat_types:
     - change
     period: day
@@ -201,12 +204,12 @@ views:
   - type: entities
     title: Status
     entities:
-    - sensor.pln_toko_token_status
-    - sensor.pln_toko_estimated_days_remaining
-    - sensor.pln_toko_estimated_empty_date
-    - binary_sensor.pln_toko_data_sufficient
+    - sensor.pln_toko_status_token
+    - sensor.pln_toko_perkiraan_hari_tersisa
+    - sensor.pln_toko_perkiraan_tanggal_habis
+    - binary_sensor.pln_toko_data_cukup_untuk_perkiraan
   - type: gauge
-    entity: sensor.pln_toko_power
+    entity: sensor.pln_toko_daya
     name: Sekarang
     needle: true
     min: 0
@@ -214,35 +217,34 @@ views:
   - type: glance
     title: Sumber energi
     entities:
-    - sensor.pln_toko_energy_total
-    - sensor.mcb_toko_voltage
-    - sensor.mcb_toko_current
-    - sensor.mcb_toko_frequency
-    - binary_sensor.mcb_toko_connection_status
+    - sensor.pln_toko_total_energi
+    - sensor.mcb_toko_tegangan
+    - sensor.mcb_toko_arus
+    - sensor.mcb_toko_frekuensi
+    - binary_sensor.mcb_toko_status_koneksi
   - type: entities
     title: Sekarang
     entities:
-    - entity: sensor.pln_toko_energy_this_day
+    - entity: sensor.pln_toko_energi_hari_ini
       name: Hari ini
-    - entity: sensor.pln_toko_energy_this_month
+    - entity: sensor.pln_toko_energi_bulan_ini
       name: Bulan ini
   - type: entities
     title: Biaya
     entities:
-    - entity: sensor.pln_toko_cost_this_day
+    - entity: sensor.pln_toko_biaya_hari_ini
       name: Hari ini
-    - entity: sensor.pln_toko_cost_this_month
+    - entity: sensor.pln_toko_biaya_bulan_ini
       name: Bulan ini
   - type: entities
     title: Token
     entities:
-    - sensor.pln_toko_token_remaining
-    - sensor.pln_toko_token_remaining_value
-    - sensor.pln_toko_token_consumed
-    - sensor.pln_toko_average_daily_usage
+    - sensor.pln_toko_sisa_token
+    - sensor.pln_toko_nilai_sisa_token
+    - sensor.pln_toko_token_terpakai
   - type: conditional
     conditions:
-    - entity: binary_sensor.pln_toko_token_ledger_hold
+    - entity: binary_sensor.pln_toko_penahanan_catatan_token
       state: 'on'
     card:
       type: vertical-stack
@@ -257,7 +259,7 @@ views:
           layar meteran.'
       - type: entities
         entities:
-        - binary_sensor.pln_toko_token_ledger_hold
+        - binary_sensor.pln_toko_penahanan_catatan_token
       - type: horizontal-stack
         cards:
         - type: button
@@ -286,34 +288,23 @@ views:
               action: accept
             confirmation:
               text: Anggap pemakaian nyata?
-  - type: horizontal-stack
-    cards:
-    - type: button
-      name: Rp 1.000.000 (826,50 kWh)
-      icon: mdi:cash-plus
-      show_state: false
-      tap_action:
-        action: perform-action
-        perform_action: pln_prepaid_monitor.add_token_topup
-        target:
-          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
-        data:
-          nominal_rp: 1000000.0
-        confirmation:
-          text: Rp 1.000.000 (826,50 kWh)?
-    - type: button
-      name: Rp 500.000 (413,25 kWh)
-      icon: mdi:cash-plus
-      show_state: false
-      tap_action:
-        action: perform-action
-        perform_action: pln_prepaid_monitor.add_token_topup
-        target:
-          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
-        data:
-          nominal_rp: 500000.0
-        confirmation:
-          text: Rp 500.000 (413,25 kWh)?
+  - type: markdown
+    content: '### Isi token'
+  - type: markdown
+    content: 'Belum ada tombol pengisian di sini karena sistem belum tahu berapa kWh
+      yang biasa Anda beli.
+
+
+      Ada dua cara memunculkannya:
+
+
+      1. **Catat satu pengisian dulu** lewat **Developer Tools -> Actions -> Catat
+      pengisian token**. Setelah itu jalankan **Buatkan dashboard** lagi, dan nilai
+      tadi langsung jadi tombol di sini.
+
+      2. Atau isi **Nilai pengisian siap pakai** di **Settings -> Devices & Services
+      -> PLN Prepaid Energy & Cost Monitor -> Configure** pada kelompok ini. Cukup
+      tulis angka kWh-nya saja, misalnya `826,50`.'
   - type: markdown
     content: '### Cara mencatat pengisian token
 
@@ -328,7 +319,7 @@ views:
   - type: statistics-graph
     title: Pemakaian harian
     entities:
-    - sensor.pln_toko_energy_total
+    - sensor.pln_toko_total_energi
     stat_types:
     - change
     period: day
@@ -337,7 +328,7 @@ views:
   - type: statistics-graph
     title: Biaya harian
     entities:
-    - sensor.pln_toko_cost_total
+    - sensor.pln_toko_total_biaya
     stat_types:
     - change
     period: day

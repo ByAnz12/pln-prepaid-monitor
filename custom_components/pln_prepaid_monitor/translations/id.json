@@ -141,7 +141,7 @@
         "no_sources_selected": "Pilih minimal satu sumber energi untuk kelompok ini.",
         "no_periods_selected": "Pilih minimal satu periode. Tanpa itu tidak ada penghitung pemakaian yang dibuat.",
         "thresholds_out_of_order": "Ambang harus berurutan menurun: peringatan lebih besar dari kritis, dan kritis lebih besar dari sangat kritis.",
-        "preset_format_invalid": "Ada baris yang formatnya belum benar. Tiap baris harus berbentuk 'nominal = kWh', misalnya 1.000.000 = 826,50."
+        "preset_format_invalid": "Ada baris yang formatnya belum benar. Tiap baris berisi angka kWh saja (misalnya 826,50) atau 'nominal = kWh' (misalnya 1.000.000 = 826,50). Angka kWh di atas 20.000 juga ditolak - kemungkinan besar itu satuan KWM dari struk, yang perlu dibagi 100."
       },
       "initiate_flow": {
         "reconfigure": "Ubah kelompok tagihan",
@@ -203,7 +203,7 @@
           "data_description": {
             "token_enabled": "Biarkan mati kalau listrik kelompok ini pascabayar, atau kalau Anda hanya ingin memantau pemakaian tanpa mencatat token.",
             "reset_hold_threshold_kwh": "Pengaman untuk kejadian langka: kalau meteran ter-reset dan angka pertama sesudahnya lebih besar dari ini, sistem **membekukan** hitungan sisa token dan bertanya dulu ke Anda, alih-alih diam-diam memotong sisa token Anda. Reset firmware biasa jatuh ke hampir nol dan tidak akan memicu ini. Nilai bawaan 1 kWh aman untuk kebanyakan kasus.",
-            "token_presets_text": "Kalau Anda selalu membeli token dengan nominal yang sama, tulis di sini supaya tidak perlu mengetik ulang angka kWh setiap kali.\n\nSatu baris satu nilai, bentuknya **nominal = kWh**:\n\n`1.000.000 = 826,50`\n`500.000 = 413,25`\n\nAngka kWh diambil dari struk pembelian, bagian **Jumlah Kwh**. Perhatikan: struk sering menulisnya dalam satuan 0,01 kWh - misalnya **82650 KWM** di struk berarti **826,50 kWh** di layar meteran. Bagi 100 kalau angkanya terlihat terlalu besar.\n\nNilai-nilai ini nanti muncul sebagai tombol sekali klik di dashboard, dan bisa dipakai lewat layanan dengan menyebut nominalnya saja. Kosongkan kalau Anda lebih suka selalu mengetik angka kWh secara manual."
+            "token_presets_text": "Kalau Anda selalu membeli token dengan jumlah kWh yang sama, tulis di sini supaya tidak perlu mengetik ulang setiap kali. Nilai-nilai ini muncul sebagai tombol sekali klik di dashboard.\n\nSatu baris satu nilai. Cara paling gampang, tulis angka kWh-nya saja:\n\n`826,50`\n\nKalau ingin nominal pembeliannya ikut tercatat, tulis **nominal = kWh**:\n\n`1.000.000 = 826,50`\n`500.000 = 413,25`\n\nAngka kWh diambil dari struk pembelian, bagian **Jumlah Kwh**. Perhatikan: struk sering menulisnya dalam satuan 0,01 kWh - misalnya **82650 KWM** di struk berarti **826,50 kWh** di layar meteran. Bagi 100 kalau angkanya terlihat terlalu besar.\n\nBoleh dikosongkan. Setelah Anda mencatat satu pengisian, nilainya diingat sendiri dan tombolnya muncul di dashboard tanpa perlu diisi di sini."
           }
         },
         "prediction": {

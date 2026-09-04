@@ -344,12 +344,23 @@ MAX_PLAUSIBLE_TOPUP_KWH = 20000.0
 KWM_PER_KWH = 100
 
 
+def format_kwh(kwh: float) -> str:
+    """Tulis angka kWh dengan gaya Indonesia: 1.234,56."""
+    text = f"{kwh:,.2f}".replace(",", "\x00").replace(".", ",")
+    return text.replace("\x00", ".")
+
+
 @dataclass(frozen=True)
 class TokenPreset:
-    """Satu nilai pengisian yang sering dipakai user."""
+    """Satu nilai pengisian yang sering dipakai user.
 
-    nominal_rp: float
+    ``nominal_rp`` boleh kosong. Yang wajib hanya kWh-nya, karena itulah yang
+    masuk ke ledger; nominal rupiah cuma catatan pembelian. Tanpa nominal,
+    nilai ini tetap bisa jadi tombol - hanya labelnya yang lebih pendek.
+    """
+
     kwh: float
+    nominal_rp: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         """Bentuk yang disimpan di subentry."""
@@ -358,9 +369,10 @@ class TokenPreset:
     @property
     def label(self) -> str:
         """Label ringkas untuk tombol dashboard."""
+        kwh = format_kwh(self.kwh)
+        if self.nominal_rp is None:
+            return f"{kwh} kWh"
         nominal = f"{self.nominal_rp:,.0f}".replace(",", ".")
-        kwh = f"{self.kwh:,.2f}".replace(",", "\x00").replace(".", ",")
-        kwh = kwh.replace("\x00", ".")
         return f"Rp {nominal} ({kwh} kWh)"
 
 
@@ -392,7 +404,11 @@ def parse_kwh(text: str) -> float | None:
 def parse_presets(text: str | None) -> tuple[list[TokenPreset], list[str]]:
     """Baca daftar preset dari teks, satu baris satu nilai.
 
-    Bentuk tiap baris: ``nominal = kwh``, misalnya ``1.000.000 = 826,50``.
+    Dua bentuk diterima:
+
+    * ``1.000.000 = 826,50`` - nominal pembelian beserta kWh-nya.
+    * ``826,50`` - kWh saja, untuk yang tidak mau repot dengan nominal.
+
     Mengembalikan pasangan (preset yang berhasil dibaca, baris yang gagal).
     """
     presets: list[TokenPreset] = []
@@ -404,8 +420,19 @@ def parse_presets(text: str | None) -> tuple[list[TokenPreset], list[str]]:
             continue
 
         left, separator, right = line.partition("=")
+
         if not separator:
-            bad_lines.append(line)
+            # Hanya angka kWh. Bentuk paling sederhana, dan yang paling mungkin
+            # diketik orang yang belum membaca petunjuk formatnya.
+            #
+            # Satu angka tidak mengandung spasi. Tanpa syarat ini, lupa menulis
+            # "=" pada "1.000.000 826,50" akan diam-diam terbaca sebagai satu
+            # angka raksasa, bukan ditolak sebagai salah ketik.
+            kwh = None if any(char.isspace() for char in line) else parse_kwh(left)
+            if kwh is None or kwh <= 0 or implausible_kwh_hint(kwh) is not None:
+                bad_lines.append(line)
+                continue
+            presets.append(TokenPreset(kwh=kwh))
             continue
 
         nominal = parse_rupiah(left)
@@ -413,8 +440,13 @@ def parse_presets(text: str | None) -> tuple[list[TokenPreset], list[str]]:
         if nominal is None or kwh is None or nominal <= 0 or kwh <= 0:
             bad_lines.append(line)
             continue
+        if implausible_kwh_hint(kwh) is not None:
+            # Angka satuan KWM dari struk (82650) ditolak di sini, bukan nanti
+            # saat user menekan tombolnya.
+            bad_lines.append(line)
+            continue
 
-        presets.append(TokenPreset(nominal_rp=nominal, kwh=kwh))
+        presets.append(TokenPreset(kwh=kwh, nominal_rp=nominal))
 
     return presets, bad_lines
 
@@ -423,8 +455,12 @@ def format_presets(presets: list[dict[str, Any]] | None) -> str:
     """Tulis kembali daftar preset jadi teks untuk ditampilkan di form."""
     lines = []
     for preset in presets or []:
-        nominal = f"{float(preset['nominal_rp']):,.0f}".replace(",", ".")
         kwh = f"{float(preset['kwh']):.2f}".replace(".", ",")
+        nominal_rp = preset.get("nominal_rp")
+        if nominal_rp is None:
+            lines.append(kwh)
+            continue
+        nominal = f"{float(nominal_rp):,.0f}".replace(",", ".")
         lines.append(f"{nominal} = {kwh}")
     return "\n".join(lines)
 
@@ -434,9 +470,11 @@ def load_presets(data: list[dict[str, Any]] | None) -> list[TokenPreset]:
     presets: list[TokenPreset] = []
     for entry in data or []:
         try:
+            nominal_rp = entry.get("nominal_rp")
             presets.append(
                 TokenPreset(
-                    nominal_rp=float(entry["nominal_rp"]), kwh=float(entry["kwh"])
+                    kwh=float(entry["kwh"]),
+                    nominal_rp=None if nominal_rp is None else float(nominal_rp),
                 )
             )
         except (KeyError, TypeError, ValueError):
@@ -451,9 +489,45 @@ def find_preset(
     if nominal_rp is None:
         return None
     for preset in presets:
+        if preset.nominal_rp is None:
+            continue
         if abs(preset.nominal_rp - nominal_rp) < 0.01:
             return preset
     return None
+
+
+def presets_from_history(
+    entries: list[dict[str, Any]], limit: int = 4
+) -> list[TokenPreset]:
+    """Nilai pengisian yang benar-benar pernah dicatat user, terbaru dulu.
+
+    Ini yang membuat tombol dashboard bisa muncul tanpa user mengatur apa pun:
+    nilai yang sudah pernah mereka pakai jelas nilai yang benar untuk mereka.
+    Nilai yang sama tidak diulang, dan yang punya nominal rupiah dimenangkan
+    atas yang tidak, karena labelnya lebih informatif.
+    """
+    seen: dict[float, TokenPreset] = {}
+    for entry in reversed(entries):
+        if entry.get("kind") != ENTRY_TOPUP:
+            continue
+        try:
+            kwh = round(float(entry["kwh_credited"]), 2)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if kwh <= 0:
+            continue
+        nominal = entry.get("nominal_rp")
+        preset = TokenPreset(
+            kwh=kwh, nominal_rp=None if nominal is None else float(nominal)
+        )
+        existing = seen.get(kwh)
+        if existing is None:
+            if len(seen) >= limit:
+                continue
+            seen[kwh] = preset
+        elif existing.nominal_rp is None and preset.nominal_rp is not None:
+            seen[kwh] = preset
+    return list(seen.values())
 
 
 def implausible_kwh_hint(kwh: float) -> float | None:

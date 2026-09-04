@@ -9,6 +9,55 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-038 · Tombol pengisian muncul sendiri dari riwayat, bukan hanya dari pengaturan
+
+**Tanggal**: 4 September 2026
+
+User melaporkan pengisian token merepotkan dan meminta "tombol saja di
+dashboard". Tombolnya sebenarnya sudah ada sejak D-033 - tapi hanya muncul
+kalau **Nilai pengisian siap pakai** sudah diisi lebih dulu, di langkah keempat
+alur pengaturan kelompok tagihan, dalam kotak teks bebas dengan format
+`nominal = kWh`.
+
+Fitur yang mensyaratkan orang menemukan dan memahami sebuah kotak teks
+tersembunyi sebelum bisa dipakai, praktisnya tidak ada.
+
+Tiga perubahan:
+
+1. **Nilai diambil juga dari riwayat pengisian.** `presets_from_history`
+   membaca entri top-up yang sudah tercatat, terbaru dulu, tanpa pengulangan.
+   Begitu user mencatat satu pengisian - hal yang pasti mereka lakukan -
+   tombolnya muncul di dashboard berikutnya tanpa mengatur apa pun. Nilainya
+   pasti benar karena berasal dari perbuatan mereka sendiri.
+2. **Baris berisi kWh saja kini sah.** `826,50` cukup; nominal rupiah opsional.
+   `TokenPreset.nominal_rp` jadi `float | None`.
+3. **Kartu "Isi token" selalu ada** selama pencatatan token aktif. Kalau belum
+   ada nilai, isinya petunjuk cara memunculkan tombol - bukan ruang kosong yang
+   membuat user mengira fiturnya tidak ada.
+
+### Dua pagar yang ikut dipasang
+
+Menerima baris tanpa `=` membuka lubang: lupa menulis `=` pada
+`1.000.000 826,50` akan terbaca sebagai **1.000.000.826,50 kWh**. Maka baris
+tanpa `=` ditolak kalau mengandung spasi, dan ambang kewajaran 20.000 kWh yang
+sudah dipakai saat mencatat pengisian kini juga berlaku saat mengatur nilai -
+sehingga angka satuan KWM dari struk (82650) ditolak saat diatur, bukan nanti
+saat tombolnya ditekan. Dijaga oleh
+`test_forgetting_the_equals_sign_is_still_rejected`.
+
+### Tombol mengirim angka kWh, bukan nominalnya
+
+Sebelumnya tombol hanya mengirim `nominal_rp`, dan angka kWh dicari ulang dari
+pengaturan saat tombol ditekan. Itu berarti label tombol bisa menyebut satu
+angka sementara yang tercatat angka lain, kalau pengaturannya berubah setelah
+dashboard dibuat - ketidakcocokan diam-diam, persis yang dihindari sistem ini.
+
+Sekarang tombol mengirim `kwh_credited` apa adanya. Angka yang tercatat selalu
+sama dengan yang tertulis di tombol dan di dialog konfirmasinya. Nominal tetap
+ikut dikirim sebagai catatan pembelian.
+
+---
+
 ## D-037 · Ikon integrasi disajikan dari folder `brand/`, dan sengaja bukan logo PLN
 
 **Tanggal**: 4 September 2026 · **Status: VERIFIED**

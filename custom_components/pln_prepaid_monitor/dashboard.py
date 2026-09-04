@@ -19,6 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN
+from .engines.token_engine import presets_from_history
 from .messages import PERIOD_LABELS, pick_language
 
 # Judul bagian, mengikuti empat seksi yang diminta di spec J.
@@ -47,7 +48,19 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "hold_ignore": "Abaikan (meteran diganti)",
         "hold_accept": "Anggap pemakaian nyata",
-                "maint_title": "Perawatan",
+        "topup_title": "Isi token",
+        "topup_none": (
+            "Belum ada tombol pengisian di sini karena sistem belum tahu berapa "
+            "kWh yang biasa Anda beli.\n\n"
+            "Ada dua cara memunculkannya:\n\n"
+            "1. **Catat satu pengisian dulu** lewat **Developer Tools -> Actions "
+            "-> Catat pengisian token**. Setelah itu jalankan **Buatkan "
+            "dashboard** lagi, dan nilai tadi langsung jadi tombol di sini.\n"
+            "2. Atau isi **Nilai pengisian siap pakai** di **Settings -> Devices "
+            "& Services -> PLN Prepaid Energy & Cost Monitor -> Configure** pada "
+            "kelompok ini. Cukup tulis angka kWh-nya saja, misalnya `826,50`."
+        ),
+        "maint_title": "Perawatan",
         "maint_note": (
             "Menghapus riwayat lama milik integrasi ini sesuai batas retensi "
             "yang Anda atur di **Configure**. Bersifat **permanen**. Entity "
@@ -81,7 +94,20 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "hold_ignore": "Ignore (meter replaced)",
         "hold_accept": "Treat as real usage",
-                "maint_title": "Maintenance",
+        "topup_title": "Top up token",
+        "topup_none": (
+            "No top-up buttons here yet, because the system does not know how "
+            "many kWh you usually buy.\n\n"
+            "Two ways to get them:\n\n"
+            "1. **Record one top-up first** via **Developer Tools -> Actions -> "
+            "Record token top-up**. Then run **Generate dashboard** again and "
+            "that amount becomes a button here.\n"
+            "2. Or fill in **Ready-to-use top-up values** under **Settings -> "
+            "Devices & Services -> PLN Prepaid Energy & Cost Monitor -> "
+            "Configure** for this group. Just the kWh figure is enough, for "
+            "example `826.50`."
+        ),
+        "maint_title": "Maintenance",
         "maint_note": (
             "Deletes this integration's old history according to the retention "
             "limit you set under **Configure**. This is **permanent**. Your "
@@ -118,6 +144,26 @@ class GroupView:
     def entity(self, key: str) -> str | None:
         """entity_id untuk satu peran, kalau entity-nya memang dibuat."""
         return self.entities.get(key)
+
+
+def _usable_presets(group: Any) -> list[Any]:
+    """Nilai yang bisa dijadikan tombol: yang diatur user, lalu yang pernah dipakai.
+
+    Kebanyakan orang tidak akan pernah membuka pengaturan untuk mengisi nilai
+    siap pakai - mereka baru tahu fiturnya ada setelah butuh. Jadi riwayat
+    pengisian mereka sendiri ikut dipakai: begitu satu pengisian tercatat,
+    tombolnya muncul sendiri tanpa mengatur apa pun.
+
+    Yang diatur user didahulukan, karena itu keputusan sadar mereka.
+    """
+    presets = list(group.token_presets)
+    known = {round(preset.kwh, 2) for preset in presets}
+    for preset in presets_from_history(group.ledger.state.entries):
+        if round(preset.kwh, 2) in known:
+            continue
+        known.add(round(preset.kwh, 2))
+        presets.append(preset)
+    return presets
 
 
 def _slugify(value: str) -> str:
@@ -180,7 +226,7 @@ def collect_views(hass: HomeAssistant, runtime_data: Any) -> list[GroupView]:
                 periods=list(group.periods),
                 has_cost=group.has_cost,
                 token_enabled=group.token_enabled,
-                presets=list(group.token_presets),
+                presets=_usable_presets(group),
                 entities=_resolve(hass, subentry_id, keys),
                 sources=[
                     SourceView(
@@ -308,17 +354,22 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
             }
         )
 
-    if view.presets and view.device_id:
-        # Nilai yang sering dipakai jadi tombol satu klik: user membeli dengan
-        # nominal yang sama setiap kali, jadi angkanya memang sudah pasti.
-        cards.append(
-            {
-                "type": "horizontal-stack",
-                "cards": [
-                    _topup_button(view, preset) for preset in view.presets[:4]
-                ],
-            }
-        )
+    if view.token_enabled and view.device_id:
+        # Kartu ini selalu ada kalau token dicatat. Kalau belum ada nilai yang
+        # bisa dijadikan tombol, yang tampil adalah cara memunculkannya - bukan
+        # ruang kosong yang membuat user mengira fiturnya tidak ada.
+        cards.append({"type": "markdown", "content": f"### {texts['topup_title']}"})
+        if view.presets:
+            cards.append(
+                {
+                    "type": "horizontal-stack",
+                    "cards": [
+                        _topup_button(view, preset) for preset in view.presets[:4]
+                    ],
+                }
+            )
+        else:
+            cards.append({"type": "markdown", "content": texts["topup_none"]})
 
     cards.append(
         {
@@ -330,7 +381,18 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
 
 
 def _topup_button(view: GroupView, preset: Any) -> dict[str, Any]:
-    """Tombol satu klik untuk mencatat pengisian dengan nilai siap pakai."""
+    """Tombol satu klik untuk mencatat pengisian dengan nilai siap pakai.
+
+    Angka kWh dikirim apa adanya, tidak dicari ulang dari nominalnya. Alasannya
+    kejujuran: label tombol sudah menyebut angkanya, dan dialog konfirmasi
+    mengulanginya. Kalau tombol mengirim nominal saja lalu nilai kWh-nya
+    berubah di pengaturan, tombol akan mencatat angka yang berbeda dari yang
+    tertulis di tombol itu sendiri - persis jenis ketidakcocokan diam-diam yang
+    dihindari sistem ini. Nominal tetap ikut dikirim sebagai catatan pembelian.
+    """
+    data: dict[str, Any] = {"kwh_credited": preset.kwh}
+    if preset.nominal_rp is not None:
+        data["nominal_rp"] = preset.nominal_rp
     return {
         "type": "button",
         "name": preset.label,
@@ -340,7 +402,7 @@ def _topup_button(view: GroupView, preset: Any) -> dict[str, Any]:
             "action": "perform-action",
             "perform_action": f"{DOMAIN}.add_token_topup",
             "target": {"device_id": view.device_id},
-            "data": {"nominal_rp": preset.nominal_rp},
+            "data": data,
             "confirmation": {"text": f"{preset.label}?"},
         },
     }
