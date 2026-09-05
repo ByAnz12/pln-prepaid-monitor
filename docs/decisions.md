@@ -9,6 +9,44 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-052 · Rilis dibuat otomatis, tapi hanya kalau seluruh test lulus
+
+**Tanggal**: 5 September 2026 · **Atas permintaan user**
+
+HACS memasang **rilis terakhir, bukan branch**. Jadi commit yang sudah dipush
+tidak pernah sampai ke pengguna sampai ada rilis baru - dan itu ketahuan dengan
+cara yang tidak enak: rilis `0.2.0` tertinggal tiga commit tanpa ada yang sadar.
+
+`.github/workflows/release.yml` membuat rilis sendiri ketika angka `version` di
+`manifest.json` berubah.
+
+### Tiga hal yang sengaja dipasang
+
+**1. Test jalan di dalam workflow rilis, bukan diandalkan dari workflow lain.**
+Rilis otomatis yang terbit tanpa test yang lulus berarti versi rusak bisa
+sampai ke pengguna tanpa ada yang tahu. Lebih baik menjalankan suite dua kali
+daripada menerbitkan sesuatu yang belum terbukti.
+
+**2. Hanya berjalan kalau `manifest.json` yang berubah.** Perubahan dokumentasi
+atau test tidak memicu rilis apa pun.
+
+**3. Idempoten.** Kalau rilis dengan versi itu sudah ada, workflow berhenti
+tanpa melakukan apa-apa. Jadi menjalankan ulang tidak membuat rilis ganda, dan
+mengubah URL di manifest tanpa menaikkan versi juga tidak menerbitkan apa pun.
+
+### Izin yang diminta
+
+`contents: write` - hanya itu, cukup untuk membuat tag dan rilis. Tidak ada
+akses ke hal lain.
+
+### Yang perlu user tahu
+
+Rilis kini **terbit tanpa ada yang menekan tombol**. Itu memang yang diminta,
+tapi artinya kenaikan versi di `manifest.json` bukan lagi perubahan biasa - ia
+sekaligus perintah menerbitkan.
+
+---
+
 ## D-051 · Pemakaian dan biaya jadi satu tabel, dan urutan bagian dikunci
 
 **Tanggal**: 5 September 2026 · **Atas permintaan user**

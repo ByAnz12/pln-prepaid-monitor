@@ -1282,6 +1282,20 @@ pytest
 Versi itu memakai `homeassistant==2026.8.3`. Test **harus dijalankan di Linux
 atau WSL** - Home Assistant mengimpor modul `fcntl` yang tidak ada di Windows.
 
+### Rilis
+
+Rilis dibuat **otomatis** oleh `.github/workflows/release.yml` ketika angka
+`version` di `manifest.json` berubah. HACS memasang rilis terakhir — bukan
+branch — jadi tanpa rilis, perbaikan yang sudah dipush tidak pernah sampai ke
+pengguna.
+
+Workflow itu menjalankan seluruh test lebih dulu dan **berhenti kalau ada yang
+gagal**, jadi tidak ada versi rusak yang bisa terbit sendiri. Ia juga
+idempoten: kalau rilis dengan versi itu sudah ada, tidak terjadi apa-apa.
+
+Artinya menaikkan `version` bukan perubahan biasa — itu sekaligus perintah
+menerbitkan.
+
 Beberapa test menyalin langsung vektor uji resmi Home Assistant Core
 (`test_compile_hourly_sum_statistics_total_increasing` dan
 `..._small_dip`) untuk memastikan perhitungan energi kita berperilaku persis sama

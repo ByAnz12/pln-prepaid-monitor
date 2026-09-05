@@ -1,0 +1,67 @@
+name: Release
+
+# Membuat rilis GitHub sendiri setiap kali angka "version" di manifest.json
+# berubah. HACS memasang rilis terakhir - bukan branch - jadi tanpa rilis,
+# perbaikan yang sudah dipush tidak akan pernah sampai ke pengguna.
+on:
+  push:
+    branches: [main]
+    paths:
+      # Hanya berjalan kalau manifest yang berubah. Commit lain tidak memicu
+      # apa pun, jadi tidak ada rilis yang terbit karena perubahan dokumentasi.
+      - custom_components/pln_prepaid_monitor/manifest.json
+  # Supaya rilis yang tertinggal bisa dikejar tanpa menyentuh manifest lagi.
+  workflow_dispatch:
+
+permissions:
+  # Satu-satunya izin yang dibutuhkan: membuat tag dan rilis.
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # --generate-notes butuh riwayat penuh untuk menyusun daftar
+          # perubahan sejak rilis sebelumnya.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Pasang dependency test
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_test.txt
+
+      - name: Jalankan seluruh test
+        # Gerbang yang sengaja dipasang di sini, bukan diandalkan dari
+        # workflow lain: rilis yang terbit otomatis tanpa test yang lulus
+        # berarti versi rusak bisa sampai ke pengguna tanpa ada yang tahu.
+        run: pytest
+
+      - name: Buat rilis kalau versinya memang baru
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(jq -r .version custom_components/pln_prepaid_monitor/manifest.json)"
+
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "::error::manifest.json tidak punya angka version yang bisa dibaca."
+            exit 1
+          fi
+
+          # Idempoten: menjalankan ulang workflow ini tidak membuat rilis
+          # ganda, dan perubahan manifest yang bukan kenaikan versi
+          # (misalnya URL) tidak menghasilkan apa-apa.
+          if gh release view "$version" >/dev/null 2>&1; then
+            echo "Rilis $version sudah ada. Tidak ada yang perlu dikerjakan."
+            exit 0
+          fi
+
+          echo "Membuat rilis $version"
+          gh release create "$version" \
+            --title "$version" \
+            --generate-notes
