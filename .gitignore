@@ -12,5 +12,3 @@ venv/
 # Paket siap pasang - dibangun ulang dari sumber, jangan ikut dilacak.
 *.zip
 
-# Bahan PR ke home-assistant/brands - milik repo lain, bukan repo ini.
-brands-pr/
