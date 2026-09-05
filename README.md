@@ -907,7 +907,31 @@ Pengisian yang sudah digantikan penyamaan atau reset **tetap ditampilkan** dan
 diberi tanda bintang. Menghilangkannya akan membuat riwayat berbohong tentang
 apa yang pernah Anda lakukan.
 
+### Susunan dashboard
+
+Halaman dibuat dengan urutan tetap, dari yang paling sering dilihat ke yang
+paling jarang disentuh:
+
+| Bagian | Isinya |
+|---|---|
+| **Ringkasan** | Gauge sisa hari, daya sekarang, chip sumber energi, Token, Status |
+| **Token** | Riwayat pengisian, isi token, template, perbaiki hitungan |
+| **Pemakaian & biaya** | Tabel rincian per periode |
+| **Grafik** | Pemakaian dan biaya harian |
+| **Analisa** | Profil daya, per jam, per bulan |
+| **Pengaturan** | Tarif, ambang, uji notifikasi, perawatan data |
+
+Urutan ini tetap, jadi **membuat ulang dashboard tidak berarti menata ulang
+kartunya dari awal**. Kalau Anda geser sendiri kartunya (bisa di tata letak
+Sections), susunan Anda tetap ada sampai Anda menempelkan hasil baru.
+
 ### Memilih baris pada kartu Pemakaian dan Biaya
+
+Pemakaian dan biaya tampil dalam **satu tabel**, kWh dan rupiah bersebelahan
+per baris — supaya "bulan kemarin berapa kWh, dan berapa rupiahnya?" terjawab
+dalam sekali lihat.
+
+Kelompok tagihan yang belum punya tarif hanya mendapat kolom kWh.
 
 Di **Ubah kelompok tagihan → Periode**, ada checklist **Baris rincian**. Yang
 bisa dipilih:

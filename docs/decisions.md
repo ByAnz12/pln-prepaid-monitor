@@ -9,6 +9,60 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-051 · Pemakaian dan biaya jadi satu tabel, dan urutan bagian dikunci
+
+**Tanggal**: 5 September 2026 · **Atas permintaan user**
+
+### Satu tabel, dua kolom
+
+Dulu dua kartu terpisah: "Pemakaian" berisi kWh, "Biaya" berisi rupiah, dengan
+baris yang persis sama. Itu memaksa mata bolak-balik untuk menjawab pertanyaan
+yang sebenarnya satu: *"bulan kemarin berapa kWh, dan berapa rupiahnya?"*
+
+Sekarang satu tabel, kWh dan rupiah bersebelahan per baris.
+
+Kelompok tagihan **tanpa tarif** hanya mendapat kolom kWh - kolom kosong yang
+selalu berisi tanda hubung lebih buruk daripada kolom yang tidak ada. Dijaga
+oleh `test_a_group_without_a_tariff_gets_only_the_kwh_column`.
+
+### Urutan bagian dikunci ke susunan yang user rapikan sendiri
+
+User menata ulang dashboardnya, lalu meminta susunan itu jadi bawaan supaya
+membuat ulang tidak berarti menata ulang dari awal. Urutannya sekarang:
+
+| Bagian | Isinya |
+|---|---|
+| Ringkasan | Gauge, daya sekarang, chip sumber, penahanan, Token, Status |
+| Token | Riwayat, isi token, template, perbaiki hitungan |
+| Pemakaian & biaya | Tabel gabungan |
+| Grafik | Pemakaian dan biaya harian |
+| Analisa | Profil daya, per jam, per bulan |
+| Pengaturan | Tarif, ambang, uji notifikasi, perawatan |
+
+Prinsipnya: yang dilihat sekilas di atas, yang dikerjakan di tengah, yang jarang
+disentuh di bawah. Di dalam Ringkasan pun begitu - gauge dan angka besar
+mendahului daftar status dan penjelasannya.
+
+Dikunci oleh `test_the_default_order_is_the_one_the_user_arranged`. Kalau
+urutannya berubah diam-diam nanti, user harus menata ulang dari awal dan tidak
+akan tahu kenapa.
+
+### Yang hampir salah saya kerjakan
+
+Tangkapan layar user tidak memuat tombol template sekali klik, dan saya nyaris
+menghapus fiturnya. Ternyata penjelasannya lebih sederhana: dashboard itu
+dibuat **sebelum** template disimpan, jadi tombolnya memang belum ada di YAML -
+bukan karena user menghapusnya.
+
+User meminta **susunan**, bukan pengurangan fitur. Tombolnya dikembalikan.
+
+### Catatan HACS pindah ke paling bawah
+
+Ia hanya perlu dibaca sekali, saat kartu HACS belum terpasang - tapi kartunya
+menetap selamanya. Di puncak halaman ia jadi gangguan setiap hari sesudahnya.
+
+---
+
 ## D-048 · Uji notifikasi menempuh jalur pengiriman yang sama persis
 
 **Tanggal**: 5 September 2026 · **Atas permintaan user**

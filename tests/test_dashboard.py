@@ -595,3 +595,60 @@ async def test_the_notification_test_button_is_on_the_page(
         for row in card.get("entities", [])
     }
     assert button in rows
+
+
+async def test_the_default_order_is_the_one_the_user_arranged(
+    hass: HomeAssistant,
+) -> None:
+    """Susunan bagian dikunci, supaya membuat ulang tidak berarti menata ulang.
+
+    User sudah merapikan dashboardnya sendiri lalu meminta susunan itu jadi
+    bawaan. Kalau urutannya berubah diam-diam nanti, mereka harus menata ulang
+    dari awal - dan tidak akan tahu kenapa.
+    """
+    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    page = build_dashboard(hass, entry.runtime_data)["views"][0]
+    headings = [
+        card["heading"]
+        for section in page["sections"]
+        for card in section["cards"]
+        if card.get("type") == "heading"
+    ]
+
+    # Judulnya mengikuti bahasa Home Assistant; yang dikunci di sini urutannya.
+    assert headings == [
+        "Overview",
+        "Token",
+        "Usage & cost",
+        "Charts",
+        "Analysis",
+        "Settings",
+    ]
+
+
+async def test_the_overview_section_reads_top_to_bottom(
+    hass: HomeAssistant,
+) -> None:
+    """Yang dilihat sekilas duluan, yang perlu dibaca menyusul.
+
+    Gauge dan angka besar di atas; daftar status dan penjelasannya di bawah.
+    Membalik urutannya berarti angka yang paling sering dicari justru paling
+    jauh dari mata.
+    """
+    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    page = build_dashboard(hass, entry.runtime_data)["views"][0]
+    titles = [
+        card.get("title") or card.get("card", {}).get("type") or card["type"]
+        for card in page["sections"][0]["cards"]
+    ]
+
+    # Gauge sisa hari (dibungkus conditional) mendahului kartu Token dan Status.
+    assert titles.index("gauge") < titles.index("Token") < titles.index("Status")

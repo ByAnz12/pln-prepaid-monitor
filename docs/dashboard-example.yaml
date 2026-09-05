@@ -39,30 +39,9 @@ views:
           green: 7.0
           yellow: 3.0
           red: 0
-    - type: entities
-      title: Status
-      entities:
-      - entity: sensor.pln_rumah_status_token
-        name: Status
-      - entity: sensor.pln_rumah_perkiraan_hari_tersisa
-        name: Perkiraan hari tersisa
-      - entity: sensor.pln_rumah_perkiraan_tanggal_habis
-        name: Perkiraan tanggal habis
-      - entity: binary_sensor.pln_rumah_data_cukup_untuk_perkiraan
-        name: Data cukup untuk perkiraan
-    - type: conditional
-      conditions:
-      - entity: binary_sensor.pln_rumah_data_cukup_untuk_perkiraan
-        state: 'off'
-      card:
-        type: markdown
-        content: '**Perkiraan belum bisa dihitung.** Sistem butuh beberapa hari data
-          pemakaian dulu sebelum bisa menebak kapan token habis, jadi status dan tanggal
-          habis masih kosong. Ini normal untuk pemasangan baru - tidak ada yang rusak,
-          dan sisa token di bawah tetap dihitung benar.'
     - type: gauge
       entity: sensor.pln_rumah_daya
-      name: Sekarang
+      name: Daya yang dipakai saat ini
       needle: true
       min: 0
       max: 5000
@@ -79,122 +58,6 @@ views:
         name: Frekuensi
       - entity: binary_sensor.mcb_rumah_status_koneksi
         name: Koneksi
-  - type: grid
-    cards:
-    - type: heading
-      heading: Pemakaian & biaya
-      heading_style: title
-    - type: markdown
-      content: '### Pemakaian
-
-        {% set s = state_attr(''sensor.pln_rumah_total_energi'', ''period_summary'')
-        or {} %}
-
-        | | |
-
-        |---|--:|
-
-        {% if s.get(''avg_hourly'') is not none %}| Rata-rata per jam | {{ ''{:,.2f}''.format(s.get(''avg_hourly''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Rata-rata per jam | - |{% endif %}
-
-        {% if s.get(''avg_daily'') is not none %}| Rata-rata harian | {{ ''{:,.2f}''.format(s.get(''avg_daily''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Rata-rata harian | - |{% endif %}
-
-        {% if s.get(''avg_monthly'') is not none %}| Rata-rata bulanan | {{ ''{:,.2f}''.format(s.get(''avg_monthly''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Rata-rata bulanan | - |{% endif %}
-
-        {% if s.get(''this_day'') is not none %}| Hari ini | {{ ''{:,.2f}''.format(s.get(''this_day''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Hari ini | - |{% endif %}
-
-        {% if s.get(''prev_day_1'') is not none %}| Hari kemarin | {{ ''{:,.2f}''.format(s.get(''prev_day_1''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Hari kemarin | - |{% endif %}
-
-        {% if s.get(''prev_day_2'') is not none %}| 2 hari lalu | {{ ''{:,.2f}''.format(s.get(''prev_day_2''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| 2 hari lalu | - |{% endif %}
-
-        {% if s.get(''prev_day_3'') is not none %}| 3 hari lalu | {{ ''{:,.2f}''.format(s.get(''prev_day_3''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| 3 hari lalu | - |{% endif %}
-
-        {% if s.get(''this_month'') is not none %}| Bulan ini | {{ ''{:,.2f}''.format(s.get(''this_month''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Bulan ini | - |{% endif %}
-
-        {% if s.get(''prev_month_1'') is not none %}| Bulan kemarin | {{ ''{:,.2f}''.format(s.get(''prev_month_1''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Bulan kemarin | - |{% endif %}
-
-        {% if s.get(''prev_month_2'') is not none %}| 2 bulan lalu | {{ ''{:,.2f}''.format(s.get(''prev_month_2''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| 2 bulan lalu | - |{% endif %}
-
-        {% if s.get(''prev_month_3'') is not none %}| 3 bulan lalu | {{ ''{:,.2f}''.format(s.get(''prev_month_3''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| 3 bulan lalu | - |{% endif %}'
-    - type: markdown
-      content: '### Biaya
-
-        {% set s = state_attr(''sensor.pln_rumah_total_biaya'', ''period_summary'')
-        or {} %}
-
-        | | |
-
-        |---|--:|
-
-        {% if s.get(''avg_hourly'') is not none %}| Rata-rata per jam | Rp {{ ''{:,.0f}''.format(s.get(''avg_hourly''))
-        | replace('','', ''.'') }} |{% else %}| Rata-rata per jam | - |{% endif %}
-
-        {% if s.get(''avg_daily'') is not none %}| Rata-rata harian | Rp {{ ''{:,.0f}''.format(s.get(''avg_daily''))
-        | replace('','', ''.'') }} |{% else %}| Rata-rata harian | - |{% endif %}
-
-        {% if s.get(''avg_monthly'') is not none %}| Rata-rata bulanan | Rp {{ ''{:,.0f}''.format(s.get(''avg_monthly''))
-        | replace('','', ''.'') }} |{% else %}| Rata-rata bulanan | - |{% endif %}
-
-        {% if s.get(''this_day'') is not none %}| Hari ini | Rp {{ ''{:,.0f}''.format(s.get(''this_day''))
-        | replace('','', ''.'') }} |{% else %}| Hari ini | - |{% endif %}
-
-        {% if s.get(''prev_day_1'') is not none %}| Hari kemarin | Rp {{ ''{:,.0f}''.format(s.get(''prev_day_1''))
-        | replace('','', ''.'') }} |{% else %}| Hari kemarin | - |{% endif %}
-
-        {% if s.get(''prev_day_2'') is not none %}| 2 hari lalu | Rp {{ ''{:,.0f}''.format(s.get(''prev_day_2''))
-        | replace('','', ''.'') }} |{% else %}| 2 hari lalu | - |{% endif %}
-
-        {% if s.get(''prev_day_3'') is not none %}| 3 hari lalu | Rp {{ ''{:,.0f}''.format(s.get(''prev_day_3''))
-        | replace('','', ''.'') }} |{% else %}| 3 hari lalu | - |{% endif %}
-
-        {% if s.get(''this_month'') is not none %}| Bulan ini | Rp {{ ''{:,.0f}''.format(s.get(''this_month''))
-        | replace('','', ''.'') }} |{% else %}| Bulan ini | - |{% endif %}
-
-        {% if s.get(''prev_month_1'') is not none %}| Bulan kemarin | Rp {{ ''{:,.0f}''.format(s.get(''prev_month_1''))
-        | replace('','', ''.'') }} |{% else %}| Bulan kemarin | - |{% endif %}
-
-        {% if s.get(''prev_month_2'') is not none %}| 2 bulan lalu | Rp {{ ''{:,.0f}''.format(s.get(''prev_month_2''))
-        | replace('','', ''.'') }} |{% else %}| 2 bulan lalu | - |{% endif %}
-
-        {% if s.get(''prev_month_3'') is not none %}| 3 bulan lalu | Rp {{ ''{:,.0f}''.format(s.get(''prev_month_3''))
-        | replace('','', ''.'') }} |{% else %}| 3 bulan lalu | - |{% endif %}'
-  - type: grid
-    cards:
-    - type: heading
-      heading: Token
-      heading_style: title
-    - type: entities
-      title: Token
-      entities:
-      - entity: sensor.pln_rumah_sisa_token
-        name: Sisa token
-      - entity: sensor.pln_rumah_nilai_sisa_token
-        name: Nilai sisa token
-      - entity: sensor.pln_rumah_token_terpakai
-        name: Terpakai dari token
-      - entity: sensor.pln_rumah_rata_rata_pemakaian_harian
-        name: Rata-rata harian
     - type: conditional
       conditions:
       - entity: binary_sensor.pln_rumah_penahanan_catatan_token
@@ -241,6 +104,85 @@ views:
                 action: accept
               confirmation:
                 text: Anggap pemakaian nyata?
+    - type: entities
+      title: Token
+      entities:
+      - entity: sensor.pln_rumah_sisa_token
+        name: Sisa token
+      - entity: sensor.pln_rumah_nilai_sisa_token
+        name: Nilai sisa token
+      - entity: sensor.pln_rumah_token_terpakai
+        name: Terpakai dari token
+      - entity: sensor.pln_rumah_rata_rata_pemakaian_harian
+        name: Rata-rata harian
+    - type: entities
+      title: Status
+      entities:
+      - entity: sensor.pln_rumah_status_token
+        name: Status
+      - entity: sensor.pln_rumah_perkiraan_hari_tersisa
+        name: Perkiraan hari tersisa
+      - entity: sensor.pln_rumah_perkiraan_tanggal_habis
+        name: Perkiraan tanggal habis
+      - entity: binary_sensor.pln_rumah_data_cukup_untuk_perkiraan
+        name: Data cukup untuk perkiraan
+    - type: conditional
+      conditions:
+      - entity: binary_sensor.pln_rumah_data_cukup_untuk_perkiraan
+        state: 'off'
+      card:
+        type: markdown
+        content: '**Perkiraan belum bisa dihitung.** Sistem butuh beberapa hari data
+          pemakaian dulu sebelum bisa menebak kapan token habis, jadi status dan tanggal
+          habis masih kosong. Ini normal untuk pemasangan baru - tidak ada yang rusak,
+          dan sisa token di bawah tetap dihitung benar.'
+  - type: grid
+    cards:
+    - type: heading
+      heading: Token
+      heading_style: title
+    - type: markdown
+      content: '### Riwayat pengisian
+
+        {% set log = state_attr(''sensor.pln_rumah_sisa_token'', ''topup_log'') or
+        [] %}
+
+        {% set rows = log[:(states(''number.pln_rumah'') | int(10))] %}
+
+        {% if rows %}
+
+        | # | Tanggal | kWh | Rupiah | Per kWh |
+
+        |--:|---|--:|--:|--:|
+
+        {%- for row in rows %}
+
+        | {{ row.no }} | {{ (row.at | as_datetime | as_local).strftime(''%d/%m/%y
+        %H:%M'') }} | {{ ''%.2f'' | format(row.kwh) }}{{ '' *'' if row.superseded
+        else '''' }} | {{ (''Rp '' ~ ''{:,.0f}''.format(row.rp) | replace('','', ''.''))
+        if row.rp else ''-'' }} | {{ (''Rp '' ~ ''{:,.2f}''.format(row.rate) | replace('','',
+        ''@'') | replace(''.'', '','') | replace(''@'', ''.'')) if row.rate else ''-''
+        }} |
+
+        {%- endfor %}
+
+
+        {% if log | selectattr(''superseded'') | list | count > 0 -%}
+
+        Tanda bintang berarti pengisian itu sudah digantikan penyamaan atau reset,
+        jadi tidak lagi ikut dihitung.
+
+        {%- endif %}
+
+        {% else %}
+
+        Belum ada pengisian yang tercatat.
+
+        {% endif %}'
+    - type: entities
+      entities:
+      - entity: number.pln_rumah
+        name: Tampilkan berapa baris
     - type: entities
       title: Isi token
       entities:
@@ -386,91 +328,78 @@ views:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         confirmation:
           text: Reset ke nol?
-    - type: markdown
-      content: '### Riwayat pengisian
-
-        {% set log = state_attr(''sensor.pln_rumah_sisa_token'', ''topup_log'') or
-        [] %}
-
-        {% set rows = log[:(states(''number.pln_rumah'') | int(10))] %}
-
-        {% if rows %}
-
-        | # | Tanggal | kWh | Rupiah | Per kWh |
-
-        |--:|---|--:|--:|--:|
-
-        {%- for row in rows %}
-
-        | {{ row.no }} | {{ (row.at | as_datetime | as_local).strftime(''%d/%m/%y
-        %H:%M'') }} | {{ ''%.2f'' | format(row.kwh) }}{{ '' *'' if row.superseded
-        else '''' }} | {{ (''Rp '' ~ ''{:,.0f}''.format(row.rp) | replace('','', ''.''))
-        if row.rp else ''-'' }} | {{ (''Rp '' ~ ''{:,.2f}''.format(row.rate) | replace('','',
-        ''@'') | replace(''.'', '','') | replace(''@'', ''.'')) if row.rate else ''-''
-        }} |
-
-        {%- endfor %}
-
-
-        {% if log | selectattr(''superseded'') | list | count > 0 -%}
-
-        Tanda bintang berarti pengisian itu sudah digantikan penyamaan atau reset,
-        jadi tidak lagi ikut dihitung.
-
-        {%- endif %}
-
-        {% else %}
-
-        Belum ada pengisian yang tercatat.
-
-        {% endif %}'
-    - type: entities
-      entities:
-      - entity: number.pln_rumah
-        name: Tampilkan berapa baris
   - type: grid
     cards:
     - type: heading
-      heading: Pengaturan
+      heading: Pemakaian & biaya
       heading_style: title
-    - type: entities
-      title: Pengaturan
-      entities:
-      - entity: number.tarif_r_1_tarif_per_kwh
-        name: Tarif per kWh
-      - entity: number.pln_rumah_ambang_peringatan
-        name: Ambang peringatan
-      - entity: number.pln_rumah_ambang_kritis
-        name: Ambang kritis
-      - entity: number.pln_rumah_ambang_sangat_kritis
-        name: Ambang sangat kritis
     - type: markdown
-      content: Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur,
-        memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan
-        jeda antar pesan dilewati.
-    - type: entities
-      entities:
-      - entity: button.pln_rumah_uji_notifikasi
-        name: Kirim pesan percobaan
-    - type: markdown
-      content: '### Perawatan
+      content: '### Pemakaian dan biaya
 
+        {% set e = state_attr(''sensor.pln_rumah_total_energi'', ''period_summary'')
+        or {} %}
 
-        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
-        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
-        Assistant Anda tidak tersentuh.'
-    - type: button
-      name: Bersihkan data
-      show_icon: false
-      icon: mdi:database-remove
-      show_state: false
-      tap_action:
-        action: perform-action
-        perform_action: pln_prepaid_monitor.purge_old_data
-        target:
-          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
-        confirmation:
-          text: Bersihkan data?
+        {% set c = state_attr(''sensor.pln_rumah_total_biaya'', ''period_summary'')
+        or {} %}
+
+        | | kWh | Rp |
+
+        |---|--:|--:|
+
+        | Rata-rata per jam | {% if e.get(''avg_hourly'') is not none %}{{ ''{:,.2f}''.format(e.get(''avg_hourly''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''avg_hourly'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''avg_hourly''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Rata-rata harian | {% if e.get(''avg_daily'') is not none %}{{ ''{:,.2f}''.format(e.get(''avg_daily''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''avg_daily'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''avg_daily''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Rata-rata bulanan | {% if e.get(''avg_monthly'') is not none %}{{ ''{:,.2f}''.format(e.get(''avg_monthly''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''avg_monthly'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''avg_monthly''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Hari ini | {% if e.get(''this_day'') is not none %}{{ ''{:,.2f}''.format(e.get(''this_day''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''this_day'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''this_day''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Hari kemarin | {% if e.get(''prev_day_1'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_day_1''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_day_1'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_day_1''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | 2 hari lalu | {% if e.get(''prev_day_2'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_day_2''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_day_2'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_day_2''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | 3 hari lalu | {% if e.get(''prev_day_3'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_day_3''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_day_3'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_day_3''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Bulan ini | {% if e.get(''this_month'') is not none %}{{ ''{:,.2f}''.format(e.get(''this_month''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''this_month'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''this_month''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Bulan kemarin | {% if e.get(''prev_month_1'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_month_1''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_month_1'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_month_1''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | 2 bulan lalu | {% if e.get(''prev_month_2'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_month_2''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_month_2'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_month_2''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | 3 bulan lalu | {% if e.get(''prev_month_3'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_month_3''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_month_3'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_month_3''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |'
   - type: grid
     cards:
     - type: heading
@@ -532,6 +461,49 @@ views:
       period: month
       days_to_show: 365
       chart_type: bar
+  - type: grid
+    cards:
+    - type: heading
+      heading: Pengaturan
+      heading_style: title
+    - type: entities
+      title: Pengaturan
+      entities:
+      - entity: number.tarif_r_1_tarif_per_kwh
+        name: Tarif per kWh
+      - entity: number.pln_rumah_ambang_peringatan
+        name: Ambang peringatan
+      - entity: number.pln_rumah_ambang_kritis
+        name: Ambang kritis
+      - entity: number.pln_rumah_ambang_sangat_kritis
+        name: Ambang sangat kritis
+    - type: markdown
+      content: Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur,
+        memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan
+        jeda antar pesan dilewati.
+    - type: entities
+      entities:
+      - entity: button.pln_rumah_uji_notifikasi
+        name: Kirim pesan percobaan
+    - type: markdown
+      content: '### Perawatan
+
+
+        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
+        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
+        Assistant Anda tidak tersentuh.'
+    - type: button
+      name: Bersihkan data
+      show_icon: false
+      icon: mdi:database-remove
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.purge_old_data
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        confirmation:
+          text: Bersihkan data?
 - title: PLN TOKO
   path: pln-toko
   type: sections
@@ -556,30 +528,9 @@ views:
           green: 7.0
           yellow: 3.0
           red: 0
-    - type: entities
-      title: Status
-      entities:
-      - entity: sensor.pln_toko_status_token
-        name: Status
-      - entity: sensor.pln_toko_perkiraan_hari_tersisa
-        name: Perkiraan hari tersisa
-      - entity: sensor.pln_toko_perkiraan_tanggal_habis
-        name: Perkiraan tanggal habis
-      - entity: binary_sensor.pln_toko_data_cukup_untuk_perkiraan
-        name: Data cukup untuk perkiraan
-    - type: conditional
-      conditions:
-      - entity: binary_sensor.pln_toko_data_cukup_untuk_perkiraan
-        state: 'off'
-      card:
-        type: markdown
-        content: '**Perkiraan belum bisa dihitung.** Sistem butuh beberapa hari data
-          pemakaian dulu sebelum bisa menebak kapan token habis, jadi status dan tanggal
-          habis masih kosong. Ini normal untuk pemasangan baru - tidak ada yang rusak,
-          dan sisa token di bawah tetap dihitung benar.'
     - type: gauge
       entity: sensor.pln_toko_daya
-      name: Sekarang
+      name: Daya yang dipakai saat ini
       needle: true
       min: 0
       max: 5000
@@ -596,122 +547,6 @@ views:
         name: Frekuensi
       - entity: binary_sensor.mcb_toko_status_koneksi
         name: Koneksi
-  - type: grid
-    cards:
-    - type: heading
-      heading: Pemakaian & biaya
-      heading_style: title
-    - type: markdown
-      content: '### Pemakaian
-
-        {% set s = state_attr(''sensor.pln_toko_total_energi'', ''period_summary'')
-        or {} %}
-
-        | | |
-
-        |---|--:|
-
-        {% if s.get(''avg_hourly'') is not none %}| Rata-rata per jam | {{ ''{:,.2f}''.format(s.get(''avg_hourly''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Rata-rata per jam | - |{% endif %}
-
-        {% if s.get(''avg_daily'') is not none %}| Rata-rata harian | {{ ''{:,.2f}''.format(s.get(''avg_daily''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Rata-rata harian | - |{% endif %}
-
-        {% if s.get(''avg_monthly'') is not none %}| Rata-rata bulanan | {{ ''{:,.2f}''.format(s.get(''avg_monthly''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Rata-rata bulanan | - |{% endif %}
-
-        {% if s.get(''this_day'') is not none %}| Hari ini | {{ ''{:,.2f}''.format(s.get(''this_day''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Hari ini | - |{% endif %}
-
-        {% if s.get(''prev_day_1'') is not none %}| Hari kemarin | {{ ''{:,.2f}''.format(s.get(''prev_day_1''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Hari kemarin | - |{% endif %}
-
-        {% if s.get(''prev_day_2'') is not none %}| 2 hari lalu | {{ ''{:,.2f}''.format(s.get(''prev_day_2''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| 2 hari lalu | - |{% endif %}
-
-        {% if s.get(''prev_day_3'') is not none %}| 3 hari lalu | {{ ''{:,.2f}''.format(s.get(''prev_day_3''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| 3 hari lalu | - |{% endif %}
-
-        {% if s.get(''this_month'') is not none %}| Bulan ini | {{ ''{:,.2f}''.format(s.get(''this_month''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Bulan ini | - |{% endif %}
-
-        {% if s.get(''prev_month_1'') is not none %}| Bulan kemarin | {{ ''{:,.2f}''.format(s.get(''prev_month_1''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| Bulan kemarin | - |{% endif %}
-
-        {% if s.get(''prev_month_2'') is not none %}| 2 bulan lalu | {{ ''{:,.2f}''.format(s.get(''prev_month_2''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| 2 bulan lalu | - |{% endif %}
-
-        {% if s.get(''prev_month_3'') is not none %}| 3 bulan lalu | {{ ''{:,.2f}''.format(s.get(''prev_month_3''))
-        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}
-        kWh |{% else %}| 3 bulan lalu | - |{% endif %}'
-    - type: markdown
-      content: '### Biaya
-
-        {% set s = state_attr(''sensor.pln_toko_total_biaya'', ''period_summary'')
-        or {} %}
-
-        | | |
-
-        |---|--:|
-
-        {% if s.get(''avg_hourly'') is not none %}| Rata-rata per jam | Rp {{ ''{:,.0f}''.format(s.get(''avg_hourly''))
-        | replace('','', ''.'') }} |{% else %}| Rata-rata per jam | - |{% endif %}
-
-        {% if s.get(''avg_daily'') is not none %}| Rata-rata harian | Rp {{ ''{:,.0f}''.format(s.get(''avg_daily''))
-        | replace('','', ''.'') }} |{% else %}| Rata-rata harian | - |{% endif %}
-
-        {% if s.get(''avg_monthly'') is not none %}| Rata-rata bulanan | Rp {{ ''{:,.0f}''.format(s.get(''avg_monthly''))
-        | replace('','', ''.'') }} |{% else %}| Rata-rata bulanan | - |{% endif %}
-
-        {% if s.get(''this_day'') is not none %}| Hari ini | Rp {{ ''{:,.0f}''.format(s.get(''this_day''))
-        | replace('','', ''.'') }} |{% else %}| Hari ini | - |{% endif %}
-
-        {% if s.get(''prev_day_1'') is not none %}| Hari kemarin | Rp {{ ''{:,.0f}''.format(s.get(''prev_day_1''))
-        | replace('','', ''.'') }} |{% else %}| Hari kemarin | - |{% endif %}
-
-        {% if s.get(''prev_day_2'') is not none %}| 2 hari lalu | Rp {{ ''{:,.0f}''.format(s.get(''prev_day_2''))
-        | replace('','', ''.'') }} |{% else %}| 2 hari lalu | - |{% endif %}
-
-        {% if s.get(''prev_day_3'') is not none %}| 3 hari lalu | Rp {{ ''{:,.0f}''.format(s.get(''prev_day_3''))
-        | replace('','', ''.'') }} |{% else %}| 3 hari lalu | - |{% endif %}
-
-        {% if s.get(''this_month'') is not none %}| Bulan ini | Rp {{ ''{:,.0f}''.format(s.get(''this_month''))
-        | replace('','', ''.'') }} |{% else %}| Bulan ini | - |{% endif %}
-
-        {% if s.get(''prev_month_1'') is not none %}| Bulan kemarin | Rp {{ ''{:,.0f}''.format(s.get(''prev_month_1''))
-        | replace('','', ''.'') }} |{% else %}| Bulan kemarin | - |{% endif %}
-
-        {% if s.get(''prev_month_2'') is not none %}| 2 bulan lalu | Rp {{ ''{:,.0f}''.format(s.get(''prev_month_2''))
-        | replace('','', ''.'') }} |{% else %}| 2 bulan lalu | - |{% endif %}
-
-        {% if s.get(''prev_month_3'') is not none %}| 3 bulan lalu | Rp {{ ''{:,.0f}''.format(s.get(''prev_month_3''))
-        | replace('','', ''.'') }} |{% else %}| 3 bulan lalu | - |{% endif %}'
-  - type: grid
-    cards:
-    - type: heading
-      heading: Token
-      heading_style: title
-    - type: entities
-      title: Token
-      entities:
-      - entity: sensor.pln_toko_sisa_token
-        name: Sisa token
-      - entity: sensor.pln_toko_nilai_sisa_token
-        name: Nilai sisa token
-      - entity: sensor.pln_toko_token_terpakai
-        name: Terpakai dari token
-      - entity: sensor.pln_toko_rata_rata_pemakaian_harian
-        name: Rata-rata harian
     - type: conditional
       conditions:
       - entity: binary_sensor.pln_toko_penahanan_catatan_token
@@ -758,6 +593,85 @@ views:
                 action: accept
               confirmation:
                 text: Anggap pemakaian nyata?
+    - type: entities
+      title: Token
+      entities:
+      - entity: sensor.pln_toko_sisa_token
+        name: Sisa token
+      - entity: sensor.pln_toko_nilai_sisa_token
+        name: Nilai sisa token
+      - entity: sensor.pln_toko_token_terpakai
+        name: Terpakai dari token
+      - entity: sensor.pln_toko_rata_rata_pemakaian_harian
+        name: Rata-rata harian
+    - type: entities
+      title: Status
+      entities:
+      - entity: sensor.pln_toko_status_token
+        name: Status
+      - entity: sensor.pln_toko_perkiraan_hari_tersisa
+        name: Perkiraan hari tersisa
+      - entity: sensor.pln_toko_perkiraan_tanggal_habis
+        name: Perkiraan tanggal habis
+      - entity: binary_sensor.pln_toko_data_cukup_untuk_perkiraan
+        name: Data cukup untuk perkiraan
+    - type: conditional
+      conditions:
+      - entity: binary_sensor.pln_toko_data_cukup_untuk_perkiraan
+        state: 'off'
+      card:
+        type: markdown
+        content: '**Perkiraan belum bisa dihitung.** Sistem butuh beberapa hari data
+          pemakaian dulu sebelum bisa menebak kapan token habis, jadi status dan tanggal
+          habis masih kosong. Ini normal untuk pemasangan baru - tidak ada yang rusak,
+          dan sisa token di bawah tetap dihitung benar.'
+  - type: grid
+    cards:
+    - type: heading
+      heading: Token
+      heading_style: title
+    - type: markdown
+      content: '### Riwayat pengisian
+
+        {% set log = state_attr(''sensor.pln_toko_sisa_token'', ''topup_log'') or
+        [] %}
+
+        {% set rows = log[:(states(''number.pln_toko'') | int(10))] %}
+
+        {% if rows %}
+
+        | # | Tanggal | kWh | Rupiah | Per kWh |
+
+        |--:|---|--:|--:|--:|
+
+        {%- for row in rows %}
+
+        | {{ row.no }} | {{ (row.at | as_datetime | as_local).strftime(''%d/%m/%y
+        %H:%M'') }} | {{ ''%.2f'' | format(row.kwh) }}{{ '' *'' if row.superseded
+        else '''' }} | {{ (''Rp '' ~ ''{:,.0f}''.format(row.rp) | replace('','', ''.''))
+        if row.rp else ''-'' }} | {{ (''Rp '' ~ ''{:,.2f}''.format(row.rate) | replace('','',
+        ''@'') | replace(''.'', '','') | replace(''@'', ''.'')) if row.rate else ''-''
+        }} |
+
+        {%- endfor %}
+
+
+        {% if log | selectattr(''superseded'') | list | count > 0 -%}
+
+        Tanda bintang berarti pengisian itu sudah digantikan penyamaan atau reset,
+        jadi tidak lagi ikut dihitung.
+
+        {%- endif %}
+
+        {% else %}
+
+        Belum ada pengisian yang tercatat.
+
+        {% endif %}'
+    - type: entities
+      entities:
+      - entity: number.pln_toko
+        name: Tampilkan berapa baris
     - type: entities
       title: Isi token
       entities:
@@ -871,91 +785,78 @@ views:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         confirmation:
           text: Reset ke nol?
-    - type: markdown
-      content: '### Riwayat pengisian
-
-        {% set log = state_attr(''sensor.pln_toko_sisa_token'', ''topup_log'') or
-        [] %}
-
-        {% set rows = log[:(states(''number.pln_toko'') | int(10))] %}
-
-        {% if rows %}
-
-        | # | Tanggal | kWh | Rupiah | Per kWh |
-
-        |--:|---|--:|--:|--:|
-
-        {%- for row in rows %}
-
-        | {{ row.no }} | {{ (row.at | as_datetime | as_local).strftime(''%d/%m/%y
-        %H:%M'') }} | {{ ''%.2f'' | format(row.kwh) }}{{ '' *'' if row.superseded
-        else '''' }} | {{ (''Rp '' ~ ''{:,.0f}''.format(row.rp) | replace('','', ''.''))
-        if row.rp else ''-'' }} | {{ (''Rp '' ~ ''{:,.2f}''.format(row.rate) | replace('','',
-        ''@'') | replace(''.'', '','') | replace(''@'', ''.'')) if row.rate else ''-''
-        }} |
-
-        {%- endfor %}
-
-
-        {% if log | selectattr(''superseded'') | list | count > 0 -%}
-
-        Tanda bintang berarti pengisian itu sudah digantikan penyamaan atau reset,
-        jadi tidak lagi ikut dihitung.
-
-        {%- endif %}
-
-        {% else %}
-
-        Belum ada pengisian yang tercatat.
-
-        {% endif %}'
-    - type: entities
-      entities:
-      - entity: number.pln_toko
-        name: Tampilkan berapa baris
   - type: grid
     cards:
     - type: heading
-      heading: Pengaturan
+      heading: Pemakaian & biaya
       heading_style: title
-    - type: entities
-      title: Pengaturan
-      entities:
-      - entity: number.tarif_r_1_tarif_per_kwh
-        name: Tarif per kWh
-      - entity: number.pln_toko_ambang_peringatan
-        name: Ambang peringatan
-      - entity: number.pln_toko_ambang_kritis
-        name: Ambang kritis
-      - entity: number.pln_toko_ambang_sangat_kritis
-        name: Ambang sangat kritis
     - type: markdown
-      content: Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur,
-        memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan
-        jeda antar pesan dilewati.
-    - type: entities
-      entities:
-      - entity: button.pln_toko_uji_notifikasi
-        name: Kirim pesan percobaan
-    - type: markdown
-      content: '### Perawatan
+      content: '### Pemakaian dan biaya
 
+        {% set e = state_attr(''sensor.pln_toko_total_energi'', ''period_summary'')
+        or {} %}
 
-        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
-        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
-        Assistant Anda tidak tersentuh.'
-    - type: button
-      name: Bersihkan data
-      show_icon: false
-      icon: mdi:database-remove
-      show_state: false
-      tap_action:
-        action: perform-action
-        perform_action: pln_prepaid_monitor.purge_old_data
-        target:
-          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
-        confirmation:
-          text: Bersihkan data?
+        {% set c = state_attr(''sensor.pln_toko_total_biaya'', ''period_summary'')
+        or {} %}
+
+        | | kWh | Rp |
+
+        |---|--:|--:|
+
+        | Rata-rata per jam | {% if e.get(''avg_hourly'') is not none %}{{ ''{:,.2f}''.format(e.get(''avg_hourly''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''avg_hourly'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''avg_hourly''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Rata-rata harian | {% if e.get(''avg_daily'') is not none %}{{ ''{:,.2f}''.format(e.get(''avg_daily''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''avg_daily'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''avg_daily''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Rata-rata bulanan | {% if e.get(''avg_monthly'') is not none %}{{ ''{:,.2f}''.format(e.get(''avg_monthly''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''avg_monthly'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''avg_monthly''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Hari ini | {% if e.get(''this_day'') is not none %}{{ ''{:,.2f}''.format(e.get(''this_day''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''this_day'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''this_day''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Hari kemarin | {% if e.get(''prev_day_1'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_day_1''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_day_1'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_day_1''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | 2 hari lalu | {% if e.get(''prev_day_2'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_day_2''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_day_2'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_day_2''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | 3 hari lalu | {% if e.get(''prev_day_3'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_day_3''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_day_3'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_day_3''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Bulan ini | {% if e.get(''this_month'') is not none %}{{ ''{:,.2f}''.format(e.get(''this_month''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''this_month'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''this_month''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | Bulan kemarin | {% if e.get(''prev_month_1'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_month_1''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_month_1'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_month_1''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | 2 bulan lalu | {% if e.get(''prev_month_2'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_month_2''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_month_2'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_month_2''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |
+
+        | 3 bulan lalu | {% if e.get(''prev_month_3'') is not none %}{{ ''{:,.2f}''.format(e.get(''prev_month_3''))
+        | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
+        else %}-{% endif %} | {% if c.get(''prev_month_3'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_month_3''))
+        | replace('','', ''.'') }}{% else %}-{% endif %} |'
   - type: grid
     cards:
     - type: heading
@@ -1017,3 +918,46 @@ views:
       period: month
       days_to_show: 365
       chart_type: bar
+  - type: grid
+    cards:
+    - type: heading
+      heading: Pengaturan
+      heading_style: title
+    - type: entities
+      title: Pengaturan
+      entities:
+      - entity: number.tarif_r_1_tarif_per_kwh
+        name: Tarif per kWh
+      - entity: number.pln_toko_ambang_peringatan
+        name: Ambang peringatan
+      - entity: number.pln_toko_ambang_kritis
+        name: Ambang kritis
+      - entity: number.pln_toko_ambang_sangat_kritis
+        name: Ambang sangat kritis
+    - type: markdown
+      content: Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur,
+        memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan
+        jeda antar pesan dilewati.
+    - type: entities
+      entities:
+      - entity: button.pln_toko_uji_notifikasi
+        name: Kirim pesan percobaan
+    - type: markdown
+      content: '### Perawatan
+
+
+        Menghapus riwayat lama milik integrasi ini sesuai batas retensi yang Anda
+        atur di **Configure**. Bersifat **permanen**. Entity dan data lain di Home
+        Assistant Anda tidak tersentuh.'
+    - type: button
+      name: Bersihkan data
+      show_icon: false
+      icon: mdi:database-remove
+      show_state: false
+      tap_action:
+        action: perform-action
+        perform_action: pln_prepaid_monitor.purge_old_data
+        target:
+          device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
+        confirmation:
+          text: Bersihkan data?

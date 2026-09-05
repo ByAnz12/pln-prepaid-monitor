@@ -125,24 +125,34 @@ def _summary_cards(hass: HomeAssistant, runtime_data) -> list[str]:
     ]
 
 
+def _columns(rendered: str) -> int:
+    """Jumlah kolom pada baris judul tabel yang dirender."""
+    header = next(l for l in rendered.splitlines() if l.strip().startswith("|"))
+    return header.count("|")
+
+
 def _render(hass: HomeAssistant, content: str) -> str:
     from homeassistant.helpers.template import Template
 
     return Template(content, hass).async_render(parse_result=False)
 
 
-async def test_both_cards_render_without_error(hass: HomeAssistant) -> None:
-    """Template pemakaian dan biaya benar-benar dirender, bukan cuma dicek teksnya."""
+async def test_usage_and_cost_share_one_card(hass: HomeAssistant) -> None:
+    """Satu kartu, dua kolom - bukan dua kartu terpisah.
+
+    Dulu terpisah, dan itu memaksa mata bolak-balik untuk menjawab pertanyaan
+    yang sebenarnya satu: "bulan kemarin berapa kWh, dan berapa rupiahnya?".
+    """
     apply_states(hass, MCB_RUMAH)
     entry = await _setup(hass)
 
     contents = _summary_cards(hass, entry.runtime_data)
-    assert len(contents) == 2, "harus ada kartu Pemakaian dan kartu Biaya"
+    assert len(contents) == 1, "pemakaian dan biaya harus jadi satu kartu"
 
-    for content in contents:
-        rendered = _render(hass, content)
-        assert "Hari ini" in rendered or "Today" in rendered
-        assert "|" in rendered
+    rendered = _render(hass, contents[0])
+    assert "Hari ini" in rendered or "Today" in rendered
+    # Tiga kolom: label, kWh, dan mata uang.
+    assert _columns(rendered) == 4
 
 
 async def test_rows_without_data_show_a_dash_not_a_broken_number(
@@ -174,31 +184,34 @@ async def test_the_checklist_decides_which_rows_appear(
     assert entry.runtime_data.billing_groups[GROUP_ID]
 
 
-async def test_cost_rows_carry_the_currency(hass: HomeAssistant) -> None:
-    """Angka biaya tanpa mata uang ambigu - "230" itu rupiah atau kWh?"""
+async def test_both_columns_say_what_their_numbers_are(
+    hass: HomeAssistant,
+) -> None:
+    """Angka telanjang tidak memberi tahu apa-apa - "230" itu rupiah atau kWh?"""
     apply_states(hass, MCB_RUMAH)
     entry = await _setup(hass)
 
-    contents = _summary_cards(hass, entry.runtime_data)
-    cost = [c for c in contents if "cost_total" in c or "total_biaya" in c]
-    assert len(cost) == 1
+    rendered = _render(hass, _summary_cards(hass, entry.runtime_data)[0])
 
-    rendered = _render(hass, cost[0])
+    assert "kWh" in rendered
     assert "Rp" in rendered
 
 
-async def test_energy_rows_carry_the_unit(hass: HomeAssistant) -> None:
-    """Sama untuk pemakaian: angka telanjang tidak memberi tahu apa-apa."""
-    apply_states(hass, MCB_RUMAH)
-    entry = await _setup(hass)
+async def test_a_group_without_a_tariff_gets_only_the_kwh_column(
+    hass: HomeAssistant,
+) -> None:
+    """Tanpa tarif tidak ada angka biaya, jadi kolomnya tidak dibuat kosong."""
+    from custom_components.pln_prepaid_monitor.const import CONF_TARIFF_ID
 
-    energy = [
-        c
-        for c in _summary_cards(hass, entry.runtime_data)
-        if "cost_total" not in c and "total_biaya" not in c
-    ]
-    assert len(energy) == 1
-    assert "kWh" in _render(hass, energy[0])
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, group_overrides={CONF_TARIFF_ID: None})
+
+    rendered = _render(hass, _summary_cards(hass, entry.runtime_data)[0])
+
+    assert "kWh" in rendered
+    assert "Rp" not in rendered
+    # Dua kolom, bukan tiga.
+    assert _columns(rendered) == 3
 
 
 def test_the_hourly_average_always_agrees_with_the_daily_one() -> None:

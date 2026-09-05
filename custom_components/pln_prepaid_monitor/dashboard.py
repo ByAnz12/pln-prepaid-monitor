@@ -118,7 +118,6 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "sec_token": "Token",
         "sec_settings": "Pengaturan",
         "sec_graphs": "Grafik",
-        "sec_maintenance": "Perawatan",
         "save_template": "Simpan sebagai template",
         "save_action": "SIMPAN",
         "rate_title": "Harga per kWh berubah",
@@ -145,6 +144,8 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "monthly_cost": "Biaya per bulan (1 tahun)",
         "notify_test": "Kirim pesan percobaan",
         "notify_test_note": "Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur, memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan jeda antar pesan dilewati.",
+        "usage_and_cost": "Pemakaian dan biaya",
+        "power_now": "Daya yang dipakai saat ini",
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
     },
@@ -228,7 +229,6 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "sec_token": "Token",
         "sec_settings": "Settings",
         "sec_graphs": "Charts",
-        "sec_maintenance": "Maintenance",
         "save_template": "Save as template",
         "save_action": "SAVE",
         "rate_title": "Price per kWh has changed",
@@ -255,6 +255,8 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "monthly_cost": "Cost per month (1 year)",
         "notify_test": "Send a test message",
         "notify_test_note": "Sends one test message through the notification targets you configured, using exactly the same path as real token messages. Quiet hours and cooldown are skipped.",
+        "usage_and_cost": "Usage and cost",
+        "power_now": "Power used right now",
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
     },
@@ -423,12 +425,11 @@ STATUS_ROWS = (
 
 
 def _status_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
-    """Ringkasan status, plus penjelasan kalau perkiraannya memang belum ada.
+    """Daftar status, plus penjelasan kalau perkiraannya memang belum ada.
 
     Tanpa penjelasan itu, pemasangan baru menampilkan empat baris berisi
-    "Unknown" dan "Unavailable" - terlihat seperti rusak, padahal sistem hanya
-    belum punya cukup data. Nama barisnya juga dipendekkan; tanpa itu setiap
-    baris diawali nama kelompok tagihan dan terpotong di layar sempit.
+    "Tidak diketahui" dan "Tidak tersedia" - terlihat seperti rusak, padahal
+    sistem hanya belum punya cukup data.
     """
     rows = [
         {"entity": entity, "name": texts[label]}
@@ -438,39 +439,9 @@ def _status_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]
     if not rows:
         return []
 
-    cards: list[dict[str, Any]] = []
-
-    # Titik fokus halaman: satu angka besar yang langsung menjawab "masih aman
-    # atau tidak". Warnanya memakai ambang yang user atur sendiri, jadi merah di
-    # sini berarti persis apa yang mereka tetapkan sebagai sangat kritis.
-    days = view.entity("days_remaining")
-    sufficient = view.entity("data_sufficient")
-    if days and sufficient and view.thresholds is not None:
-        # Digantung pada "data cukup", bukan langsung ditampilkan: sebelum
-        # datanya cukup, sensor hari tersisa memang belum punya nilai, dan
-        # gauge yang menunjuk entity tanpa nilai memasang kartu peringatan
-        # merah di puncak halaman. Peringatan itu terlihat seperti kerusakan,
-        # padahal keadaannya normal untuk pemasangan baru.
-        cards.append(
-            {
-                "type": "conditional",
-                "conditions": [{"entity": sufficient, "state": "on"}],
-                "card": {
-                    "type": "gauge",
-                    "entity": days,
-                    "name": texts["days_remaining"],
-                    "min": 0,
-                    "max": max(round(float(view.thresholds.warning_days) * 5), 30),
-                    "severity": {
-                        "green": float(view.thresholds.warning_days),
-                        "yellow": float(view.thresholds.critical_days),
-                        "red": 0,
-                    },
-                },
-            }
-        )
-
-    cards.append({"type": "entities", "title": texts["status"], "entities": rows})
+    cards: list[dict[str, Any]] = [
+        {"type": "entities", "title": texts["status"], "entities": rows}
+    ]
     if sufficient := view.entity("data_sufficient"):
         cards.append(
             {
@@ -491,7 +462,7 @@ def _current_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any
             {
                 "type": "gauge",
                 "entity": power,
-                "name": texts["current"],
+                "name": texts["power_now"],
                 "needle": True,
                 "min": 0,
                 "max": 5000,
@@ -526,53 +497,96 @@ def _current_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any
 
 
 def _period_card(
-    view: GroupView, prefix: str, title: str, labels: dict[str, str]
+    view: GroupView, texts: dict[str, str], labels: dict[str, str]
 ) -> dict[str, Any] | None:
-    """Rincian per periode: rata-rata, beberapa hari lalu, beberapa bulan lalu.
+    """Pemakaian dan biaya dalam satu tabel, berdampingan per baris.
 
-    Dirender dari atribut ``period_summary`` pada sensor total, bukan dari
-    belasan entity terpisah. Baris seperti "3 bulan lalu" adalah angka untuk
-    dibaca, bukan untuk dipakai automation; membuat entity sendiri untuk
-    masing-masing berarti belasan entity baru per kelompok tagihan, lengkap
-    dengan riwayatnya di database - biaya yang tidak sepadan.
+    Dulu dua kartu terpisah, dan itu memaksa mata bolak-balik untuk menjawab
+    pertanyaan yang sebenarnya satu: "bulan kemarin berapa kWh, dan berapa
+    rupiahnya?". Sekarang keduanya sebaris.
+
+    Dirender dari atribut ``period_summary`` pada kedua sensor total, bukan
+    dari belasan entity terpisah - lihat docs/decisions.md D-041.
     """
-    total = view.entity(f"{prefix}_total")
-    if not total or not view.detail_rows:
+    energy = view.entity("energy_total")
+    if not energy or not view.detail_rows:
         return None
+    cost = view.entity("cost_total") if view.has_cost else None
 
-    unit = "kWh" if prefix == "energy" else ""
-    lines = [f"### {title}", f"{{% set s = state_attr('{total}', 'period_summary') or {{}} %}}"]
+    nl = chr(10)
+    lines = [
+        f"### {texts['usage_and_cost']}",
+        f"{{% set e = state_attr('{energy}', 'period_summary') or {{}} %}}",
+    ]
+    if cost:
+        lines.append(f"{{% set c = state_attr('{cost}', 'period_summary') or {{}} %}}")
+        lines.append(f"| | kWh | {view.currency} |")
+        lines.append("|---|--:|--:|")
+    else:
+        lines.append("| | kWh |")
+        lines.append("|---|--:|")
+
     for row in view.detail_rows:
-        value = f"s.get('{row}')"
-        shown = (
-            (
-                f"{{{{ '{{:,.2f}}'.format({value}) | replace(',', '@') "
-                f"| replace('.', ',') | replace('@', '.') }}}}"
-                f"{' ' + unit if unit else ''}"
-            )
-            if prefix == "energy"
-            else (
+        kwh = (
+            f"{{% if e.get('{row}') is not none %}}"
+            f"{{{{ '{{:,.2f}}'.format(e.get('{row}')) | replace(',', '@') "
+            f"| replace('.', ',') | replace('@', '.') }}}}"
+            f"{{% else %}}-{{% endif %}}"
+        )
+        cells = [labels.get(row, row), kwh]
+        if cost:
+            cells.append(
+                f"{{% if c.get('{row}') is not none %}}"
                 f"{view.currency} "
-                f"{{{{ '{{:,.0f}}'.format({value}) | replace(',', '.') }}}}"
+                f"{{{{ '{{:,.0f}}'.format(c.get('{row}')) | replace(',', '.') }}}}"
+                f"{{% else %}}-{{% endif %}}"
             )
-        )
-        lines.append(
-            f"{{% if {value} is not none %}}"
-            f"| {labels.get(row, row)} | {shown} |"
-            f"{{% else %}}| {labels.get(row, row)} | - |{{% endif %}}"
-        )
-    # Header tabel disisipkan sesudah baris set supaya template tetap terbaca.
-    lines.insert(2, "| | |")
-    lines.insert(3, "|---|--:|")
-    return {"type": "markdown", "content": "\n".join(lines)}
+        lines.append("| " + " | ".join(cells) + " |")
+
+    return {"type": "markdown", "content": nl.join(lines)}
 
 
-def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
-    """Kartu sisa token, penahanan, dan petunjuk mencatat pengisian."""
-    if not view.token_enabled:
+def _gauge_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
+    """Gauge sisa hari: satu angka besar yang menjawab "masih aman atau tidak".
+
+    Warnanya memakai ambang yang user atur sendiri, jadi merah di sini berarti
+    persis apa yang mereka tetapkan sebagai sangat kritis.
+    """
+    days = view.entity("days_remaining")
+    sufficient = view.entity("data_sufficient")
+    if not days or not sufficient or view.thresholds is None:
         return []
 
-    cards: list[dict[str, Any]] = []
+    # Digantung pada "data cukup", bukan langsung ditampilkan: sebelum datanya
+    # cukup, sensor hari tersisa memang belum punya nilai, dan gauge yang
+    # menunjuk entity tanpa nilai memasang kartu peringatan merah di puncak
+    # halaman - terlihat seperti kerusakan, padahal normal untuk pemasangan baru.
+    return [
+        {
+            "type": "conditional",
+            "conditions": [{"entity": sufficient, "state": "on"}],
+            "card": {
+                "type": "gauge",
+                "entity": days,
+                "name": texts["days_remaining"],
+                "min": 0,
+                "max": max(round(float(view.thresholds.warning_days) * 5), 30),
+                "severity": {
+                    "green": float(view.thresholds.warning_days),
+                    "yellow": float(view.thresholds.critical_days),
+                    "red": 0,
+                },
+            },
+        }
+    ]
+
+
+def _token_summary_cards(
+    view: GroupView, texts: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Ringkasan sisa token: empat angka yang paling sering dibaca."""
+    if not view.token_enabled:
+        return []
     rows = [
         {"entity": entity, "name": texts[label]}
         for key, label in (
@@ -583,51 +597,49 @@ def _token_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
         )
         if (entity := view.entity(key))
     ]
-    if rows:
-        cards.append({"type": "entities", "title": texts["token"], "entities": rows})
+    if not rows:
+        return []
+    return [{"type": "entities", "title": texts["token"], "entities": rows}]
 
+
+def _hold_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
+    """Pertanyaan penahanan ledger, hanya muncul saat memang sedang ditahan."""
+    if not view.token_enabled:
+        return []
     hold_entity = view.entity("ledger_hold")
-    if hold_entity and view.device_id:
-        # Tombol keputusan hanya muncul saat memang sedang ditahan, dan tetap
-        # meminta konfirmasi karena keduanya mengubah catatan token.
-        cards.append(
-            {
-                "type": "conditional",
-                "conditions": [{"entity": hold_entity, "state": "on"}],
-                "card": {
-                    "type": "vertical-stack",
-                    "cards": [
-                        {
-                            "type": "markdown",
-                            "content": (
-                                f"### {texts['hold_title']}\n\n"
-                                f"{texts['hold_explain']}"
+    if not hold_entity or not view.device_id:
+        return []
+
+    # Tombol keputusan tetap meminta konfirmasi: keduanya mengubah catatan token.
+    return [
+        {
+            "type": "conditional",
+            "conditions": [{"entity": hold_entity, "state": "on"}],
+            "card": {
+                "type": "vertical-stack",
+                "cards": [
+                    {
+                        "type": "markdown",
+                        "content": (
+                            f"### {texts['hold_title']}\n\n{texts['hold_explain']}"
+                        ),
+                    },
+                    {"type": "entities", "entities": [hold_entity]},
+                    {
+                        "type": "horizontal-stack",
+                        "cards": [
+                            _hold_button(
+                                view, texts["hold_ignore"], "ignore", "mdi:close"
                             ),
-                        },
-                        {
-                            "type": "entities",
-                            "entities": [hold_entity],
-                        },
-                        {
-                            "type": "horizontal-stack",
-                            "cards": [
-                                _hold_button(
-                                    view, texts["hold_ignore"], "ignore", "mdi:close"
-                                ),
-                                _hold_button(
-                                    view, texts["hold_accept"], "accept", "mdi:check"
-                                ),
-                            ],
-                        },
-                    ],
-                },
-            }
-        )
-
-    cards.extend(_topup_cards(view, texts))
-    cards.extend(_fix_cards(view, texts))
-
-    return cards
+                            _hold_button(
+                                view, texts["hold_accept"], "accept", "mdi:check"
+                            ),
+                        ],
+                    },
+                ],
+            },
+        }
+    ]
 
 
 def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
@@ -675,6 +687,9 @@ def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
         )
 
     if view.presets and view.device_id:
+        # Tombol sekali klik untuk template yang sudah ada. Berbeda dari
+        # pemilih di atas, tombol ini adalah YAML statis - template yang baru
+        # disimpan baru muncul di sini setelah dashboardnya dibuat ulang.
         inner.append(
             {
                 "type": "grid",
@@ -1161,12 +1176,8 @@ def _to_hacs(
     out: list[tuple[str, list[dict[str, Any]]]] = []
     for index, (heading, cards) in enumerate(groups):
         new_cards: list[dict[str, Any]] = []
-        if index == 0:
-            new_cards.append(
-                {"type": "markdown", "content": texts["hacs_note"]}
-            )
-            if status := _mushroom_status(view, texts):
-                new_cards.append(status)
+        if index == 0 and (status := _mushroom_status(view, texts)):
+            new_cards.append(status)
         for card in cards:
             if card.get("type") == "glance":
                 new_cards.append(_mushroom_chips(card))
@@ -1175,6 +1186,12 @@ def _to_hacs(
             else:
                 new_cards.append(card)
         out.append((heading, new_cards))
+
+    # Catatan pemasangan kartu HACS ditaruh paling bawah: ia hanya perlu dibaca
+    # sekali, saat kartunya belum terpasang, tapi kartunya menetap selamanya -
+    # di puncak halaman ia jadi gangguan setiap hari sesudahnya.
+    if out:
+        out[-1][1].append({"type": "markdown", "content": texts["hacs_note"]})
     return out
 
 
@@ -1199,30 +1216,39 @@ def _view_groups(
 ) -> list[tuple[str, list[dict[str, Any]]]]:
     """Kartu halaman, dikelompokkan menurut isinya, masing-masing dengan judul.
 
-    Satu tempat ini saja yang menentukan urutan kartu untuk kedua tata letak:
-    pada sections tiap kelompok jadi satu bagian berjudul, pada masonry tiap
-    kelompok dibungkus tumpukan supaya kartu yang berkaitan tetap berdampingan.
+    Urutannya mengikuti susunan yang user rapikan sendiri di dashboard mereka,
+    supaya membuat ulang dashboard tidak berarti menata ulang dari awal.
+    Ringkasnya: yang dilihat sekilas di atas, yang dikerjakan di tengah, yang
+    jarang disentuh di bawah.
     """
     groups: list[tuple[str, list[dict[str, Any]]]] = []
 
-    if overview := [*_status_cards(view, texts), *_current_cards(view, texts)]:
+    overview = [
+        *_gauge_cards(view, texts),
+        *_current_cards(view, texts),
+        *_hold_cards(view, texts),
+        *_token_summary_cards(view, texts),
+        *_status_cards(view, texts),
+    ]
+    if overview:
         groups.append((texts["sec_overview"], overview))
 
-    usage: list[dict[str, Any]] = []
-    if energy_periods := _period_card(view, "energy", texts["usage"], labels):
-        usage.append(energy_periods)
-    if view.has_cost and (
-        cost_periods := _period_card(view, "cost", texts["cost"], labels)
-    ):
-        usage.append(cost_periods)
-    if usage:
-        groups.append((texts["sec_usage"], usage))
-
-    token = list(_token_cards(view, texts))
-    if view.token_enabled:
-        token.extend(_topup_history_cards(view, texts))
+    token = [
+        *_topup_history_cards(view, texts),
+        *_topup_cards(view, texts),
+        *_fix_cards(view, texts),
+    ]
     if token:
         groups.append((texts["sec_token"], token))
+
+    if usage := _period_card(view, texts, labels):
+        groups.append((texts["sec_usage"], [usage]))
+
+    if graphs := _history_cards(view, texts):
+        groups.append((texts["sec_graphs"], graphs))
+
+    if analysis := _analysis_cards(view, texts):
+        groups.append((texts["sec_analysis"], analysis))
 
     settings = _settings_card(view, texts)
     upkeep = [
@@ -1232,12 +1258,6 @@ def _view_groups(
     ]
     if upkeep:
         groups.append((texts["sec_settings"], upkeep))
-
-    if graphs := _history_cards(view, texts):
-        groups.append((texts["sec_graphs"], graphs))
-
-    if analysis := _analysis_cards(view, texts):
-        groups.append((texts["sec_analysis"], analysis))
 
     return groups
 
