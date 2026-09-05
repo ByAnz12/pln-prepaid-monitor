@@ -142,10 +142,10 @@ JUWEI = {
 RELAY_ENTITIES = {
     "switch.mcb_rumah_switch": ("on", {"friendly_name": "MCB RUMAH switch"}),
     "switch.mcb_toko_switch": ("on", {}),
-    "switch.0x385b44fffed7fa8d": ("on", {}),
-    "switch.0x385b44fffed7fa8d_power_breaker": ("on", {}),
+    "switch.0xa4c1380000000000": ("on", {}),
+    "switch.0xa4c1380000000000_power_breaker": ("on", {}),
     "switch.mcb_tongou_child_lock": ("off", {}),
-    "number.0x385b44fffed7fa8d_over_current_threshold": ("40", {}),
+    "number.0xa4c1380000000000_over_current_threshold": ("40", {}),
 }
 
 

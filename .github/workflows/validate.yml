@@ -1,0 +1,32 @@
+name: Validate
+
+# Dua pemeriksaan resmi yang tidak bisa digantikan test sendiri:
+#
+# * hassfest - milik tim Home Assistant, memeriksa manifest.json, services.yaml,
+#   translations, dan icons.json terhadap aturan yang mereka tetapkan sendiri.
+# * hacs/action - memeriksa struktur repositori terhadap syarat HACS, termasuk
+#   hal di luar kode seperti deskripsi dan topik repositori.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Sekali seminggu: keduanya memeriksa aturan yang bisa berubah di sisi
+    # Home Assistant maupun HACS, tanpa ada perubahan apa pun di repo ini.
+    - cron: "0 3 * * 1"
+
+jobs:
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration

@@ -1,5 +1,9 @@
 # PLN Prepaid Energy & Cost Monitor — Technical Design Specification
 
+> **Catatan**: alamat IEEE Zigbee di dokumen ini sudah diganti nilai contoh
+> (`0xa4c1380000000000`) sebelum dipublikasikan. Yang asli hanya ada di instalasi
+> pemiliknya.
+
 **Dokumen**: Blueprint arsitektur untuk sistem monitoring energi & biaya listrik prepaid PLN di Home Assistant
 **Status**: Design spec — belum ada implementasi YAML/kode
 **Tanggal**: 2 September 2026
@@ -605,7 +609,7 @@ Ini bukan lagi riset umum — ini **[VERIFIED, ground truth langsung dari instan
 
 ### O.1 Koreksi penting terhadap Bagian B.1
 
-**MCB TONGOU milik user terintegrasi lewat Zigbee** (entity_id berprefiks `0x385b44fffed7fa8d` — format IEEE address Zigbee, plus entity `sensor.*_linkquality` yang khas Zigbee2MQTT/ZHA), **bukan** via Tuya cloud/WiFi seperti yang diasumsikan riset generik di B.1 (yang menandai varian Zigbee sebagai "tidak ditemukan bukti"). Ini kabar baik: berarti tidak ada isu cloud-dependency/local-key Tuya sama sekali untuk device ini — jalur integrasinya sudah lokal penuh lewat Zigbee. **Update confidence B.1 dari UNKNOWN → VERIFIED (Zigbee, spesifik untuk unit milik user ini)**; catatan generik soal Tuya di B.1 tetap relevan untuk model TO-Q-SYS-JWT lain yang dijual dengan firmware WiFi, hanya tidak berlaku untuk instalasi user ini.
+**MCB TONGOU milik user terintegrasi lewat Zigbee** (entity_id berprefiks `0xa4c1380000000000` — format IEEE address Zigbee, plus entity `sensor.*_linkquality` yang khas Zigbee2MQTT/ZHA), **bukan** via Tuya cloud/WiFi seperti yang diasumsikan riset generik di B.1 (yang menandai varian Zigbee sebagai "tidak ditemukan bukti"). Ini kabar baik: berarti tidak ada isu cloud-dependency/local-key Tuya sama sekali untuk device ini — jalur integrasinya sudah lokal penuh lewat Zigbee. **Update confidence B.1 dari UNKNOWN → VERIFIED (Zigbee, spesifik untuk unit milik user ini)**; catatan generik soal Tuya di B.1 tetap relevan untuk model TO-Q-SYS-JWT lain yang dijual dengan firmware WiFi, hanya tidak berlaku untuk instalasi user ini.
 
 ### O.1b Ringkasan protokol per device (dikonfirmasi user: campuran Zigbee & Tuya, merek Tongou & Tomzn)
 
@@ -613,7 +617,7 @@ User mengonfirmasi mereka punya beberapa MCB dengan protokol dan merek berbeda-b
 
 | Device | Sinyal Zigbee (`_linkquality`) | IEEE-address-style entity_id | Kesimpulan protokol |
 |---|---|---|---|
-| MCB TONGOU (`0x385b44fffed7fa8d`) | Ada | Ada | **Zigbee** — [VERIFIED] |
+| MCB TONGOU (`0xa4c1380000000000`) | Ada | Ada | **Zigbee** — [VERIFIED] |
 | COLOKAN HA | Ada | — | **Zigbee** — [VERIFIED] |
 | COLOKAN FREEZER ARTUGO | Ada | — | **Zigbee** — [VERIFIED] |
 | COLOKAN SHOWCASE BESAR | **Tidak ada** | — | Bukan Zigbee — kemungkinan Tuya WiFi atau protokol lain — **[LIKELY, tidak bisa dipastikan 100% dari `/api/states` saja]** |
@@ -632,7 +636,7 @@ User mengonfirmasi mereka punya beberapa MCB dengan protokol dan merek berbeda-b
 
 | Nama & entity prefix | energy (kWh, total_increasing) | power | voltage | current | frequency | Catatan |
 |---|---|---|---|---|---|---|
-| **MCB TONGOU** (`0x385b44fffed7fa8d`) | `sensor.0x385b44fffed7fa8d_energy` (21.507,97) | `sensor.0x385b44fffed7fa8d_power` (W) | `sensor.0x385b44fffed7fa8d_voltage` (V) | `sensor.0x385b44fffed7fa8d_current` (A) | — | Zigbee, VERIFIED. Juga ada `sensor.0x385b44fffed7fa8d_temperature` (bukan bagian skema kanonik kita) |
+| **MCB TONGOU** (`0xa4c1380000000000`) | `sensor.0xa4c1380000000000_energy` (21.507,97) | `sensor.0xa4c1380000000000_power` (W) | `sensor.0xa4c1380000000000_voltage` (V) | `sensor.0xa4c1380000000000_current` (A) | — | Zigbee, VERIFIED. Juga ada `sensor.0xa4c1380000000000_temperature` (bukan bagian skema kanonik kita) |
 | **MCB RUMAH** | `sensor.mcb_rumah_total_energy` (15.498,27) | `sensor.mcb_rumah_phase_a_power` (**satuan kW**, bukan W) | `sensor.mcb_rumah_phase_a_voltage` | `sensor.mcb_rumah_phase_a_current` | `sensor.mcb_rumah_supply_frequency` | Naming "Phase A" mengindikasikan meter ini punya kapasitas multi-fasa tapi cuma fasa A yang dipakai/terpasang — cukup map fasa A saja sebagai source single-phase |
 | **MCB TOKO** | `sensor.mcb_toko_total_energy` (15.114,43) | `sensor.mcb_toko_phase_a_power` (W) | `sensor.mcb_toko_phase_a_voltage` | `sensor.mcb_toko_phase_a_current` | `sensor.mcb_toko_supply_frequency` | Struktur sama dengan MCB RUMAH |
 | **COLOKAN HA** (smart plug) | `sensor.colokan_ha_energy` | `sensor.colokan_ha_power` | `sensor.colokan_ha_voltage` | `sensor.colokan_ha_current` | — | Sub-meter per perangkat — contoh nyata "sub-meter" dari prinsip #3 Anda |
@@ -649,13 +653,13 @@ User mengonfirmasi mereka punya beberapa MCB dengan protokol dan merek berbeda-b
 
 - **`sensor.battery1_total_energy_meter`** (energi netted battery) **device_class: energy tapi TANPA state_class sama sekali** (bukan `total_increasing`, bukan `measurement` — kosong). Ini konfirmasi nyata kenapa Source Normalization (C, F.1) tidak boleh asumsi entity upstream selalu punya `state_class` yang benar — normalization layer wajib validasi & fallback secara eksplisit, bukan cuma pass-through.
 - **`sensor.mcb_rumah_phase_a_power`** pakai satuan **kW**, sementara source lain (MCB TONGOU, colokan) pakai **W** — konfirmasi nyata bahwa Energy Calculation (F.1) wajib normalisasi satuan (W↔kW) sebelum kalkulasi, jangan asumsikan semua source konsisten satuan.
-- **`sensor.0x385b44fffed7fa8d_energy_cost`** ("sensor Cost", device_class `monetary`, unit `IDR`, state saat ini `unavailable` dengan attribute `"restored": true`) — ini **konfirmasi nyata** temuan riset B.3 soal bug Energy Dashboard auto-generated `_cost` sensor yang reset/rusak setelah restart (GitHub core issue #124167). Bukti langsung kenapa Cost Engine kita (Bagian F.3) sengaja TIDAK bergantung pada mekanisme auto-cost bawaan Energy Dashboard, melainkan bikin `cost_total` sendiri yang persist dengan benar.
+- **`sensor.0xa4c1380000000000_energy_cost`** ("sensor Cost", device_class `monetary`, unit `IDR`, state saat ini `unavailable` dengan attribute `"restored": true`) — ini **konfirmasi nyata** temuan riset B.3 soal bug Energy Dashboard auto-generated `_cost` sensor yang reset/rusak setelah restart (GitHub core issue #124167). Bukti langsung kenapa Cost Engine kita (Bagian F.3) sengaja TIDAK bergantung pada mekanisme auto-cost bawaan Energy Dashboard, melainkan bikin `cost_total` sendiri yang persist dengan benar.
 - **`sensor.ju_wei_dian_neng_biao_cw24_cw20_*`** sedang `unavailable` — contoh live untuk test skenario K.1/K.2 (source unavailable), tidak perlu disimulasikan, tinggal pakai source ini sebagai kasus uji nyata kalau mau.
 
 ### O.4 Entity yang TIDAK BOLEH pernah disentuh sistem ini (kontrol/relay — non-negotiable)
 
 Ditemukan eksplisit di instance user, wajib di-exclude total dari integration ini (baca-saja prinsip Bagian A tetap berlaku ketat):
-`switch.0x385b44fffed7fa8d` (relay utama MCB TONGOU), `switch.mcb_rumah_switch`, `switch.mcb_toko_switch`, `switch.0x385b44fffed7fa8d_temperature_breaker`, `switch.0x385b44fffed7fa8d_power_breaker`, `switch.0x385b44fffed7fa8d_over_current_breaker`, `switch.0x385b44fffed7fa8d_over_voltage_breaker`, `switch.0x385b44fffed7fa8d_under_voltage_breaker`, `switch.mcb_tongou_child_lock`, dan seluruh entity `number.0x385b44fffed7fa8d_*_threshold`/`number.mcb_tongou_countdown` (itu threshold proteksi bawaan device sendiri, bukan milik sistem kita). Config flow integration ini sebaiknya bahkan tidak menampilkan entity domain `switch`/`number`/`select` dari device yang sama sebagai opsional field, supaya tidak ada risiko salah pilih.
+`switch.0xa4c1380000000000` (relay utama MCB TONGOU), `switch.mcb_rumah_switch`, `switch.mcb_toko_switch`, `switch.0xa4c1380000000000_temperature_breaker`, `switch.0xa4c1380000000000_power_breaker`, `switch.0xa4c1380000000000_over_current_breaker`, `switch.0xa4c1380000000000_over_voltage_breaker`, `switch.0xa4c1380000000000_under_voltage_breaker`, `switch.mcb_tongou_child_lock`, dan seluruh entity `number.0xa4c1380000000000_*_threshold`/`number.mcb_tongou_countdown` (itu threshold proteksi bawaan device sendiri, bukan milik sistem kita). Config flow integration ini sebaiknya bahkan tidak menampilkan entity domain `switch`/`number`/`select` dari device yang sama sebagai opsional field, supaya tidak ada risiko salah pilih.
 
 ### O.5 Sudah ada automation lain yang terkait — jangan duplikasi
 

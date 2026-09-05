@@ -1,0 +1,29 @@
+name: Tests
+
+# Menjalankan seluruh test tiap kali ada perubahan, supaya kerusakan ketahuan
+# sebelum ada yang memasang versi yang rusak.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Home Assistant 2026.8.3 mensyaratkan Python >= 3.14.2. Dicek
+          # langsung ke metadata paketnya, bukan ditebak.
+          python-version: "3.14"
+
+      - name: Pasang dependency test
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_test.txt
+
+      - name: Jalankan test
+        run: pytest
