@@ -811,6 +811,50 @@ ambigu.
 > selalu menyebut keduanya — *"Beli besar — Rp 1.002.500 (825,00 kWh)?"* —
 > karena "Beli besar" saja tidak memberi tahu berapa yang akan tercatat.
 
+### Mengubah dan menghapus template
+
+Semuanya di kartu **Template pengisian**:
+
+| Yang Anda mau | Caranya |
+|---|---|
+| **Tambah** | Isi kWh + nominal + nama, tekan **Simpan sebagai template** |
+| **Ubah** | Pilih templatenya, perbaiki angkanya, tekan **Perbarui template terpilih** |
+| **Hapus** | Pilih templatenya, tekan **Hapus template terpilih** |
+
+Memilih template mengisi ketiga kotaknya sekaligus — kWh, nominal, dan nama —
+jadi mengubah terasa seperti melanjutkan, bukan mengisi ulang dari nol.
+
+Menghapus template **tidak menyentuh catatan token** sama sekali. Yang hilang
+hanya tombol pintasnya.
+
+### Uji notifikasi
+
+Kartu **Kirim pesan percobaan** di bagian Pengaturan mengirim satu pesan lewat
+tujuan notifikasi Anda, memakai **jalur yang sama persis** dengan pesan token
+sungguhan — termasuk awalan `[Token PLN]`.
+
+Jam tenang dan jeda antar pesan **dilewati**. Itu disengaja: tombol ini dipakai
+saat memeriksa, bukan saat token menipis. Kalau ia tunduk pada jam tenang,
+menekannya sering tidak menghasilkan apa-apa dan Anda tidak bisa membedakan
+"notifikasinya rusak" dari "sedang ditahan".
+
+Isi pesannya menyatakan tegas bahwa itu bukan peringatan token, supaya tidak ada
+yang salah baca.
+
+### Grafik analisa
+
+Bagian **Analisa** menjawab tiga pertanyaan berbeda:
+
+| Grafik | Pertanyaan yang dijawab |
+|---|---|
+| **Daya 24 jam terakhir** | Kapan bebannya berat? Untuk toko, ini yang memperlihatkan jam sibuk — dan beban yang tertinggal menyala semalaman |
+| **Pemakaian per jam (2 hari)** | Jam berapa yang paling boros? |
+| **Pemakaian per bulan (1 tahun)** | Apakah bulan ini lebih boros dari biasanya? |
+| **Biaya per bulan (1 tahun)** | Tren pengeluaran listrik sepanjang tahun |
+
+Grafik bulanan baru terisi setelah datanya ada — pada pemasangan baru ia kosong,
+dan itu normal.
+
 ### Kalau harga per kWh berubah
 
 Pengisian yang menyebut **kedua** angka adalah struk — dan dari struk, harga

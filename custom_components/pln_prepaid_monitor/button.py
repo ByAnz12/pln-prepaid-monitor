@@ -43,7 +43,10 @@ async def async_setup_entry(
             [
                 PlnRecordTopupButton(group),
                 PlnSaveTemplateButton(hass, group),
+                PlnUpdateTemplateButton(hass, group),
+                PlnDeleteTemplateButton(hass, group),
                 PlnCalibrateButton(group),
+                PlnTestNotificationButton(hass, group),
             ],
             config_subentry_id=subentry_id,
         )
@@ -146,3 +149,52 @@ class PlnSaveTemplateButton(_PlnLedgerButton):
         from .services import async_save_template  # noqa: PLC0415
 
         async_save_template(self._hass, self._group)
+
+
+class PlnUpdateTemplateButton(_PlnLedgerButton):
+    """Ganti isi template yang sedang dipilih dengan angka di kotak sekarang."""
+
+    def __init__(self, hass: HomeAssistant, group: BillingGroupRuntime) -> None:
+        """Buat tombol perbarui template."""
+        super().__init__(group, "update_template")
+        self._hass = hass
+
+    async def async_press(self) -> None:
+        """Teruskan ke layanan yang sama, supaya perilakunya satu pintu."""
+        from .services import async_update_template  # noqa: PLC0415
+
+        async_update_template(self._hass, self._group)
+
+
+class PlnDeleteTemplateButton(_PlnLedgerButton):
+    """Hapus template yang sedang dipilih."""
+
+    def __init__(self, hass: HomeAssistant, group: BillingGroupRuntime) -> None:
+        """Buat tombol hapus template."""
+        super().__init__(group, "delete_template")
+        self._hass = hass
+
+    async def async_press(self) -> None:
+        """Teruskan ke layanan yang sama, supaya perilakunya satu pintu."""
+        from .services import async_delete_template  # noqa: PLC0415
+
+        async_delete_template(self._hass, self._group)
+
+
+class PlnTestNotificationButton(PlnBillingGroupEntity, ButtonEntity):
+    """Kirim satu pesan percobaan lewat tujuan notifikasi yang diatur.
+
+    Untuk pemeriksaan dan perawatan: memastikan pesan token yang sungguhan
+    nanti benar-benar sampai, tanpa perlu menunggu token menipis.
+    """
+
+    def __init__(self, hass: HomeAssistant, group: BillingGroupRuntime) -> None:
+        """Buat tombol uji notifikasi."""
+        super().__init__(group, "test_notification")
+        self._hass = hass
+
+    async def async_press(self) -> None:
+        """Kirim lewat jalur pengiriman yang sama persis dengan pesan asli."""
+        from .notifier import TokenNotifier  # noqa: PLC0415
+
+        await TokenNotifier(self._hass, self._group).async_send_test()

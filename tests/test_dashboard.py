@@ -190,6 +190,7 @@ async def test_only_built_in_cards_are_used(hass: HomeAssistant) -> None:
         "vertical-stack",
         "horizontal-stack",
         "statistics-graph",
+        "history-graph",
     }
     used = {card["type"] for card in _all_cards(build_dashboard(hass, entry.runtime_data))}
 
@@ -548,3 +549,49 @@ async def test_hacs_layout_keeps_the_number_boxes_built_in(
     ]
     assert holders
     assert all(card["type"] == "entities" for card in holders)
+
+
+async def test_analysis_charts_answer_different_questions(
+    hass: HomeAssistant,
+) -> None:
+    """Grafik analisa untuk toko: kapan bebannya berat, dan tren bulanannya."""
+    from custom_components.pln_prepaid_monitor.dashboard import build_dashboard
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    cards = _all_cards(build_dashboard(hass, entry.runtime_data))
+
+    # Profil daya sepanjang hari: memperlihatkan jam sibuk dan beban yang
+    # tertinggal menyala.
+    assert any(card["type"] == "history-graph" for card in cards)
+
+    periods = {
+        card.get("period")
+        for card in cards
+        if card["type"] == "statistics-graph"
+    }
+    assert periods == {"day", "hour", "month"}
+
+
+async def test_the_notification_test_button_is_on_the_page(
+    hass: HomeAssistant,
+) -> None:
+    """Tombol uji notifikasi hanya berguna kalau mudah ditemukan."""
+    from custom_components.pln_prepaid_monitor.dashboard import (
+        build_dashboard,
+        collect_views,
+    )
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass, SOURCE_SUBENTRY, TARIFF_SUBENTRY, _group())
+
+    button = collect_views(hass, entry.runtime_data)[0].entity("test_notification")
+    assert button
+
+    rows = {
+        row["entity"] if isinstance(row, dict) else row
+        for card in _all_cards(build_dashboard(hass, entry.runtime_data))
+        for row in card.get("entities", [])
+    }
+    assert button in rows

@@ -202,8 +202,15 @@ async def test_only_bookkeeping_services_are_registered(
         # Menerima atau menolak usulan harga per kWh; hanya menyentuh
         # konfigurasi tarif milik integrasi ini sendiri.
         "resolve_rate_change",
-        # Menyimpan isian jumlah kWh dan nominal sekarang sebagai template.
+        # Menyimpan isian jumlah kWh dan nominal sekarang sebagai template,
+        # serta mengubah dan menghapusnya. Semuanya hanya menyentuh daftar
+        # template milik integrasi ini sendiri.
         "save_topup_template",
+        "update_topup_template",
+        "delete_topup_template",
+        # Mengirim satu pesan percobaan lewat notifier - satu-satunya jalur
+        # yang boleh memanggil service, dan hanya ke domain notify.
+        "test_notification",
         # Hanya membaca dan mengembalikan teks YAML; tidak mengubah apa pun.
         "generate_dashboard",
         # Menghapus riwayat milik integrasi ini saja, tidak pernah menyentuh

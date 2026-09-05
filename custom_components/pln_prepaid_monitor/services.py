@@ -63,6 +63,9 @@ from .const import (
     SERVICE_RESOLVE_LEDGER_HOLD,
     SERVICE_RESOLVE_RATE_CHANGE,
     SERVICE_SAVE_TOPUP_TEMPLATE,
+    SERVICE_UPDATE_TOPUP_TEMPLATE,
+    SERVICE_DELETE_TOPUP_TEMPLATE,
+    SERVICE_TEST_NOTIFICATION,
 )
 from .engines.token_engine import (
     HOLD_ACTIONS,
@@ -345,6 +348,89 @@ def async_save_template(hass: HomeAssistant, group: Any) -> None:
 
 
 @callback
+def _selected_template(group: Any) -> tuple[list[dict[str, Any]], int]:
+    """Daftar template dan indeks yang sedang dipilih di dashboard."""
+    presets = [preset.as_dict() for preset in group.token_presets]
+    chosen = group.inputs_text.get("topup_template")
+    labels = [preset.label for preset in group.token_presets]
+    if not chosen or chosen not in labels:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="no_template_selected"
+        )
+    return presets, labels.index(chosen)
+
+
+@callback
+def _write_templates(
+    hass: HomeAssistant, group: Any, presets: list[dict[str, Any]]
+) -> None:
+    """Tulis daftar template kembali ke konfigurasi kelompok tagihan."""
+    entry = hass.config_entries.async_get_entry(group.entry_id)
+    if entry is None:
+        return
+    subentry = entry.subentries[group.subentry_id]
+    hass.config_entries.async_update_subentry(
+        entry, subentry, data={**subentry.data, CONF_TOKEN_PRESETS: presets}
+    )
+
+
+@callback
+def async_update_template(hass: HomeAssistant, group: Any) -> None:
+    """Ganti isi template yang sedang dipilih dengan angka di kotak sekarang.
+
+    Inilah cara mengubah template: pilih dulu - kotaknya otomatis terisi -
+    perbaiki angkanya, lalu perbarui. Tidak ada layar terpisah yang perlu
+    dicari.
+    """
+    _require_token_enabled(group)
+    presets, index = _selected_template(group)
+
+    kwh = round(group.inputs.get("topup_kwh", 0.0), 2)
+    nominal = group.inputs.get("topup_rp", 0.0)
+    if kwh <= 0 or nominal <= 0:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="template_needs_both"
+        )
+
+    name = (group.inputs_text.get("template_name") or "").strip() or None
+    if name and any(
+        item.get("name") == name for position, item in enumerate(presets)
+        if position != index
+    ):
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="template_name_taken"
+        )
+
+    # Nama dikosongkan berarti "pakai nama lama", bukan "hapus namanya":
+    # menghapus nama tanpa diminta akan mengejutkan.
+    presets[index] = {
+        "kwh": kwh,
+        "nominal_rp": nominal,
+        "name": name or presets[index].get("name"),
+    }
+    group.async_set_input_text("template_name", "")
+    group.async_set_input_text("topup_template", "")
+    _write_templates(hass, group, presets)
+    _LOGGER.info("Template '%s' diperbarui: %s kWh / %s", group.name, kwh, nominal)
+
+
+@callback
+def async_delete_template(hass: HomeAssistant, group: Any) -> None:
+    """Hapus template yang sedang dipilih.
+
+    Tanpa dialog konfirmasi, dan itu disengaja: menghapus template tidak
+    menyentuh catatan token sama sekali, dan membuatnya kembali cukup mengetik
+    dua angka.
+    """
+    _require_token_enabled(group)
+    presets, index = _selected_template(group)
+    removed = presets.pop(index)
+    group.async_set_input_text("topup_template", "")
+    _write_templates(hass, group, presets)
+    _LOGGER.info("Template '%s' dihapus: %s", group.name, removed)
+
+
+@callback
 def async_setup_services(hass: HomeAssistant) -> None:
     """Daftarkan seluruh layanan token, sekali saja."""
     if hass.services.has_service(DOMAIN, SERVICE_ADD_TOKEN_TOPUP):
@@ -495,6 +581,23 @@ def async_setup_services(hass: HomeAssistant) -> None:
         for group in _resolve_groups(hass, call):
             async_save_template(hass, group)
 
+    async def async_update_topup_template(call: ServiceCall) -> None:
+        """Perbarui template yang sedang dipilih."""
+        for group in _resolve_groups(hass, call):
+            async_update_template(hass, group)
+
+    async def async_delete_topup_template(call: ServiceCall) -> None:
+        """Hapus template yang sedang dipilih."""
+        for group in _resolve_groups(hass, call):
+            async_delete_template(hass, group)
+
+    async def async_test_notification(call: ServiceCall) -> None:
+        """Kirim satu pesan percobaan lewat tujuan notifikasi yang diatur."""
+        from .notifier import TokenNotifier  # noqa: PLC0415
+
+        for group in _resolve_groups(hass, call):
+            await TokenNotifier(hass, group).async_send_test()
+
     async def async_generate_dashboard(call: ServiceCall) -> ServiceResponse:
         """Susun konfigurasi dashboard Lovelace untuk kelompok tagihan yang ada.
 
@@ -593,6 +696,24 @@ def async_setup_services(hass: HomeAssistant) -> None:
         DOMAIN,
         SERVICE_SAVE_TOPUP_TEMPLATE,
         async_save_topup_template,
+        schema=SAVE_TEMPLATE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_UPDATE_TOPUP_TEMPLATE,
+        async_update_topup_template,
+        schema=SAVE_TEMPLATE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DELETE_TOPUP_TEMPLATE,
+        async_delete_topup_template,
+        schema=SAVE_TEMPLATE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_TEST_NOTIFICATION,
+        async_test_notification,
         schema=SAVE_TEMPLATE_SCHEMA,
     )
     hass.services.async_register(

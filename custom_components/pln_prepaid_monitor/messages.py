@@ -454,3 +454,37 @@ def currency_symbol(code: str | None) -> str:
     if not code:
         return ""
     return CURRENCY_SYMBOLS.get(code.upper(), code.upper())
+
+
+TEST_NOTIFICATION: dict[str, tuple[str, str]] = {
+    LANG_ID: (
+        "Uji notifikasi",
+        (
+            "Ini pesan percobaan. Kalau Anda membacanya, tujuan notifikasi "
+            "untuk kelompok tagihan **{group}** sudah benar dan pesan token "
+            "yang sungguhan nanti akan sampai lewat jalur yang sama.\n\n"
+            "Pesan ini tidak berarti token Anda menipis."
+        ),
+    ),
+    LANG_EN: (
+        "Notification test",
+        (
+            "This is a test message. If you are reading it, the notification "
+            "targets for billing group **{group}** are set up correctly, and "
+            "real token messages will arrive the same way.\n\n"
+            "This message does not mean your token is running low."
+        ),
+    ),
+}
+
+
+def test_notification_text(
+    language: str, *, prefix: str, group_name: str
+) -> tuple[str, str]:
+    """Judul dan isi pesan percobaan.
+
+    Memakai awalan yang sama dengan pesan sungguhan, supaya uji coba benar-benar
+    memperlihatkan bentuk pesan yang nanti diterima - termasuk awalannya.
+    """
+    title, body = TEST_NOTIFICATION[language]
+    return f"{prefix} {title}".strip(), body.format(group=group_name)

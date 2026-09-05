@@ -91,4 +91,7 @@ class PlnTopupTemplateSelect(PlnBillingGroupEntity, SelectEntity):
             self._group.async_set_input(
                 "topup_rp", preset.nominal_rp if preset.nominal_rp else 0.0
             )
+            # Namanya ikut terisi supaya mengubah nama terasa wajar: pilih,
+            # perbaiki apa pun yang perlu, lalu perbarui.
+            self._group.async_set_input_text("template_name", preset.name or "")
             return

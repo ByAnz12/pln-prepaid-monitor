@@ -170,6 +170,27 @@ save_topup_template:
       model: Billing Group
   fields: {}
 
+update_topup_template:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields: {}
+
+delete_topup_template:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields: {}
+
+test_notification:
+  target:
+    device:
+      integration: pln_prepaid_monitor
+      model: Billing Group
+  fields: {}
+
 generate_dashboard:
   fields:
     layout:

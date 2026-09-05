@@ -589,6 +589,10 @@ def topup_log(entries: list[dict[str, Any]], limit: int = 20) -> list[dict[str, 
                 "at": entry.get("timestamp"),
                 "kwh": round(kwh, 2),
                 "rp": None if nominal is None else float(nominal),
+                # Harga per kWh pada pembelian itu, dihitung dari angka yang
+                # tersimpan bersama entrinya - bukan dari tarif yang berlaku
+                # sekarang. Justru bedanya yang ingin dilihat user.
+                "rate": None if nominal is None else round(float(nominal) / kwh, 2),
                 # Pengisian yang sudah digantikan kalibrasi atau reset tetap
                 # ditampilkan - menghilangkannya membuat riwayat berbohong -
                 # tapi ditandai supaya jelas tidak lagi ikut dihitung.

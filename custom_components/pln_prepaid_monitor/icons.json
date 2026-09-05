@@ -23,6 +23,15 @@
       },
       "save_template": {
         "default": "mdi:content-save-plus"
+      },
+      "update_template": {
+        "default": "mdi:content-save-edit"
+      },
+      "delete_template": {
+        "default": "mdi:delete-outline"
+      },
+      "test_notification": {
+        "default": "mdi:bell-ring-outline"
       }
     },
     "number": {
@@ -106,6 +115,9 @@
     "generate_dashboard": "mdi:view-dashboard-outline",
     "purge_old_data": "mdi:database-remove",
     "resolve_rate_change": "mdi:cash-sync",
-    "save_topup_template": "mdi:content-save-plus"
+    "save_topup_template": "mdi:content-save-plus",
+    "update_topup_template": "mdi:content-save-edit",
+    "delete_topup_template": "mdi:delete-outline",
+    "test_notification": "mdi:bell-ring-outline"
   }
 }

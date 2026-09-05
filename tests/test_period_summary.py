@@ -47,8 +47,7 @@ def _months(values: list[float]) -> list[tuple[datetime, float]]:
 
 def test_yesterday_is_yesterday_not_today() -> None:
     """Hari yang sedang berjalan tidak boleh terhitung sebagai "kemarin"."""
-    summary = summarise(
-        hourly=[], daily=_days([10.0, 20.0, 30.0, 40.0]), monthly=[], now=NOW
+    summary = summarise( daily=_days([10.0, 20.0, 30.0, 40.0]), monthly=[], now=NOW
     )
 
     # 40.0 adalah hari ini, jadi kemarin = 30.0.
@@ -63,8 +62,7 @@ def test_the_running_period_never_drags_the_average_down() -> None:
     Kesalahan seperti ini tidak terlihat salah - angkanya tetap "masuk akal",
     hanya diam-diam meleset. Karena itu dikunci di sini.
     """
-    summary = summarise(
-        hourly=[], daily=_days([10.0, 10.0, 10.0, 0.5]), monthly=[], now=NOW
+    summary = summarise( daily=_days([10.0, 10.0, 10.0, 0.5]), monthly=[], now=NOW
     )
 
     assert summary["avg_daily"] == 10.0
@@ -72,8 +70,7 @@ def test_the_running_period_never_drags_the_average_down() -> None:
 
 def test_last_month_is_last_month_not_this_one() -> None:
     """Bulan berjalan juga dikecualikan, dengan alasan yang sama."""
-    summary = summarise(
-        hourly=[], daily=[], monthly=_months([100.0, 200.0, 300.0, 5.0]), now=NOW
+    summary = summarise( daily=[], monthly=_months([100.0, 200.0, 300.0, 5.0]), now=NOW
     )
 
     assert summary["prev_month_1"] == 300.0
@@ -84,7 +81,7 @@ def test_last_month_is_last_month_not_this_one() -> None:
 
 def test_missing_data_becomes_none_not_zero() -> None:
     """Nol berarti "tidak ada pemakaian"; kosong berarti "belum ada datanya"."""
-    summary = summarise(hourly=[], daily=[], monthly=[], now=NOW)
+    summary = summarise( daily=[], monthly=[], now=NOW)
 
     assert set(summary) == set(ROW_KEYS)
     assert all(summary[key] is None for key in summary)
@@ -202,3 +199,18 @@ async def test_energy_rows_carry_the_unit(hass: HomeAssistant) -> None:
     ]
     assert len(energy) == 1
     assert "kWh" in _render(hass, energy[0])
+
+
+def test_the_hourly_average_always_agrees_with_the_daily_one() -> None:
+    """Dua angka rata-rata di kartu yang sama tidak boleh saling membantah.
+
+    Kalau dihitung sendiri-sendiri dari jendela data yang berbeda, "rata-rata
+    per jam" dikali 24 tidak sama dengan "rata-rata harian" - dan pembaca kartu
+    tidak punya cara tahu kenapa. Diturunkan dari yang harian, keduanya selalu
+    rukun.
+    """
+    summary = summarise(daily=_days([12.0, 24.0, 0.5]), monthly=[], now=NOW)
+
+    assert summary["avg_daily"] == 18.0
+    assert summary["avg_hourly"] == 0.75
+    assert summary["avg_hourly"] * 24 == summary["avg_daily"]

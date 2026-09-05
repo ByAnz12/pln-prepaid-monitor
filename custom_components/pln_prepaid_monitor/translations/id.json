@@ -322,6 +322,15 @@
       },
       "save_template": {
         "name": "Simpan sebagai template"
+      },
+      "update_template": {
+        "name": "Perbarui template terpilih"
+      },
+      "delete_template": {
+        "name": "Hapus template terpilih"
+      },
+      "test_notification": {
+        "name": "Uji notifikasi"
       }
     },
     "number": {
@@ -700,6 +709,21 @@
       "name": "Simpan template pengisian",
       "description": "Menyimpan isi kotak Jumlah kWh dan Nominal pembelian sekarang sebagai template, supaya pembelian berikutnya cukup sekali klik.",
       "fields": {}
+    },
+    "update_topup_template": {
+      "name": "Perbarui template pengisian",
+      "description": "Mengganti isi template yang sedang dipilih dengan angka yang ada di kotak Jumlah kWh dan Nominal pembelian sekarang.",
+      "fields": {}
+    },
+    "delete_topup_template": {
+      "name": "Hapus template pengisian",
+      "description": "Menghapus template yang sedang dipilih. Tidak menyentuh catatan token sama sekali.",
+      "fields": {}
+    },
+    "test_notification": {
+      "name": "Uji notifikasi",
+      "description": "Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur, memakai jalur pengiriman yang sama persis dengan pesan token sungguhan. Jam tenang dan jeda antar pesan dilewati.",
+      "fields": {}
     }
   },
   "exceptions": {
@@ -756,6 +780,9 @@
     },
     "template_name_taken": {
       "message": "Sudah ada template dengan nama itu. Pakai nama lain."
+    },
+    "no_template_selected": {
+      "message": "Belum ada template yang dipilih. Pilih satu di kotak Pilih template dulu."
     }
   },
   "issues": {

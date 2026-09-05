@@ -459,3 +459,122 @@ async def test_the_picker_survives_a_restart(hass: HomeAssistant) -> None:
 
     picker = hass.states.get(_entity_id(hass, "select", "topup_template"))
     assert "Beli besar" in picker.attributes["options"]
+
+
+async def test_the_card_renders_even_with_no_proposal(hass: HomeAssistant) -> None:
+    """Regresi: kartu bersyarat tetap DIRENDER meski sedang tersembunyi.
+
+    Yang diatur kartu bersyarat hanya tampil atau tidaknya, bukan apakah isinya
+    dihitung. Jadi saat tidak ada usulan, atributnya kosong - dan template yang
+    memformat angka kosong melempar TypeError yang muncul sebagai kotak merah
+    di puncak dashboard. Persis yang dilaporkan user.
+    """
+    from homeassistant.helpers.template import Template
+
+    from custom_components.pln_prepaid_monitor.dashboard import (
+        build_dashboard,
+        collect_views,
+    )
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    def _walk(cards):
+        for card in cards:
+            yield card
+            yield from _walk(card.get("cards", []))
+            if nested := card.get("card"):
+                yield nested
+                yield from _walk(nested.get("cards", []))
+
+    pending = collect_views(hass, entry.runtime_data)[0].entity("rate_change_pending")
+    templates = [
+        card["content"]
+        for page in build_dashboard(hass, entry.runtime_data)["views"]
+        for card in _walk(view_cards(page))
+        if card.get("type") == "markdown" and pending in card.get("content", "")
+    ]
+    assert templates
+
+    # Tanpa usulan sama sekali: harus merender jadi kosong, bukan melempar.
+    for content in templates:
+        assert Template(content, hass).async_render(parse_result=False).strip() == ""
+
+    # Dan begitu ada usulan, isinya muncul lengkap dengan kedua angkanya.
+    await _topup(hass, 825.0, 1_002_500)
+    rendered = Template(templates[0], hass).async_render(parse_result=False)
+    assert "1.444,70" in rendered
+    assert "1.215,15" in rendered
+
+
+# --- mengubah dan menghapus template ------------------------------------------
+
+
+async def test_editing_a_template_in_place(hass: HomeAssistant) -> None:
+    """Cara mengubah template: pilih, perbaiki angkanya, perbarui.
+
+    Memilih sudah mengisi kotaknya - termasuk namanya - jadi mengubah terasa
+    seperti melanjutkan, bukan mengisi ulang dari nol.
+    """
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+    await _pick(hass, "Beli besar")
+
+    # Namanya ikut terisi saat memilih.
+    assert hass.states.get(
+        _entity_id(hass, "text", "template_name")
+    ).state == "Beli besar"
+
+    await _set_number(hass, _entity_id(hass, "number", "topup_kwh"), 830.0)
+    await _press(hass, _entity_id(hass, "button", "update_template"))
+
+    presets = entry.runtime_data.billing_groups[GROUP_ID].token_presets
+    assert len(presets) == 1
+    assert presets[0].kwh == 830.0
+    assert presets[0].name == "Beli besar"
+
+
+async def test_editing_without_choosing_one_is_refused(
+    hass: HomeAssistant,
+) -> None:
+    """Memperbarui "yang terpilih" tanpa memilih apa pun harus bersuara."""
+    apply_states(hass, MCB_RUMAH)
+    await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+    await _set_number(hass, _entity_id(hass, "number", "topup_kwh"), 830.0)
+    await _set_number(hass, _entity_id(hass, "number", "topup_rp"), 1_002_500)
+
+    with pytest.raises(HomeAssistantError):
+        await _press(hass, _entity_id(hass, "button", "update_template"))
+
+
+async def test_deleting_a_template(hass: HomeAssistant) -> None:
+    """Menghapus mengeluarkannya dari daftar, tanpa menyentuh catatan token."""
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+    await _save(hass, 425.0, 503_000, "Beli kecil")
+    await _pick(hass, "Beli besar")
+    await _press(hass, _entity_id(hass, "button", "delete_template"))
+
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+    assert [preset.label for preset in group.token_presets] == ["Beli kecil"]
+    # Riwayat pengisian tidak tersentuh sama sekali.
+    assert group.ledger.state.entries == []
+
+
+async def test_deleting_without_choosing_one_is_refused(
+    hass: HomeAssistant,
+) -> None:
+    """Tanpa pilihan, tidak jelas mana yang mau dihapus - jadi ditolak."""
+    apply_states(hass, MCB_RUMAH)
+    await _setup(hass)
+
+    await _save(hass, 825.0, 1_002_500, "Beli besar")
+
+    with pytest.raises(HomeAssistantError):
+        await _press(hass, _entity_id(hass, "button", "delete_template"))

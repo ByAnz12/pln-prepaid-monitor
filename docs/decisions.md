@@ -9,6 +9,72 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-048 · Uji notifikasi menempuh jalur pengiriman yang sama persis
+
+**Tanggal**: 5 September 2026 · **Atas permintaan user**
+
+Tombol **Kirim pesan percobaan** memanggil `_async_deliver` yang sama dengan
+pesan token sungguhan - bukan jalur pintas tersendiri. Uji coba yang menempuh
+jalur berbeda tidak membuktikan apa pun tentang notifikasi yang sebenarnya.
+
+Yang dilewati hanya **penimbangan kapan pantas mengirim**: tidak ada jeda antar
+pesan, tidak ada jam tenang, tidak perlu status token menipis. Itu memang
+gunanya - dipakai saat memeriksa, bukan saat token menipis. Kalau ia tunduk pada
+jam tenang, menekan tombolnya sering kali tidak menghasilkan apa-apa, dan user
+tidak bisa membedakan "notifikasinya rusak" dari "sedang ditahan".
+
+Awalan pesannya tetap sama (`[Token PLN]`), supaya bentuk yang nanti diterima
+benar-benar terlihat. Isinya menyatakan tegas bahwa ini **bukan** peringatan
+token, supaya tidak ada yang panik salah baca.
+
+---
+
+## D-049 · Rata-rata per jam diturunkan dari rata-rata harian
+
+**Tanggal**: 5 September 2026
+
+Tangkapan layar user memperlihatkan "Rata-rata per jam 1,52 kWh" bersanding
+dengan "Rata-rata harian 10,62 kWh". Keduanya benar untuk jendela datanya
+masing-masing - yang per jam membaca statistik jam yang ada, yang harian
+membaca hari yang lengkap - tapi 1,52 x 24 = 36,5, bukan 10,62.
+
+Dua angka di kartu yang sama yang saling membantah, tanpa cara bagi pembacanya
+untuk tahu kenapa. Itu bukan bug, tapi tetap salah.
+
+Sekarang `avg_hourly` diturunkan dari `avg_daily / 24`. Keduanya selalu rukun,
+satu kueri database lebih sedikit, dan tidak ada lagi selisih yang butuh
+penjelasan panjang.
+
+Yang hilang: perbedaan pola antar jam tidak lagi tercermin di angka itu. Tapi
+untuk melihat pola per jam ada grafik tersendiri di bagian **Analisa**, yang
+memang jauh lebih tepat untuk pertanyaan itu.
+
+---
+
+## D-050 · Kartu bersyarat tetap dirender saat tersembunyi
+
+**Tanggal**: 5 September 2026 · **Bug dilaporkan user**
+
+Kartu usulan harga menampilkan kotak merah:
+
+```
+TypeError: unsupported format string passed to NoneType.__format__
+```
+
+Sebabnya: `conditional` di Home Assistant hanya mengatur **tampil atau tidaknya**
+kartu, bukan apakah isinya dihitung. Template di dalamnya tetap dirender
+meskipun sedang tersembunyi. Saat tidak ada usulan, atribut sensornya kosong,
+dan memformat `None` melempar.
+
+Ini asumsi saya yang keliru, bukan perilaku aneh Home Assistant - dan asumsi itu
+tidak pernah diuji karena test hanya merender template saat datanya ada.
+
+Sekarang seluruh isi template digantung pada satu penjaga "kalau angkanya ada",
+dan `test_the_card_renders_even_with_no_proposal` merender template itu justru
+**saat tidak ada usulan** - keadaan yang dulu menjatuhkannya.
+
+---
+
 ## D-047 · `select` dikeluarkan dari daftar terlarang, karena daftarnya salah kaprah
 
 **Tanggal**: 5 September 2026

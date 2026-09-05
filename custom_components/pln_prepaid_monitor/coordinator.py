@@ -1112,7 +1112,6 @@ class BillingGroupRuntime:
         """
         from .engines.period_summary import (  # noqa: PLC0415
             DAYS_TO_FETCH,
-            HOURS_FOR_AVERAGE,
             MONTHS_TO_FETCH,
             summarise,
         )
@@ -1128,12 +1127,6 @@ class BillingGroupRuntime:
             if statistic_id is None:
                 continue
             self.summaries[family] = summarise(
-                hourly=await async_fetch_period_changes(
-                    self.hass,
-                    statistic_id,
-                    "hour",
-                    now - timedelta(hours=HOURS_FOR_AVERAGE),
-                ),
                 daily=await async_fetch_period_changes(
                     self.hass, statistic_id, "day", now - timedelta(days=DAYS_TO_FETCH)
                 ),

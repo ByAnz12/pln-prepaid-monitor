@@ -29,7 +29,7 @@ from .engines.notification_engine import (
     NotificationConfig,
     decide,
 )
-from .messages import notification_text, pick_language
+from .messages import notification_text, pick_language, test_notification_text
 
 if TYPE_CHECKING:
     from .coordinator import BillingGroupRuntime
@@ -121,6 +121,24 @@ class TokenNotifier:
             remaining_value_rp=group.token_remaining_value_rp,
             hold=group.ledger.state.hold,
         )
+
+    async def async_send_test(self) -> None:
+        """Kirim satu pesan percobaan lewat jalur pengiriman yang sama persis.
+
+        Sengaja memakai ``_async_deliver`` yang sama, bukan jalur pintas
+        tersendiri: uji coba yang menempuh jalur berbeda tidak membuktikan
+        apa-apa tentang notifikasi yang sebenarnya.
+
+        Yang dilewati hanya penimbangan kapan pantas mengirim - tidak ada
+        cooldown, tidak ada jam tenang, tidak perlu status token menipis. Itu
+        memang gunanya: dipakai saat memeriksa, bukan saat token menipis.
+        """
+        language = pick_language(self.hass.config.language)
+        title, message = test_notification_text(
+            language, prefix=self.config.message_prefix, group_name=self.group.name
+        )
+        _LOGGER.info("Mengirim notifikasi percobaan untuk '%s'", self.group.name)
+        await self._async_deliver(title, message)
 
     async def _async_deliver(self, title: str, message: str) -> None:
         """Kirim ke semua tujuan yang dipilih user."""

@@ -429,3 +429,82 @@ async def test_broken_notify_target_does_not_crash(
 
     # Sensor tetap hidup dan status tetap terhitung.
     assert hass.states.get("sensor.pln_rumah_token_status").state == "warning"
+
+
+async def test_the_test_button_uses_the_real_delivery_path(
+    hass: HomeAssistant,
+) -> None:
+    """Uji coba yang menempuh jalur lain tidak membuktikan apa-apa.
+
+    Karena itu tombol uji memanggil ``_async_deliver`` yang sama persis dengan
+    pesan token sungguhan - termasuk awalan pesan dan daftar tujuannya.
+    """
+    from custom_components.pln_prepaid_monitor.notifier import TokenNotifier
+
+    sent: list[tuple[str, str, dict]] = []
+
+    async def _record(call) -> None:
+        sent.append((call.domain, call.service, dict(call.data)))
+
+    hass.services.async_register("notify", "telegram", _record)
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(
+        hass,
+        SOURCE_SUBENTRY,
+        _group(
+            **{
+                CONF_NOTIFY_ENABLED: True,
+                CONF_NOTIFY_TARGETS: ["notify.telegram"],
+            }
+        ),
+    )
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+
+    await TokenNotifier(hass, group).async_send_test()
+    await hass.async_block_till_done()
+
+    assert len(sent) == 1
+    domain, service, data = sent[0]
+    assert (domain, service) == ("notify", "telegram")
+    # Awalannya sama dengan pesan sungguhan, supaya bentuknya benar-benar terlihat.
+    assert data["title"].startswith("[Token PLN]")
+    # Dan isinya menyatakan dengan jelas bahwa ini bukan peringatan token.
+    assert "percobaan" in data["message"] or "test message" in data["message"]
+
+
+async def test_the_test_message_ignores_quiet_hours(hass: HomeAssistant) -> None:
+    """Uji coba dipakai saat memeriksa, bukan saat token menipis.
+
+    Kalau ia tunduk pada jam tenang dan jeda antar pesan, menekan tombolnya
+    sering kali tidak menghasilkan apa-apa - dan user tidak tahu apakah itu
+    berarti notifikasinya rusak atau memang sedang ditahan.
+    """
+    from custom_components.pln_prepaid_monitor.notifier import TokenNotifier
+
+    sent: list[str] = []
+
+    async def _record(call) -> None:
+        sent.append(call.service)
+
+    hass.services.async_register("notify", "telegram", _record)
+
+    apply_states(hass, MCB_RUMAH)
+    entry = await _setup(
+        hass,
+        SOURCE_SUBENTRY,
+        _group(
+            **{
+                CONF_NOTIFY_ENABLED: True,
+                CONF_NOTIFY_TARGETS: ["notify.telegram"],
+                CONF_QUIET_HOURS_START: "00:00:00",
+                CONF_QUIET_HOURS_END: "23:59:00",
+            }
+        ),
+    )
+    group = entry.runtime_data.billing_groups[GROUP_ID]
+
+    await TokenNotifier(hass, group).async_send_test()
+    await hass.async_block_till_done()
+
+    assert sent == ["telegram"]

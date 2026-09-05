@@ -34,7 +34,7 @@ views:
         entity: sensor.pln_rumah_perkiraan_hari_tersisa
         name: Perkiraan hari tersisa
         min: 0
-        max: 21
+        max: 35
         severity:
           green: 7.0
           yellow: 3.0
@@ -252,19 +252,24 @@ views:
         name: Nominal pembelian
       - entity: button.pln_rumah_catat_pengisian
         name: Catat pengisian
+    - type: entities
+      title: Template pengisian
+      entities:
       - entity: text.pln_rumah_nama_template
         name: Nama template baru
       - entity: button.pln_rumah_simpan_sebagai_template
         name: Simpan sebagai template
-    - type: markdown
-      content: '**Template pengisian**'
+      - entity: button.pln_rumah_perbarui_template_terpilih
+        name: Perbarui template terpilih
+      - entity: button.pln_rumah_hapus_template_terpilih
+        name: Hapus template terpilih
     - type: grid
       columns: 2
       square: false
       cards:
       - type: button
         name: Beli besar
-        icon: mdi:cash-plus
+        show_icon: false
         show_state: false
         tap_action:
           action: perform-action
@@ -278,7 +283,7 @@ views:
             text: Beli besar - Rp 1.002.500 (825,00 kWh)?
       - type: button
         name: Beli kecil
-        icon: mdi:cash-plus
+        show_icon: false
         show_state: false
         tap_action:
           action: perform-action
@@ -298,11 +303,12 @@ views:
         type: vertical-stack
         cards:
         - type: markdown
-          content: '### Harga per kWh berubah{% set a = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
+          content: '{% set a = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
             ''from_rate'') %}{% set b = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
             ''to_rate'') %}{% set kwh = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
             ''kwh'') %}{% set rp = state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
-            ''nominal_rp'') %}
+            ''nominal_rp'') %}{% if a is not none and b is not none %}### Harga per
+            kWh berubah
 
 
             Pengisian terakhir menyebut jumlah kWh dan nominal sekaligus, jadi harga
@@ -320,14 +326,14 @@ views:
             | Harga hasil hitungan | **Rp {{ ''{:,.2f}''.format(b) | replace('','',
             ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}** |
 
-            | Dari pembelian | {{ ''%.2f'' | format(kwh) }} kWh / Rp {{ ''{:,.0f}''.format(rp)
-            | replace('','', ''.'') }} |
+            | Dari pembelian | {{ ''%.2f'' | format(kwh | float(0)) }} kWh / Rp {{
+            ''{:,.0f}''.format(rp | float(0)) | replace('','', ''.'') }} |
 
 
             {% if state_attr(''binary_sensor.pln_rumah_usulan_harga_menunggu_keputusan'',
             ''implausible'') %}> **Perubahannya besar sekali.** Periksa lagi angka
             pengisiannya sebelum menerima - salah ketik satu angka bisa membuat seluruh
-            hitungan biaya berikutnya meleset.{% endif %}'
+            hitungan biaya berikutnya meleset.{% endif %}{% endif %}'
         - type: horizontal-stack
           cards:
           - type: button
@@ -390,16 +396,18 @@ views:
 
         {% if rows %}
 
-        | # | Tanggal | kWh | Rupiah |
+        | # | Tanggal | kWh | Rupiah | Per kWh |
 
-        |--:|---|--:|--:|
+        |--:|---|--:|--:|--:|
 
         {%- for row in rows %}
 
         | {{ row.no }} | {{ (row.at | as_datetime | as_local).strftime(''%d/%m/%y
         %H:%M'') }} | {{ ''%.2f'' | format(row.kwh) }}{{ '' *'' if row.superseded
         else '''' }} | {{ (''Rp '' ~ ''{:,.0f}''.format(row.rp) | replace('','', ''.''))
-        if row.rp else ''-'' }} |
+        if row.rp else ''-'' }} | {{ (''Rp '' ~ ''{:,.2f}''.format(row.rate) | replace('','',
+        ''@'') | replace(''.'', '','') | replace(''@'', ''.'')) if row.rate else ''-''
+        }} |
 
         {%- endfor %}
 
@@ -436,6 +444,14 @@ views:
         name: Ambang kritis
       - entity: number.pln_rumah_ambang_sangat_kritis
         name: Ambang sangat kritis
+    - type: markdown
+      content: Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur,
+        memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan
+        jeda antar pesan dilewati.
+    - type: entities
+      entities:
+      - entity: button.pln_rumah_uji_notifikasi
+        name: Kirim pesan percobaan
     - type: markdown
       content: '### Perawatan
 
@@ -478,6 +494,44 @@ views:
       period: day
       days_to_show: 30
       chart_type: bar
+  - type: grid
+    cards:
+    - type: heading
+      heading: Analisa
+      heading_style: title
+    - type: history-graph
+      title: Daya 24 jam terakhir
+      hours_to_show: 24
+      entities:
+      - entity: sensor.pln_rumah_daya
+        name: Sekarang
+    - type: statistics-graph
+      title: Pemakaian per jam (2 hari)
+      entities:
+      - sensor.pln_rumah_total_energi
+      stat_types:
+      - change
+      period: hour
+      days_to_show: 2
+      chart_type: bar
+    - type: statistics-graph
+      title: Pemakaian per bulan (1 tahun)
+      entities:
+      - sensor.pln_rumah_total_energi
+      stat_types:
+      - change
+      period: month
+      days_to_show: 365
+      chart_type: bar
+    - type: statistics-graph
+      title: Biaya per bulan (1 tahun)
+      entities:
+      - sensor.pln_rumah_total_biaya
+      stat_types:
+      - change
+      period: month
+      days_to_show: 365
+      chart_type: bar
 - title: PLN TOKO
   path: pln-toko
   type: sections
@@ -497,7 +551,7 @@ views:
         entity: sensor.pln_toko_perkiraan_hari_tersisa
         name: Perkiraan hari tersisa
         min: 0
-        max: 21
+        max: 35
         severity:
           green: 7.0
           yellow: 3.0
@@ -715,10 +769,17 @@ views:
         name: Nominal pembelian
       - entity: button.pln_toko_catat_pengisian
         name: Catat pengisian
+    - type: entities
+      title: Template pengisian
+      entities:
       - entity: text.pln_toko_nama_template
         name: Nama template baru
       - entity: button.pln_toko_simpan_sebagai_template
         name: Simpan sebagai template
+      - entity: button.pln_toko_perbarui_template_terpilih
+        name: Perbarui template terpilih
+      - entity: button.pln_toko_hapus_template_terpilih
+        name: Hapus template terpilih
     - type: conditional
       conditions:
       - entity: binary_sensor.pln_toko_usulan_harga_menunggu_keputusan
@@ -727,11 +788,12 @@ views:
         type: vertical-stack
         cards:
         - type: markdown
-          content: '### Harga per kWh berubah{% set a = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
+          content: '{% set a = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
             ''from_rate'') %}{% set b = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
             ''to_rate'') %}{% set kwh = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
             ''kwh'') %}{% set rp = state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
-            ''nominal_rp'') %}
+            ''nominal_rp'') %}{% if a is not none and b is not none %}### Harga per
+            kWh berubah
 
 
             Pengisian terakhir menyebut jumlah kWh dan nominal sekaligus, jadi harga
@@ -749,14 +811,14 @@ views:
             | Harga hasil hitungan | **Rp {{ ''{:,.2f}''.format(b) | replace('','',
             ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}** |
 
-            | Dari pembelian | {{ ''%.2f'' | format(kwh) }} kWh / Rp {{ ''{:,.0f}''.format(rp)
-            | replace('','', ''.'') }} |
+            | Dari pembelian | {{ ''%.2f'' | format(kwh | float(0)) }} kWh / Rp {{
+            ''{:,.0f}''.format(rp | float(0)) | replace('','', ''.'') }} |
 
 
             {% if state_attr(''binary_sensor.pln_toko_usulan_harga_menunggu_keputusan'',
             ''implausible'') %}> **Perubahannya besar sekali.** Periksa lagi angka
             pengisiannya sebelum menerima - salah ketik satu angka bisa membuat seluruh
-            hitungan biaya berikutnya meleset.{% endif %}'
+            hitungan biaya berikutnya meleset.{% endif %}{% endif %}'
         - type: horizontal-stack
           cards:
           - type: button
@@ -819,16 +881,18 @@ views:
 
         {% if rows %}
 
-        | # | Tanggal | kWh | Rupiah |
+        | # | Tanggal | kWh | Rupiah | Per kWh |
 
-        |--:|---|--:|--:|
+        |--:|---|--:|--:|--:|
 
         {%- for row in rows %}
 
         | {{ row.no }} | {{ (row.at | as_datetime | as_local).strftime(''%d/%m/%y
         %H:%M'') }} | {{ ''%.2f'' | format(row.kwh) }}{{ '' *'' if row.superseded
         else '''' }} | {{ (''Rp '' ~ ''{:,.0f}''.format(row.rp) | replace('','', ''.''))
-        if row.rp else ''-'' }} |
+        if row.rp else ''-'' }} | {{ (''Rp '' ~ ''{:,.2f}''.format(row.rate) | replace('','',
+        ''@'') | replace(''.'', '','') | replace(''@'', ''.'')) if row.rate else ''-''
+        }} |
 
         {%- endfor %}
 
@@ -865,6 +929,14 @@ views:
         name: Ambang kritis
       - entity: number.pln_toko_ambang_sangat_kritis
         name: Ambang sangat kritis
+    - type: markdown
+      content: Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur,
+        memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan
+        jeda antar pesan dilewati.
+    - type: entities
+      entities:
+      - entity: button.pln_toko_uji_notifikasi
+        name: Kirim pesan percobaan
     - type: markdown
       content: '### Perawatan
 
@@ -906,4 +978,42 @@ views:
       - change
       period: day
       days_to_show: 30
+      chart_type: bar
+  - type: grid
+    cards:
+    - type: heading
+      heading: Analisa
+      heading_style: title
+    - type: history-graph
+      title: Daya 24 jam terakhir
+      hours_to_show: 24
+      entities:
+      - entity: sensor.pln_toko_daya
+        name: Sekarang
+    - type: statistics-graph
+      title: Pemakaian per jam (2 hari)
+      entities:
+      - sensor.pln_toko_total_energi
+      stat_types:
+      - change
+      period: hour
+      days_to_show: 2
+      chart_type: bar
+    - type: statistics-graph
+      title: Pemakaian per bulan (1 tahun)
+      entities:
+      - sensor.pln_toko_total_energi
+      stat_types:
+      - change
+      period: month
+      days_to_show: 365
+      chart_type: bar
+    - type: statistics-graph
+      title: Biaya per bulan (1 tahun)
+      entities:
+      - sensor.pln_toko_total_biaya
+      stat_types:
+      - change
+      period: month
+      days_to_show: 365
       chart_type: bar

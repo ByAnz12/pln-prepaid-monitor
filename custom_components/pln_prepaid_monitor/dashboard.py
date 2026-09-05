@@ -102,6 +102,7 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "topup_history_title": "Riwayat pengisian",
         "col_date": "Tanggal",
         "col_rp": "Rupiah",
+        "col_rate": "Per kWh",
         "history_rows": "Tampilkan berapa baris",
         "no_topup_yet": "Belum ada pengisian yang tercatat.",
         "superseded_note": (
@@ -135,6 +136,15 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "template_pick": "Pilih template",
         "template_name": "Nama template baru",
+        "update_template": "Perbarui template terpilih",
+        "delete_template": "Hapus template terpilih",
+        "sec_analysis": "Analisa",
+        "power_profile": "Daya 24 jam terakhir",
+        "hourly_profile": "Pemakaian per jam (2 hari)",
+        "monthly_energy": "Pemakaian per bulan (1 tahun)",
+        "monthly_cost": "Biaya per bulan (1 tahun)",
+        "notify_test": "Kirim pesan percobaan",
+        "notify_test_note": "Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur, memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan jeda antar pesan dilewati.",
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
     },
@@ -202,6 +212,7 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "topup_history_title": "Top-up history",
         "col_date": "Date",
         "col_rp": "Amount",
+        "col_rate": "Per kWh",
         "history_rows": "Rows to show",
         "no_topup_yet": "No top-up recorded yet.",
         "superseded_note": (
@@ -235,6 +246,15 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         ),
         "template_pick": "Pick a template",
         "template_name": "Name for the new template",
+        "update_template": "Update selected template",
+        "delete_template": "Delete selected template",
+        "sec_analysis": "Analysis",
+        "power_profile": "Power, last 24 hours",
+        "hourly_profile": "Usage per hour (2 days)",
+        "monthly_energy": "Usage per month (1 year)",
+        "monthly_cost": "Cost per month (1 year)",
+        "notify_test": "Send a test message",
+        "notify_test_note": "Sends one test message through the notification targets you configured, using exactly the same path as real token messages. Quiet hours and cooldown are skipped.",
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
     },
@@ -336,6 +356,9 @@ GROUP_KEYS = [
     "record_topup",
     "template_name",
     "save_template",
+    "update_template",
+    "delete_template",
+    "test_notification",
     "calibrate_token",
     "warning_threshold_days",
     "critical_threshold_days",
@@ -437,7 +460,7 @@ def _status_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]
                     "entity": days,
                     "name": texts["days_remaining"],
                     "min": 0,
-                    "max": round(float(view.thresholds.warning_days) * 3),
+                    "max": max(round(float(view.thresholds.warning_days) * 5), 30),
                     "severity": {
                         "green": float(view.thresholds.warning_days),
                         "yellow": float(view.thresholds.critical_days),
@@ -622,8 +645,6 @@ def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
             ("record_topup", "topup_record"),
             # Cara paling alami membuat template adalah tepat sesudah mengetik
             # angkanya, bukan dengan membuka layar pengaturan terpisah.
-            ("template_name", "template_name"),
-            ("save_template", "save_template"),
         )
         if (entity := view.entity(key))
     ]
@@ -632,8 +653,28 @@ def _topup_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]
             {"type": "entities", "title": texts["topup_title"], "entities": rows}
         )
 
+    # Mengelola template dipisah dari mengisi token: keduanya urusan berbeda,
+    # dan menumpuknya di satu kartu membuat daftar isiannya panjang sekali.
+    manage = [
+        {"entity": entity, "name": texts[label]}
+        for key, label in (
+            ("template_name", "template_name"),
+            ("save_template", "save_template"),
+            ("update_template", "update_template"),
+            ("delete_template", "delete_template"),
+        )
+        if (entity := view.entity(key))
+    ]
+    if manage:
+        inner.append(
+            {
+                "type": "entities",
+                "title": texts["presets_title"],
+                "entities": manage,
+            }
+        )
+
     if view.presets and view.device_id:
-        inner.append({"type": "markdown", "content": f"**{texts['presets_title']}**"})
         inner.append(
             {
                 "type": "grid",
@@ -659,27 +700,34 @@ def _rate_proposal_cards(
     if not pending or not view.device_id:
         return []
 
+    # Seluruh isi digantung pada satu penjaga "kalau angkanya ada".
+    #
+    # Kartu bersyarat di Home Assistant tetap MERENDER isinya meski sedang
+    # tersembunyi - yang diatur hanya tampil atau tidaknya. Jadi saat tidak ada
+    # usulan, atributnya kosong, dan memformat None melempar TypeError yang
+    # tampil sebagai kotak merah di dashboard. Persis yang dilaporkan user.
+    money = "'{:,.2f}'.format(%s) | replace(',', '@') | replace('.', ',') | replace('@', '.')"
     body = (
-        f"### {texts['rate_title']}"
         f"{{% set a = state_attr('{pending}', 'from_rate') %}}"
         f"{{% set b = state_attr('{pending}', 'to_rate') %}}"
         f"{{% set kwh = state_attr('{pending}', 'kwh') %}}"
         f"{{% set rp = state_attr('{pending}', 'nominal_rp') %}}"
+        f"{{% if a is not none and b is not none %}}"
+        f"### {texts['rate_title']}"
         f"{chr(10)}{chr(10)}"
         f"{texts['rate_explain']}"
         f"{chr(10)}{chr(10)}"
         f"| | |{chr(10)}|---|--:|{chr(10)}"
-        f"| {texts['rate_from']} | {view.currency} "
-        f"{{{{ '{{:,.2f}}'.format(a) | replace(',', '@') | replace('.', ',') "
-        f"| replace('@', '.') }}}} |{chr(10)}"
-        f"| {texts['rate_to']} | **{view.currency} "
-        f"{{{{ '{{:,.2f}}'.format(b) | replace(',', '@') | replace('.', ',') "
-        f"| replace('@', '.') }}}}** |{chr(10)}"
-        f"| {texts['rate_basis']} | {{{{ '%.2f' | format(kwh) }}}} kWh / "
-        f"{view.currency} {{{{ '{{:,.0f}}'.format(rp) | replace(',', '.') }}}} |"
+        f"| {texts['rate_from']} | {view.currency} {{{{ {money % 'a'} }}}} |{chr(10)}"
+        f"| {texts['rate_to']} | **{view.currency} {{{{ {money % 'b'} }}}}** |{chr(10)}"
+        f"| {texts['rate_basis']} | "
+        f"{{{{ '%.2f' | format(kwh | float(0)) }}}} kWh / "
+        f"{view.currency} {{{{ '{{:,.0f}}'.format(rp | float(0)) "
+        f"| replace(',', '.') }}}} |"
         f"{chr(10)}{chr(10)}"
         f"{{% if state_attr('{pending}', 'implausible') %}}"
         f"{texts['rate_implausible']}{{% endif %}}"
+        f"{{% endif %}}"
     )
 
     return [
@@ -800,7 +848,7 @@ def _topup_button(view: GroupView, preset: Any) -> dict[str, Any]:
     return {
         "type": "button",
         "name": preset.label,
-        "icon": "mdi:cash-plus",
+        "show_icon": False,
         "show_state": False,
         "tap_action": {
             "action": "perform-action",
@@ -859,12 +907,13 @@ def _topup_history_cards(
 {{% set log = state_attr('{token}', 'topup_log') or [] %}}
 {{% set rows = log[:({limit})] %}}
 {{% if rows %}}
-| # | {texts["col_date"]} | kWh | {texts["col_rp"]} |
-|--:|---|--:|--:|
+| # | {texts["col_date"]} | kWh | {texts["col_rp"]} | {texts["col_rate"]} |
+|--:|---|--:|--:|--:|
 {{%- for row in rows %}}
 | {{{{ row.no }}}} | {{{{ (row.at | as_datetime | as_local).strftime('%d/%m/%y %H:%M') }}}} \
 | {{{{ '%.2f' | format(row.kwh) }}}}{{{{ ' *' if row.superseded else '' }}}} \
-| {{{{ ('{view.currency} ' ~ '{{:,.0f}}'.format(row.rp) | replace(',', '.')) if row.rp else '-' }}}} |
+| {{{{ ('{view.currency} ' ~ '{{:,.0f}}'.format(row.rp) | replace(',', '.')) if row.rp else '-' }}}} \
+| {{{{ ('{view.currency} ' ~ '{{:,.2f}}'.format(row.rate) | replace(',', '@') | replace('.', ',') | replace('@', '.')) if row.rate else '-' }}}} |
 {{%- endfor %}}
 
 {{% if log | selectattr('superseded') | list | count > 0 -%}}
@@ -916,6 +965,83 @@ def _history_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any
         )
 
     return cards
+
+
+def _analysis_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
+    """Grafik untuk menganalisa pola pemakaian, bukan sekadar melihat totalnya.
+
+    Tiga pertanyaan berbeda, tiga grafik berbeda:
+
+    * **Kapan bebannya berat?** Profil daya sehari penuh - untuk toko, ini yang
+      memperlihatkan jam sibuk dan beban yang tertinggal menyala.
+    * **Jam berapa paling boros?** Pemakaian per jam selama dua hari.
+    * **Apakah bulan ini lebih boros dari biasanya?** Perbandingan 12 bulan.
+    """
+    cards: list[dict[str, Any]] = []
+
+    if power := view.entity("power"):
+        cards.append(
+            {
+                "type": "history-graph",
+                "title": texts["power_profile"],
+                "hours_to_show": 24,
+                "entities": [{"entity": power, "name": texts["current"]}],
+            }
+        )
+
+    if energy := view.entity("energy_total"):
+        cards.append(
+            {
+                "type": "statistics-graph",
+                "title": texts["hourly_profile"],
+                "entities": [energy],
+                "stat_types": ["change"],
+                "period": "hour",
+                "days_to_show": 2,
+                "chart_type": "bar",
+            }
+        )
+        cards.append(
+            {
+                "type": "statistics-graph",
+                "title": texts["monthly_energy"],
+                "entities": [energy],
+                "stat_types": ["change"],
+                "period": "month",
+                "days_to_show": 365,
+                "chart_type": "bar",
+            }
+        )
+
+    if cost := view.entity("cost_total"):
+        cards.append(
+            {
+                "type": "statistics-graph",
+                "title": texts["monthly_cost"],
+                "entities": [cost],
+                "stat_types": ["change"],
+                "period": "month",
+                "days_to_show": 365,
+                "chart_type": "bar",
+            }
+        )
+
+    return cards
+
+
+def _notification_test_cards(
+    view: GroupView, texts: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Tombol uji notifikasi, untuk pemeriksaan berkala."""
+    if not (entity := view.entity("test_notification")):
+        return []
+    return [
+        {"type": "markdown", "content": texts["notify_test_note"]},
+        {
+            "type": "entities",
+            "entities": [{"entity": entity, "name": texts["notify_test"]}],
+        },
+    ]
 
 
 def _maintenance_cards(
@@ -1099,12 +1225,19 @@ def _view_groups(
         groups.append((texts["sec_token"], token))
 
     settings = _settings_card(view, texts)
-    upkeep = [*([settings] if settings else []), *_maintenance_cards(view, texts)]
+    upkeep = [
+        *([settings] if settings else []),
+        *_notification_test_cards(view, texts),
+        *_maintenance_cards(view, texts),
+    ]
     if upkeep:
         groups.append((texts["sec_settings"], upkeep))
 
     if graphs := _history_cards(view, texts):
         groups.append((texts["sec_graphs"], graphs))
+
+    if analysis := _analysis_cards(view, texts):
+        groups.append((texts["sec_analysis"], analysis))
 
     return groups
 

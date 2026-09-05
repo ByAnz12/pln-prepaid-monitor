@@ -63,7 +63,6 @@ LIVE_ROWS: tuple[str, ...] = (
 # bulan lalu plus satu bulan berjalan, dan tiga hari lalu plus hari ini.
 DAYS_TO_FETCH = 40
 MONTHS_TO_FETCH = 5
-HOURS_FOR_AVERAGE = 24 * 7
 
 
 def _mean(values: list[float]) -> float | None:
@@ -75,7 +74,6 @@ def _mean(values: list[float]) -> float | None:
 
 def summarise(
     *,
-    hourly: list[tuple[datetime, float]],
     daily: list[tuple[datetime, float]],
     monthly: list[tuple[datetime, float]],
     now: datetime,
@@ -91,11 +89,18 @@ def summarise(
     """
     summary: dict[str, float | None] = {key: None for key in ROW_KEYS}
 
-    complete_hours = [value for start, value in hourly if start.hour != now.hour or start.date() != now.date()]
-    summary["avg_hourly"] = _mean(complete_hours)
-
     past_days = [(start, value) for start, value in daily if start.date() < now.date()]
     summary["avg_daily"] = _mean([value for _, value in past_days])
+
+    # Rata-rata per jam diturunkan dari rata-rata harian, bukan dihitung
+    # terpisah dari statistik per jam.
+    #
+    # Alasannya kejelasan, bukan kemalasan: kedua angka punya jendela data yang
+    # berbeda, jadi kalau dihitung sendiri-sendiri "rata-rata per jam" dikali 24
+    # tidak sama dengan "rata-rata harian" - dan pembaca kartu tidak punya cara
+    # tahu kenapa. Diturunkan begini, keduanya selalu rukun.
+    if summary["avg_daily"] is not None:
+        summary["avg_hourly"] = summary["avg_daily"] / 24
     for offset in (1, 2, 3):
         if len(past_days) >= offset:
             summary[f"prev_day_{offset}"] = past_days[-offset][1]
