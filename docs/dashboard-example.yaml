@@ -85,9 +85,8 @@ views:
             tap_action:
               action: perform-action
               perform_action: pln_prepaid_monitor.resolve_ledger_hold
-              target:
-                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
               data:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
                 action: ignore
               confirmation:
                 text: Abaikan (meteran diganti)?
@@ -98,9 +97,8 @@ views:
             tap_action:
               action: perform-action
               perform_action: pln_prepaid_monitor.resolve_ledger_hold
-              target:
-                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
               data:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
                 action: accept
               confirmation:
                 text: Anggap pemakaian nyata?
@@ -216,9 +214,8 @@ views:
         tap_action:
           action: perform-action
           perform_action: pln_prepaid_monitor.add_token_topup
-          target:
-            device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
           data:
+            device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
             kwh_credited: 825.0
             nominal_rp: 1002500.0
           confirmation:
@@ -230,9 +227,8 @@ views:
         tap_action:
           action: perform-action
           perform_action: pln_prepaid_monitor.add_token_topup
-          target:
-            device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
           data:
+            device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
             kwh_credited: 425.0
             nominal_rp: 503000.0
           confirmation:
@@ -285,9 +281,8 @@ views:
             tap_action:
               action: perform-action
               perform_action: pln_prepaid_monitor.resolve_rate_change
-              target:
-                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
               data:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
                 apply: true
               confirmation:
                 text: Ya, pakai harga baru?
@@ -298,9 +293,8 @@ views:
             tap_action:
               action: perform-action
               perform_action: pln_prepaid_monitor.resolve_rate_change
-              target:
-                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
               data:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
                 apply: false
               confirmation:
                 text: Tidak, biarkan?
@@ -324,7 +318,7 @@ views:
       tap_action:
         action: perform-action
         perform_action: pln_prepaid_monitor.reset_token_ledger
-        target:
+        data:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         confirmation:
           text: Reset ke nol?
@@ -500,7 +494,7 @@ views:
       tap_action:
         action: perform-action
         perform_action: pln_prepaid_monitor.purge_old_data
-        target:
+        data:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         confirmation:
           text: Bersihkan data?
@@ -574,9 +568,8 @@ views:
             tap_action:
               action: perform-action
               perform_action: pln_prepaid_monitor.resolve_ledger_hold
-              target:
-                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
               data:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
                 action: ignore
               confirmation:
                 text: Abaikan (meteran diganti)?
@@ -587,9 +580,8 @@ views:
             tap_action:
               action: perform-action
               perform_action: pln_prepaid_monitor.resolve_ledger_hold
-              target:
-                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
               data:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
                 action: accept
               confirmation:
                 text: Anggap pemakaian nyata?
@@ -742,9 +734,8 @@ views:
             tap_action:
               action: perform-action
               perform_action: pln_prepaid_monitor.resolve_rate_change
-              target:
-                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
               data:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
                 apply: true
               confirmation:
                 text: Ya, pakai harga baru?
@@ -755,9 +746,8 @@ views:
             tap_action:
               action: perform-action
               perform_action: pln_prepaid_monitor.resolve_rate_change
-              target:
-                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
               data:
+                device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
                 apply: false
               confirmation:
                 text: Tidak, biarkan?
@@ -781,7 +771,7 @@ views:
       tap_action:
         action: perform-action
         perform_action: pln_prepaid_monitor.reset_token_ledger
-        target:
+        data:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         confirmation:
           text: Reset ke nol?
@@ -957,7 +947,7 @@ views:
       tap_action:
         action: perform-action
         perform_action: pln_prepaid_monitor.purge_old_data
-        target:
+        data:
           device_id: ganti-dengan-id-perangkat-kelompok-tagihan-anda
         confirmation:
           text: Bersihkan data?

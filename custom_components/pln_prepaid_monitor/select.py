@@ -25,7 +25,13 @@ from .entity import PlnBillingGroupEntity
 
 # Ditampilkan saat belum ada template sama sekali. Daftar pilihan yang benar-
 # benar kosong membuat kartunya terlihat rusak.
-NONE_OPTION = "-"
+#
+# Nilainya harus berupa slug ``[a-z0-9-_]+`` yang tidak diawali atau diakhiri
+# tanda hubung: hassfest memakainya sebagai kunci terjemahan di
+# ``entity.select.topup_template.state``. Tanda hubung tunggal yang dipakai
+# sebelumnya membuat seluruh strings.json ditolak. Yang dilihat user tetap
+# kalimat utuh dari terjemahan, bukan nilai mentah ini.
+NONE_OPTION = "no_template"
 
 
 async def async_setup_entry(

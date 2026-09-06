@@ -18,7 +18,22 @@ permissions:
   contents: write
 
 jobs:
+  # Gerbang kedua, sengaja terpisah dari test. hassfest memeriksa hal yang
+  # tidak disentuh pytest sama sekali - bentuk services.yaml, strings.json,
+  # translations, icons.json, manifest.json - dan sempat merah di main selama
+  # empat commit tanpa ada yang sadar, karena rilis dulu hanya menunggu pytest.
+  #
+  # hacs/action sengaja TIDAK ikut di sini: yang diperiksanya sebagian ada di
+  # luar commit (deskripsi dan topik repositori), jadi ia bisa memerahkan
+  # rilis karena hal yang tidak bisa diperbaiki oleh kenaikan versi.
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
   release:
+    needs: hassfest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

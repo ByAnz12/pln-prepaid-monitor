@@ -1365,7 +1365,7 @@ Semua tarif, ambang batas, dan periode selalu bisa diatur dari antarmuka -
 tidak ada satu pun yang dikunci di dalam kode.
 
 Catatan keputusan implementasi ada di [docs/decisions.md](docs/decisions.md) —
-52 keputusan, masing-masing beserta alasannya, termasuk beberapa koreksi
+53 keputusan, masing-masing beserta alasannya, termasuk beberapa koreksi
 terhadap blueprint awal yang ditemukan lewat verifikasi langsung ke source code
 Home Assistant.
 

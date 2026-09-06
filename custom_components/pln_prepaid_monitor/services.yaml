@@ -1,9 +1,12 @@
 add_token_topup:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
   fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
     kwh_credited:
       required: false
       example: 826.5
@@ -47,11 +50,14 @@ add_token_topup:
         text:
 
 calibrate_token_reading:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
   fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
     actual_remaining_kwh:
       required: true
       example: 18.4
@@ -67,11 +73,14 @@ calibrate_token_reading:
         text:
 
 edit_topup:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
   fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
     topup_id:
       required: true
       example: a1b2c3d4e5f6
@@ -102,11 +111,14 @@ edit_topup:
         text:
 
 delete_topup:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
   fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
     topup_id:
       required: true
       example: a1b2c3d4e5f6
@@ -114,22 +126,28 @@ delete_topup:
         text:
 
 reset_token_ledger:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
   fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
     note:
       required: false
       selector:
         text:
 
 resolve_ledger_hold:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
   fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
     action:
       required: true
       selector:
@@ -153,43 +171,58 @@ resolve_ledger_hold:
         text:
 
 resolve_rate_change:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
   fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
     apply:
       required: true
       selector:
         boolean:
 
 save_topup_template:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
-  fields: {}
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
 
 update_topup_template:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
-  fields: {}
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
 
 delete_topup_template:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
-  fields: {}
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
 
 test_notification:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
-  fields: {}
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
 
 generate_dashboard:
   fields:
@@ -204,11 +237,14 @@ generate_dashboard:
           translation_key: dashboard_layout
 
 purge_old_data:
-  target:
-    device:
-      integration: pln_prepaid_monitor
-      model: Billing Group
   fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          filter:
+            integration: pln_prepaid_monitor
+            model: Billing Group
     keep_years:
       required: false
       selector:
