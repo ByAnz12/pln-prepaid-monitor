@@ -9,6 +9,83 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-054 · Prediksi membuang periode yang sedang berjalan
+
+**Tanggal**: 6 September 2026 · **Dilaporkan pemilik**
+
+Pemilik melapor perkiraan token habis melompat dari 15 hari jadi 43 hari tanpa
+alasan yang kelihatan. Di layar yang sama, dua angka yang bernama sama berbeda
+jauh:
+
+| Tempatnya | "Rata-rata harian" |
+|---|---|
+| Kartu Token (`sensor.avg_daily_usage`, dari prediksi) | 13,97 kWh |
+| Tabel Pemakaian & biaya (`engines/period_summary.py`) | 20,26 kWh |
+
+Yang benar 20,26. `period_summary.py` sudah membuang periode yang sedang
+berjalan sejak awal, dengan komentar yang menyebut alasannya kata demi kata:
+"jam yang baru berjalan lima menit akan menyeret rata-rata turun tanpa alasan,
+dan itu jenis kesalahan yang tidak kelihatan salah."
+
+Perbaikan itu **tidak pernah ikut ke jalur prediksi**.
+`statistics_helper.async_fetch_window_samples` menghitung rentangnya
+`now - span` tanpa batas akhir, jadi hari yang sedang berjalan ikut jadi sampel
+sebagai kalau-kalau hari penuh. Screenshot pemilik diambil sekitar pukul 09:00,
+saat "hari ini" baru terisi seperempat.
+
+### Kenapa ini bukan cuma soal kerapian
+
+Rumusnya `sisa_kWh / (rata_rata × 1,10)`. Rata-rata yang terlalu kecil membuat
+pembaginya kecil, jadi perkiraannya **terlalu panjang**:
+
+* dengan 13,97 → 43 hari
+* dengan 20,26 → sekitar 30 hari
+
+Arah kesalahannya berbahaya. Perkiraan yang terlalu pesimistis cuma bikin orang
+mengisi token lebih awal; yang terlalu optimistis membuat listrik padam pada
+hari yang layar bilang masih aman. Seluruh spec H dibangun di atas prinsip
+sebaliknya - lebih baik jujur "belum bisa diperkirakan" daripada memberi angka
+yang terdengar pasti padahal salah.
+
+### Yang diubah
+
+`window_bounds()` menggeser rentangnya ke batas periode: akhir rentang adalah
+awal periode yang sedang berjalan, awal rentang adalah akhir dikurangi
+rentangnya. Hasilnya tepat sejumlah periode penuh, tidak lebih dan tidak
+kurang.
+
+Batas akhir diserahkan ke recorder lewat parameter `end_time`, bukan disaring
+sendiri sesudah data terbaca. Sisi recorder memakai `start_ts >= start_time`
+dan `start_ts < end_time` (VERIFIED - `recorder/statistics.py:514`), jadi
+bucket yang mulai tepat di `end` - yaitu periode berjalan - memang tidak
+terbawa.
+
+Menyaring sesudahnya juga bisa, tapi salah hasilnya: dengan `start = now - 7
+hari` pada pukul 09:00, bucket hari ke-7 mulai tengah malam yang sudah lewat
+dari batas awal, jadi ia tidak ikut terbaca sama sekali. Yang tersisa cuma
+enam hari penuh, bukan tujuh.
+
+`now` diselaraskan ke waktu lokal dulu. `dt_util.start_of_local_day` membaca
+`.date()` apa adanya, jadi datetime UTC bisa jatuh ke tanggal yang salah bagi
+instalasi yang zonanya jauh dari UTC - Jakarta pukul 00:30 masih tanggal
+kemarin menurut UTC.
+
+### Akibat yang perlu diketahui
+
+Pada pemasangan yang benar-benar baru, perkiraan muncul **sedikit lebih lambat**
+dari sebelumnya. Hari berjalan tidak lagi ikut dihitung sebagai satu titik data,
+jadi ambang `min_data_points` tercapai belakangan. Itu bukan kemunduran: titik
+data yang dihitung sebelumnya memang tidak layak dipakai.
+
+### Yang menjaganya
+
+`tests/test_window_bounds.py` - tujuh test murni, tanpa recorder. Diperiksa
+merah lebih dulu pada perilaku lama: enam dari tujuh gagal. Salah satunya
+mengunci jebakan zona waktu, dan satu lagi memeriksa seluruh 24 jam dalam
+sehari, bukan cuma satu jam yang kebetulan enak.
+
+---
+
 ## D-053 · hassfest ikut jadi gerbang rilis, dan aturannya disalin ke pytest
 
 **Tanggal**: 6 September 2026 · **Keputusan implementasi**
