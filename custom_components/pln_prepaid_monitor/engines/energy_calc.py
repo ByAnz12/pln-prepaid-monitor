@@ -148,14 +148,41 @@ class PeriodCounter:
         stored = self._stored_cycle_start()
 
         rolled_over = False
-        if stored is None or stored < boundary:
+        if stored is None:
+            # Pemasangan baru di tengah siklus. Kita tidak punya data sebelum
+            # detik ini, jadi mengaku siklusnya mulai di batas resmi adalah
+            # dusta - dan dusta yang mahal.
+            #
+            # Dipasang Sabtu siang, "Bulan ini" dulu mengaku ``last_reset``-nya
+            # 1 September padahal angkanya cuma mencakup Sabtu siang ke sini.
+            # Pembacanya wajar menyangka itu pemakaian sebulan berjalan, dan
+            # tidak ada satu pun tanda bahwa sebagian besar bulan itu hilang.
+            #
+            # Home Assistant sendiri memakai ``last_reset`` untuk menafsirkan
+            # penurunan pada sensor ``total``, jadi tanggal yang mengada-ada
+            # bukan cuma menyesatkan pembaca - ia bisa merusak statistik
+            # jangka panjang milik HA.
+            self.state.cycle_start = now.isoformat()
+            self.state.start_total = total
+        elif stored < boundary:
             self.state.cycle_start = boundary.isoformat()
             self.state.start_total = total
-            rolled_over = stored is not None
+            rolled_over = True
         elif self.state.start_total is None:
             self.state.start_total = total
 
         return rolled_over
+
+    def covers_full_cycle(self, now: datetime) -> bool:
+        """True bila penghitung ini sudah mencakup siklusnya dari awal.
+
+        False hanya pada siklus pertama sesudah pemasangan, dan itulah satu-
+        satunya saat angkanya tidak boleh dibandingkan dengan siklus lain.
+        """
+        stored = self._stored_cycle_start()
+        if stored is None:
+            return False
+        return stored <= cycle_start(self.period, now, self.config)
 
     def _stored_cycle_start(self) -> datetime | None:
         """Awal siklus yang tersimpan, atau None kalau belum pernah diset."""

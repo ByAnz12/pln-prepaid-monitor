@@ -210,17 +210,31 @@ async def test_period_counter_resets_at_boundary(
 async def test_period_counter_exposes_cycle_boundaries(
     hass: HomeAssistant, freezer
 ) -> None:
-    """Kapan siklus dimulai dan kapan reset berikutnya harus terlihat user."""
+    """Kapan siklus dimulai dan kapan reset berikutnya harus terlihat user.
+
+    Dipasang pukul 12:00, jadi penghitung harian **tidak** mencakup hari itu
+    dari tengah malam - ia baru mulai mengukur pukul 12:00. ``cycle_start`` dan
+    ``last_reset`` menyebut pukul 12:00 karena memang itu yang benar.
+
+    Dulu keduanya menyebut tengah malam, dan itu dusta yang mahal: "Bulan ini"
+    pada pemasangan tanggal 5 mengaku mencakup sejak tanggal 1, padahal
+    angkanya cuma dua hari. Home Assistant juga memakai ``last_reset`` untuk
+    menafsirkan penurunan pada sensor ``total``, jadi tanggal yang mengada-ada
+    bisa merusak statistik jangka panjangnya. Lihat D-057.
+    """
     await hass.config.async_set_time_zone("Asia/Jakarta")
     freezer.move_to("2026-09-03 05:00:00+00:00")  # 12:00 WIB
     apply_states(hass, MCB_RUMAH, MCB_TOKO)
     await _setup(hass, PLN_RUMAH)
 
     state = hass.states.get("sensor.pln_rumah_energy_this_day")
-    assert state.attributes["cycle_start"].startswith("2026-09-03T00:00:00")
+    assert state.attributes["cycle_start"].startswith("2026-09-03T12:00:00")
     assert state.attributes[ATTR_NEXT_CYCLE_START].startswith("2026-09-04T00:00:00")
     # last_reset dipakai Home Assistant untuk statistik sensor state_class total.
-    assert state.attributes["last_reset"].startswith("2026-09-03T00:00:00")
+    assert state.attributes["last_reset"].startswith("2026-09-03T12:00:00")
+    # Dan siklus pertama itu ditandai belum penuh, supaya angkanya tidak
+    # dibandingkan begitu saja dengan hari berikutnya.
+    assert state.attributes["covers_full_cycle"] is False
 
 
 async def test_offline_member_is_reported_not_hidden(

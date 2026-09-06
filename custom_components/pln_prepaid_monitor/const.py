@@ -259,6 +259,9 @@ ATTR_MEMBER_SOURCES: Final = "member_sources"
 ATTR_MEMBERS_UNAVAILABLE: Final = "members_unavailable"
 ATTR_CYCLE_START: Final = "cycle_start"
 ATTR_NEXT_CYCLE_START: Final = "next_cycle_start"
+# False pada siklus pertama sesudah pemasangan: angkanya nyata, tapi rentangnya
+# lebih pendek daripada yang disiratkan nama periodenya.
+ATTR_FULL_CYCLE: Final = "covers_full_cycle"
 ATTR_TARIFF_NAME: Final = "tariff_name"
 ATTR_ACTIVE_RATE: Final = "active_rate_rp_per_kwh"
 ATTR_RATE_HISTORY: Final = "rate_history"

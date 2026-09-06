@@ -57,6 +57,7 @@ from .const import (
     ATTR_TOPUP_LOG,
     ATTR_TOTAL_CREDITED,
     ATTR_CYCLE_START,
+    ATTR_FULL_CYCLE,
     ATTR_DIPS_DETECTED,
     ATTR_ENERGY_COST_ONLY,
     ATTR_FIXED_CHARGE_INCLUDED,
@@ -357,6 +358,13 @@ class PlnGroupPeriodEnergySensor(PlnBillingGroupEntity, SensorEntity):
         attributes[ATTR_NEXT_CYCLE_START] = next_cycle_start(
             self._period, dt_util.now(), self._group.cycle_config
         ).isoformat()
+        # Siklus pertama sesudah pemasangan lebih pendek daripada yang
+        # disiratkan namanya. Angkanya nyata, tapi "Bulan ini" yang cuma
+        # mencakup dua hari tidak adil dibandingkan bulan berikutnya - dan
+        # tanpa penanda ini, tidak ada cara tahu bedanya.
+        attributes[ATTR_FULL_CYCLE] = self._group.period_covers_full_cycle(
+            self._period
+        )
         return attributes
 
 

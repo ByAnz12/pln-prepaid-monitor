@@ -9,6 +9,88 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-057 · Siklus pertama tidak lagi mengaku lebih panjang dari kenyataannya
+
+**Tanggal**: 6 September 2026 · **Dilaporkan pemilik**
+
+Pemilik memasang integrasi ini Sabtu 5 September siang, lalu Minggu pagi
+melihat "Minggu ini 36,55 kWh" - lebih kecil daripada jumlah tiga hari terakhir
+di tabel yang sama. Tidak ada error, angkanya tidak mustahil, dan tidak ada satu
+pun petunjuk kenapa.
+
+Diselidiki dengan menjalankan `PeriodCounter` pada timeline sungguhan itu:
+
+| Periode | Nilai | `last_reset` yang **diklaim** | Yang sebenarnya diukur sejak |
+|---|---|---|---|
+| minggu | 36,55 | Senin 31 Agu 00:00 | Sabtu 5 Sep 12:00 |
+| bulan | 36,55 | Selasa 1 Sep 00:00 | Sabtu 5 Sep 12:00 |
+| tahun | 36,55 | Kamis 1 Jan 00:00 | Sabtu 5 Sep 12:00 |
+
+Jadi "Bulan ini" mengaku mencakup 1-6 September, padahal isinya 5-6 September.
+**Labelnya berbohong tentang rentang yang dicakupnya.**
+
+Itu pula yang membuat angkanya terlihat lebih kecil daripada jumlah hari
+terakhir: baris harian datang dari statistik - hari sungguhan - sementara
+"minggu ini" hanya sejak pemasangan.
+
+### Kenapa ini lebih dari sekadar membingungkan pembaca
+
+Home Assistant memakai `last_reset` untuk menafsirkan penurunan pada sensor
+ber-`state_class: total`. Tanggal yang mengada-ada bukan cuma menyesatkan
+orang - ia bisa merusak long-term statistics milik HA sendiri.
+
+### Yang diubah
+
+`PeriodCounter.sync` memisahkan dua hal yang dulu tercampur:
+
+* **Pemasangan baru** (belum ada state tersimpan) mencatat `cycle_start = now`.
+  Kita memang tidak punya data sebelum detik itu.
+* **Pergantian siklus sungguhan** tetap memakai batas resminya, seperti
+  sebelumnya.
+
+Ditambah `covers_full_cycle()`, dipublikasikan sebagai atribut
+`covers_full_cycle` pada sensor periode. False hanya pada siklus pertama.
+Angkanya tetap ditampilkan - ia nyata, cuma rentangnya lebih pendek - tapi
+sekarang ada cara mengetahuinya.
+
+### Efek samping yang justru mengungkap kekeliruan kedua
+
+Test `test_fixed_charge_only_on_month_and_year` langsung merah. Ternyata
+`cost_period_fixed_charge` memakai titik mulai penghitung sebagai dasar
+proporsi biaya beban.
+
+Itu salah, dan sekarang jadi kelihatan: **PLN menagih biaya beban untuk sebulan
+penuh, tidak peduli kapan integrasi ini dipasang.** Menghitungnya sejak
+pemasangan akan menagih terlalu sedikit di bulan pertama, lalu terlihat
+"normal" bulan berikutnya - selisih yang tidak akan pernah ada yang
+menyadarinya.
+
+Dulu keduanya kebetulan benar karena titik mulai penghitung sama dengan batas
+siklus. Sekarang keduanya dipisah eksplisit: biaya beban memakai
+`cycle_start(period, now, config)`, penghitung energi memakai titik mulainya
+sendiri.
+
+### Yang menjaganya
+
+`tests/test_partial_first_cycle.py` - sebelas test yang memakai tanggal
+pemasangan pemilik apa adanya. Diperiksa merah lebih dulu: tujuh gagal saat
+perilaku lama dikembalikan.
+
+Satu di antaranya menjaga hal yang mudah dirusak perbaikan ini sendiri: restart
+Home Assistant **bukan** pemasangan baru. Kalau state tersimpan tidak menang,
+tiap restart akan menggeser titik awal dan penghitungnya kembali ke nol -
+kehilangan seluruh pemakaian siklus itu tanpa jejak.
+
+### Yang tidak diubah
+
+Nama barisnya tetap "Bulan ini", bukan "Sejak dipasang". Mengubah nama hanya
+untuk siklus pertama membuat label berpindah-pindah tanpa sebab yang jelas bagi
+pembaca, dan namanya akan benar lagi dengan sendirinya begitu satu siklus penuh
+terlewati. Yang dibutuhkan adalah kejujuran soal rentangnya, dan itu sekarang
+ada di `last_reset` serta atribut `covers_full_cycle`.
+
+---
+
 ## D-056 · Tabel pemakaian: kendalinya entity, bukan tabel yang bisa diklik
 
 **Tanggal**: 6 September 2026 · **Atas permintaan user**
