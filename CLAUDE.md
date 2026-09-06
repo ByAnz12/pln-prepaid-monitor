@@ -86,7 +86,7 @@ uv pip install --python .venv/bin/python -r requirements_test.txt
 .venv/bin/python -m pytest
 ```
 
-474 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
+476 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
 
 ### Test bukan satu-satunya gerbang: ada hassfest
 
