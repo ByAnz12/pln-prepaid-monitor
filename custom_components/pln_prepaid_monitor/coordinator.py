@@ -9,7 +9,7 @@ sudah punya mekanisme update sendiri. Kita berlangganan perubahan state
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import logging
 from typing import Any
 
@@ -103,7 +103,18 @@ from .engines.token_engine import (
     TokenPreset,
     load_presets,
 )
-from .statistics_helper import async_fetch_window_samples
+from .engines.usage_table import (
+    DEFAULT_MAX_ROWS,
+    DIRECTION_DESC,
+    GRAIN_DAY,
+    GRAIN_MONTH,
+    UsageQuery,
+    UsageTable,
+    SORT_TIME,
+    clamp_view,
+    range_bounds,
+)
+from .statistics_helper import async_fetch_range, async_fetch_window_samples
 from .engines.period import ALL_PERIODS, CycleConfig, next_cycle_start
 
 _LOGGER = logging.getLogger(__name__)
@@ -573,6 +584,10 @@ class BillingGroupRuntime:
         # prediksi dihitung ulang.
         self.summaries: dict[str, dict[str, Any]] = {"energy": {}, "cost": {}}
 
+        # Tabel riwayat yang sedang tampil. Dihitung ulang tiap kali user
+        # mengubah salah satu kendalinya, dan ikut disegarkan bersama prediksi.
+        self.usage_table: UsageTable = UsageTable()
+
         # Usulan perubahan harga per kWh yang menunggu keputusan user. Sengaja
         # tidak langsung diterapkan: harga adalah angka yang user tetapkan
         # sendiri, dan mengubahnya diam-diam berarti seluruh biaya berikutnya
@@ -918,6 +933,100 @@ class BillingGroupRuntime:
             )
             return
 
+    # ------------------------------------------------------------------
+    # tabel riwayat
+    # ------------------------------------------------------------------
+
+    @property
+    def usage_query(self) -> UsageQuery:
+        """Pilihan user yang sedang berlaku, sudah dibersihkan.
+
+        Nilai yang tidak sah - misalnya tampilan yang lebih kasar daripada
+        jenis waktunya, atau tanggal yang gagal dibaca - diganti nilai bawaan
+        yang masuk akal, bukan dibiarkan menjatuhkan pembuatan tabel.
+        """
+        scope = self.inputs_text.get("usage_scope") or GRAIN_MONTH
+        view = clamp_view(scope, self.inputs_text.get("usage_view") or GRAIN_DAY)
+        today = dt_util.now().date()
+        return UsageQuery(
+            scope=scope,
+            view=view,
+            sort=self.inputs_text.get("usage_sort") or SORT_TIME,
+            direction=self.inputs_text.get("usage_direction") or DIRECTION_DESC,
+            start=self._usage_date("usage_from", today - timedelta(days=30)),
+            end=self._usage_date("usage_to", today),
+            max_rows=int(self.inputs.get("usage_rows") or DEFAULT_MAX_ROWS),
+        )
+
+    def _usage_date(self, key: str, fallback: date) -> date:
+        """Satu batas rentang, atau nilai bawaan kalau isiannya belum diisi."""
+        raw = self.inputs_text.get(key)
+        if not raw:
+            return fallback
+        parsed = dt_util.parse_date(raw)
+        return parsed if parsed is not None else fallback
+
+    async def async_refresh_usage_table(self) -> None:
+        """Hitung ulang tabel riwayat dari long-term statistics.
+
+        Tabelnya selalu disusun dari statistik **harian**, lalu dikelompokkan
+        ulang di engine sesuai tampilan yang dipilih. Membaca langsung per bulan
+        atau per tahun memang bisa, tapi dua sumber angka untuk hal yang sama
+        adalah dua tempat yang bisa berbeda - dan bedanya tidak akan kelihatan.
+        """
+        statistic_id = self.energy_total_statistic_id
+        if statistic_id is None:
+            self.usage_table = UsageTable()
+            return
+
+        query = self.usage_query
+        first, last = range_bounds(query.scope, query.start, query.end)
+        start = dt_util.start_of_local_day(first)
+        # Batas akhir eksklusif di sisi recorder, jadi hari terakhir ikut
+        # terbawa hanya kalau kita meminta sampai awal hari sesudahnya.
+        end = dt_util.start_of_local_day(last + timedelta(days=1))
+
+        energy = await async_fetch_range(self.hass, statistic_id, "day", start, end)
+        cost = None
+        if (cost_id := self.cost_total_statistic_id) is not None:
+            cost = await async_fetch_range(self.hass, cost_id, "day", start, end)
+
+        from .engines.usage_table import build_table  # noqa: PLC0415
+
+        self.usage_table = build_table(
+            query=query,
+            energy=energy,
+            cost=cost,
+            labeller=self._usage_label,
+        )
+        self._async_notify()
+
+    def _usage_label(self, key: tuple[int, ...], grain: str) -> str:
+        """Teks periode yang dibaca user, mengikuti bahasa Home Assistant."""
+        from .engines.usage_table import GRAIN_MONTH as _MONTH, GRAIN_YEAR as _YEAR  # noqa: PLC0415
+        from .messages import month_names, pick_language  # noqa: PLC0415
+
+        if grain == _YEAR:
+            return str(key[0])
+        names = month_names(pick_language(self.hass.config.language))
+        if grain == _MONTH:
+            return f"{names[key[1] - 1]} {key[0]}"
+        return f"{key[2]:02d} {names[key[1] - 1]} {key[0]}"
+
+    @callback
+    def async_set_usage_control(self, key: str, value: str | float) -> None:
+        """Simpan satu kendali tabel, lalu susun ulang tabelnya.
+
+        Penyusunan ulang membaca database recorder, jadi tidak bisa dilakukan
+        di dalam callback ini - ia dijadwalkan sebagai task tersendiri.
+        """
+        if isinstance(value, str):
+            self.inputs_text[key] = value
+        else:
+            self.inputs[key] = float(value)
+        self._on_persist()
+        self.hass.async_create_task(self.async_refresh_usage_table())
+
     @callback
     def async_set_input(self, key: str, value: float) -> None:
         """Simpan angka yang sedang diketik user, dan beri tahu entity-nya."""
@@ -1093,6 +1202,7 @@ class BillingGroupRuntime:
             now=dt_util.now(),
         )
         await self.async_refresh_summaries()
+        await self.async_refresh_usage_table()
         self._async_notify()
         await self.async_evaluate_notifications()
 

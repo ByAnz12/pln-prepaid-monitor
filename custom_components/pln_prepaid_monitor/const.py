@@ -29,6 +29,11 @@ PLATFORMS: Final[list[Platform]] = [
     Platform.BUTTON,
     Platform.SELECT,
     Platform.TEXT,
+    # ``date`` ditambahkan untuk rentang tabel riwayat (D-056). Ia hanya
+    # menyimpan tanggal - tidak mengirim perintah ke perangkat mana pun - dan
+    # jaminannya diperluas di tests/test_readonly_guarantee.py, bukan sekadar
+    # ditambahkan ke daftar ini.
+    Platform.DATE,
 ]
 
 # Platform yang tidak boleh dipakai integrasi ini, apa pun alasannya: semuanya

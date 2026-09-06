@@ -397,6 +397,49 @@ views:
         | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
         else %}-{% endif %} | {% if c.get(''prev_month_3'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_month_3''))
         | replace('','', ''.'') }}{% else %}-{% endif %} |'
+    - type: entities
+      title: Tabel pemakaian
+      entities:
+      - entity: select.pln_rumah_tabel_pemakaian_jenis_waktu
+        name: Jenis waktu
+      - entity: date.pln_rumah_tabel_pemakaian_dari_tanggal
+        name: Dari
+      - entity: date.pln_rumah_tabel_pemakaian_sampai_tanggal
+        name: Sampai
+      - entity: select.pln_rumah_tabel_pemakaian_tampilkan_per
+        name: Tampilkan per
+      - entity: select.pln_rumah_tabel_pemakaian_urutkan
+        name: Urutkan
+      - entity: select.pln_rumah_tabel_pemakaian_arah
+        name: Arah
+      - entity: number.pln_rumah_maksimal_baris_tabel_pemakaian
+        name: Maksimal baris
+    - type: markdown
+      content: '{% set rows = state_attr(''sensor.pln_rumah_tabel_pemakaian'', ''rows'')
+        or [] %}{% if rows | count == 0 %}Tidak ada data pada rentang itu. Statistik
+        yang lebih tua dari batas retensi Anda sudah dihapus permanen, dan pemasangan
+        baru memang belum punya riwayat sejauh itu.{% else %}| # | Periode | kWh |
+        Biaya | Banding |
+
+        |--:|---|--:|--:|---|
+
+        {% for row in rows %}| {{ row.no }} | {{ row.period }} | {{ ''%.2f'' | format(row.kwh)
+        | replace(''.'', '','') }} | {% if row.cost_rp is none %}-{% else %}Rp {{
+        ''{:,.0f}''.format(row.cost_rp) | replace('','', ''.'') }}{% endif %} | {{
+        row.bar }} |
+
+        {% endfor %}
+
+        **Total** {{ ''%.2f'' | format(state_attr(''sensor.pln_rumah_tabel_pemakaian'',
+        ''total_kwh'') or 0) | replace(''.'', '','') }} kWh{% set total = state_attr(''sensor.pln_rumah_tabel_pemakaian'',
+        ''total_cost_rp'') %}{% if total is not none %} · Rp {{ ''{:,.0f}''.format(total)
+        | replace('','', ''.'') }}{% endif %} · {{ states(''sensor.pln_rumah_tabel_pemakaian'')
+        }} periode{% set hidden = state_attr(''sensor.pln_rumah_tabel_pemakaian'',
+        ''hidden_count'') or 0 %}{% if hidden > 0 %}
+
+
+        _Masih ada baris yang tidak ditampilkan. Naikkan Maksimal baris untuk melihatnya
+        ({{ hidden }})_{% endif %}{% endif %}'
   - type: grid
     cards:
     - type: heading
@@ -850,6 +893,49 @@ views:
         | replace('','', ''@'') | replace(''.'', '','') | replace(''@'', ''.'') }}{%
         else %}-{% endif %} | {% if c.get(''prev_month_3'') is not none %}Rp {{ ''{:,.0f}''.format(c.get(''prev_month_3''))
         | replace('','', ''.'') }}{% else %}-{% endif %} |'
+    - type: entities
+      title: Tabel pemakaian
+      entities:
+      - entity: select.pln_toko_tabel_pemakaian_jenis_waktu
+        name: Jenis waktu
+      - entity: date.pln_toko_tabel_pemakaian_dari_tanggal
+        name: Dari
+      - entity: date.pln_toko_tabel_pemakaian_sampai_tanggal
+        name: Sampai
+      - entity: select.pln_toko_tabel_pemakaian_tampilkan_per
+        name: Tampilkan per
+      - entity: select.pln_toko_tabel_pemakaian_urutkan
+        name: Urutkan
+      - entity: select.pln_toko_tabel_pemakaian_arah
+        name: Arah
+      - entity: number.pln_toko_maksimal_baris_tabel_pemakaian
+        name: Maksimal baris
+    - type: markdown
+      content: '{% set rows = state_attr(''sensor.pln_toko_tabel_pemakaian'', ''rows'')
+        or [] %}{% if rows | count == 0 %}Tidak ada data pada rentang itu. Statistik
+        yang lebih tua dari batas retensi Anda sudah dihapus permanen, dan pemasangan
+        baru memang belum punya riwayat sejauh itu.{% else %}| # | Periode | kWh |
+        Biaya | Banding |
+
+        |--:|---|--:|--:|---|
+
+        {% for row in rows %}| {{ row.no }} | {{ row.period }} | {{ ''%.2f'' | format(row.kwh)
+        | replace(''.'', '','') }} | {% if row.cost_rp is none %}-{% else %}Rp {{
+        ''{:,.0f}''.format(row.cost_rp) | replace('','', ''.'') }}{% endif %} | {{
+        row.bar }} |
+
+        {% endfor %}
+
+        **Total** {{ ''%.2f'' | format(state_attr(''sensor.pln_toko_tabel_pemakaian'',
+        ''total_kwh'') or 0) | replace(''.'', '','') }} kWh{% set total = state_attr(''sensor.pln_toko_tabel_pemakaian'',
+        ''total_cost_rp'') %}{% if total is not none %} · Rp {{ ''{:,.0f}''.format(total)
+        | replace('','', ''.'') }}{% endif %} · {{ states(''sensor.pln_toko_tabel_pemakaian'')
+        }} periode{% set hidden = state_attr(''sensor.pln_toko_tabel_pemakaian'',
+        ''hidden_count'') or 0 %}{% if hidden > 0 %}
+
+
+        _Masih ada baris yang tidak ditampilkan. Naikkan Maksimal baris untuk melihatnya
+        ({{ hidden }})_{% endif %}{% endif %}'
   - type: grid
     cards:
     - type: heading

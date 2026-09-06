@@ -18,7 +18,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import CONF_DETAIL_ROWS, CONF_TARIFF_ID, DOMAIN
+from .const import CONF_DETAIL_ROWS, CONF_TARIFF_ID, DOMAIN, PLATFORMS
 from .engines.period_summary import selected_rows
 from .engines.token_engine import presets_from_history
 from .messages import PERIOD_LABELS, currency_symbol, pick_language
@@ -145,6 +145,21 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "notify_test": "Kirim pesan percobaan",
         "notify_test_note": "Mengirim satu pesan percobaan lewat tujuan notifikasi yang Anda atur, memakai jalur yang sama persis dengan pesan token sungguhan. Jam tenang dan jeda antar pesan dilewati.",
         "usage_and_cost": "Pemakaian dan biaya",
+        "usage_table_title": "Tabel pemakaian",
+        "usage_scope": "Jenis waktu",
+        "usage_from": "Dari",
+        "usage_to": "Sampai",
+        "usage_view": "Tampilkan per",
+        "usage_sort": "Urutkan",
+        "usage_direction": "Arah",
+        "usage_rows": "Maksimal baris",
+        "usage_col_period": "Periode",
+        "usage_col_cost": "Biaya",
+        "usage_col_bar": "Banding",
+        "usage_total": "Total",
+        "usage_periods": "periode",
+        "usage_hidden": "Masih ada baris yang tidak ditampilkan. Naikkan Maksimal baris untuk melihatnya",
+        "usage_table_empty": "Tidak ada data pada rentang itu. Statistik yang lebih tua dari batas retensi Anda sudah dihapus permanen, dan pemasangan baru memang belum punya riwayat sejauh itu.",
         "power_now": "Daya yang dipakai saat ini",
         "energy_history": "Pemakaian harian",
         "cost_history": "Biaya harian",
@@ -256,6 +271,21 @@ SECTION_TITLES: dict[str, dict[str, str]] = {
         "notify_test": "Send a test message",
         "notify_test_note": "Sends one test message through the notification targets you configured, using exactly the same path as real token messages. Quiet hours and cooldown are skipped.",
         "usage_and_cost": "Usage and cost",
+        "usage_table_title": "Usage table",
+        "usage_scope": "Time unit",
+        "usage_from": "From",
+        "usage_to": "To",
+        "usage_view": "Show per",
+        "usage_sort": "Sort by",
+        "usage_direction": "Direction",
+        "usage_rows": "Maximum rows",
+        "usage_col_period": "Period",
+        "usage_col_cost": "Cost",
+        "usage_col_bar": "Compare",
+        "usage_total": "Total",
+        "usage_periods": "periods",
+        "usage_hidden": "Some rows are not shown. Raise Maximum rows to see them",
+        "usage_table_empty": "No data in that range. Statistics older than your retention limit are permanently deleted, and a fresh install simply has no history that far back.",
         "power_now": "Power used right now",
         "energy_history": "Daily usage",
         "cost_history": "Daily cost",
@@ -320,12 +350,21 @@ def _slugify(value: str) -> str:
     ).strip("-") or "pln"
 
 
+# Urutannya tidak penting - unique_id sudah unik lintas platform - tapi
+# kelengkapannya penting.
+_RESOLVE_PLATFORMS: tuple[str, ...] = tuple(platform.value for platform in PLATFORMS)
+
+
 def _resolve(hass: HomeAssistant, subentry_id: str, keys: list[str]) -> dict[str, str]:
     """Cari entity_id dari unique_id, hanya untuk entity yang benar-benar ada."""
     registry = er.async_get(hass)
     resolved: dict[str, str] = {}
     for key in keys:
-        for platform in ("sensor", "binary_sensor", "number", "button", "select", "text"):
+        # Daftar platformnya diturunkan dari PLATFORMS, bukan ditulis ulang di
+        # sini. Salinan yang ditulis tangan pernah ketinggalan saat ``date``
+        # ditambahkan, dan akibatnya persis yang diperingatkan docstring ini:
+        # barisnya hilang dari dashboard tanpa satu pun pesan error.
+        for platform in _RESOLVE_PLATFORMS:
             entity_id = registry.async_get_entity_id(
                 platform, DOMAIN, f"{subentry_id}_{key}"
             )
@@ -366,6 +405,15 @@ GROUP_KEYS = [
     "critical_threshold_days",
     "very_critical_threshold_days",
     "history_rows",
+    # Tabel pemakaian: satu sensor pembawa isinya, plus tujuh kendalinya.
+    "usage_table",
+    "usage_scope",
+    "usage_view",
+    "usage_sort",
+    "usage_direction",
+    "usage_from",
+    "usage_to",
+    "usage_rows",
 ]
 
 SOURCE_KEYS = ["energy", "power", "voltage", "current", "frequency", "available"]
@@ -946,6 +994,88 @@ def _topup_history_cards(
     return cards
 
 
+# Kunci entity kendali tabel, urut sesuai urutan mengerjakannya: tentukan
+# rentangnya dulu, baru cara menampilkannya.
+USAGE_CONTROLS: tuple[tuple[str, str], ...] = (
+    ("usage_scope", "usage_scope"),
+    ("usage_from", "usage_from"),
+    ("usage_to", "usage_to"),
+    ("usage_view", "usage_view"),
+    ("usage_sort", "usage_sort"),
+    ("usage_direction", "usage_direction"),
+    ("usage_rows", "usage_rows"),
+)
+
+
+def _usage_table_cards(
+    view: GroupView, texts: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Tabel pemakaian yang bisa disaring dan diurutkan.
+
+    Kendalinya berupa entity, bukan judul kolom yang bisa diklik: kartu bawaan
+    Home Assistant tidak menjalankan kode di peramban, jadi tidak ada tabel
+    interaktif tanpa memasang kartu HACS. Prinsip spec J menang di sini.
+
+    Tabelnya sendiri dirender kartu ``markdown`` dari atribut ``rows`` sensor.
+    Templatenya harus tahan atribut yang belum terisi - pada pemasangan baru
+    tabelnya memang masih kosong, dan template yang mengasumsikan ada isinya
+    hanya tampil sebagai kotak merah tanpa pesan berguna.
+    """
+    table = view.entity("usage_table")
+    if not table:
+        return []
+
+    rows = [
+        {"entity": entity, "name": texts[label]}
+        for key, label in USAGE_CONTROLS
+        if (entity := view.entity(key))
+    ]
+
+    cards: list[dict[str, Any]] = []
+    if rows:
+        cards.append(
+            {"type": "entities", "title": texts["usage_table_title"], "entities": rows}
+        )
+
+    currency = view.currency
+    cards.append(
+        {
+            "type": "markdown",
+            "content": (
+                "{% set rows = state_attr('" + table + "', 'rows') or [] %}"
+                "{% if rows | count == 0 %}"
+                + texts["usage_table_empty"]
+                + "{% else %}"
+                "| # | " + texts["usage_col_period"] + " | kWh | "
+                + texts["usage_col_cost"] + " | " + texts["usage_col_bar"] + " |\n"
+                "|--:|---|--:|--:|---|\n"
+                "{% for row in rows %}"
+                "| {{ row.no }} "
+                "| {{ row.period }} "
+                "| {{ '%.2f' | format(row.kwh) | replace('.', ',') }} "
+                "| {% if row.cost_rp is none %}-{% else %}"
+                + currency
+                + " {{ '{:,.0f}'.format(row.cost_rp) | replace(',', '.') }}"
+                "{% endif %} "
+                "| {{ row.bar }} |\n"
+                "{% endfor %}"
+                "\n**" + texts["usage_total"] + "** "
+                "{{ '%.2f' | format(state_attr('" + table + "', 'total_kwh') or 0) "
+                "| replace('.', ',') }} kWh"
+                "{% set total = state_attr('" + table + "', 'total_cost_rp') %}"
+                "{% if total is not none %} · " + currency + " "
+                "{{ '{:,.0f}'.format(total) | replace(',', '.') }}{% endif %}"
+                " · {{ states('" + table + "') }} " + texts["usage_periods"] +
+                "{% set hidden = state_attr('" + table + "', 'hidden_count') or 0 %}"
+                "{% if hidden > 0 %}\n\n_" + texts["usage_hidden"] +
+                " ({{ hidden }})_{% endif %}"
+                "{% endif %}"
+            ),
+        }
+    )
+    return cards
+
+
 def _history_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
     """Grafik riwayat, dibaca langsung dari long-term statistics."""
     cards: list[dict[str, Any]] = []
@@ -1238,8 +1368,12 @@ def _view_groups(
     if token:
         groups.append((texts["sec_token"], token))
 
-    if usage := _period_card(view, texts, labels):
-        groups.append((texts["sec_usage"], [usage]))
+    usage = [
+        *([card] if (card := _period_card(view, texts, labels)) else []),
+        *_usage_table_cards(view, texts),
+    ]
+    if usage:
+        groups.append((texts["sec_usage"], usage))
 
     if graphs := _history_cards(view, texts):
         groups.append((texts["sec_graphs"], graphs))

@@ -23,7 +23,7 @@ Wujudnya di kode:
 | Berkas | Isinya |
 |---|---|
 | `const.py` → `FORBIDDEN_PLATFORMS` | `switch`, `climate`, `cover`, `fan`, `light`, `lock`, `siren`, `vacuum`, `valve`, `water_heater`, `humidifier` — terlarang selamanya |
-| `const.py` → `PLATFORMS` | Dikunci ke `sensor`, `binary_sensor`, `number`, `button`, `select`, `text` |
+| `const.py` → `PLATFORMS` | Dikunci ke `sensor`, `binary_sensor`, `number`, `button`, `select`, `text`, `date` |
 | `notifier.py` | **Satu-satunya** berkas yang boleh memanggil service, dan hanya domain `notify` |
 | `tests/test_readonly_guarantee.py` | Menggerakkan **seluruh** entity lalu memastikan tidak ada relay yang bergerak |
 
@@ -105,7 +105,7 @@ uv pip install --python .venv/bin/python -r requirements_test.txt
 .venv/bin/python -m pytest
 ```
 
-495 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
+523 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
 
 ### Test bukan satu-satunya gerbang: ada hassfest
 
@@ -132,7 +132,7 @@ pesan berguna.
 
 ### Catat keputusan, jangan menyimpang diam-diam
 
-`docs/decisions.md` — 55 keputusan, D-001 sampai D-055. Setiap penyimpangan dari
+`docs/decisions.md` — 56 keputusan, D-001 sampai D-056. Setiap penyimpangan dari
 blueprint awal, setiap keputusan yang bisa dipertanyakan orang lain nanti,
 ditulis beserta **alasannya**. Tambahkan entri baru di atas yang terakhir.
 

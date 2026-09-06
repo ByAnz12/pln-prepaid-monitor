@@ -21,6 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import BillingGroupRuntime, PlnRuntimeData
+from .engines.usage_table import DIRECTIONS, GRAINS, SORTS, finer_grains
 from .entity import PlnBillingGroupEntity
 
 # Ditampilkan saat belum ada template sama sekali. Daftar pilihan yang benar-
@@ -42,11 +43,14 @@ async def async_setup_entry(
     """Buat pemilih template untuk kelompok tagihan yang mencatat token."""
     runtime_data: PlnRuntimeData = entry.runtime_data
     for subentry_id, group in runtime_data.billing_groups.items():
-        if not group.token_enabled:
-            continue
-        async_add_entities(
-            [PlnTopupTemplateSelect(group)], config_subentry_id=subentry_id
-        )
+        entities: list[SelectEntity] = [
+            PlnUsageTableSelect(group, key, choices) for key, choices in USAGE_SELECTS
+        ]
+        # Pemilih template hanya berguna kalau kelompok ini mencatat token;
+        # kendali tabel riwayat berguna untuk semua kelompok.
+        if group.token_enabled:
+            entities.append(PlnTopupTemplateSelect(group))
+        async_add_entities(entities, config_subentry_id=subentry_id)
 
 
 class PlnTopupTemplateSelect(PlnBillingGroupEntity, SelectEntity):
@@ -101,3 +105,51 @@ class PlnTopupTemplateSelect(PlnBillingGroupEntity, SelectEntity):
             # perbaiki apa pun yang perlu, lalu perbarui.
             self._group.async_set_input_text("template_name", preset.name or "")
             return
+
+
+# Kendali tabel riwayat. Semuanya hanya memilih cara menampilkan data yang
+# sudah ada - tidak satu pun menyentuh perangkat.
+#
+# Tampilan sengaja tidak punya daftar tetap: pilihannya menyusut mengikuti
+# jenis waktu, karena tampilan yang lebih kasar daripada rentangnya cuma
+# menghasilkan satu baris gabungan yang tidak menjawab apa pun.
+USAGE_SELECTS: tuple[tuple[str, tuple[str, ...] | None], ...] = (
+    ("usage_scope", GRAINS),
+    ("usage_view", None),
+    ("usage_sort", SORTS),
+    ("usage_direction", DIRECTIONS),
+)
+
+
+class PlnUsageTableSelect(PlnBillingGroupEntity, SelectEntity):
+    """Satu kendali tabel riwayat."""
+
+    def __init__(
+        self, group: BillingGroupRuntime, key: str, choices: tuple[str, ...] | None
+    ) -> None:
+        """Siapkan pemilih; ``choices`` None berarti daftarnya dihitung hidup."""
+        super().__init__(group, key)
+        self._choices = choices
+
+    @property
+    def options(self) -> list[str]:
+        """Pilihan yang tersedia sekarang."""
+        if self._choices is not None:
+            return list(self._choices)
+        return finer_grains(self._group.usage_query.scope)
+
+    @property
+    def current_option(self) -> str:
+        """Pilihan yang sedang berlaku, sudah dikoreksi kalau tidak sah lagi."""
+        query = self._group.usage_query
+        chosen = {
+            "usage_scope": query.scope,
+            "usage_view": query.view,
+            "usage_sort": query.sort,
+            "usage_direction": query.direction,
+        }[self._key]
+        return chosen if chosen in self.options else self.options[0]
+
+    async def async_select_option(self, option: str) -> None:
+        """Simpan pilihan, lalu susun ulang tabelnya."""
+        self._group.async_set_usage_control(self._key, option)

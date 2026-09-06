@@ -42,6 +42,7 @@ from .const import (
     SUBENTRY_TYPE_TARIFF,
 )
 from .coordinator import BillingGroupRuntime, PlnRuntimeData
+from .engines.usage_table import DEFAULT_MAX_ROWS, MAX_ROWS_LIMIT
 from .engines.cost_engine import append_rate_version
 from .engines.token_engine import MAX_PLAUSIBLE_TOPUP_KWH
 from .entity import PlnBillingGroupEntity, PlnTariffEntity
@@ -83,6 +84,11 @@ async def async_setup_entry(
     runtime_data: PlnRuntimeData = entry.runtime_data
 
     for subentry_id, group in runtime_data.billing_groups.items():
+        # Berlaku untuk semua kelompok: tabel pemakaian tidak ada hubungannya
+        # dengan token.
+        async_add_entities(
+            [PlnUsageRowsNumber(group)], config_subentry_id=subentry_id
+        )
         if not group.token_enabled:
             continue
         entities: list[NumberEntity] = [
@@ -323,3 +329,33 @@ class PlnTariffRateNumber(PlnTariffEntity, NumberEntity):
                 == self._subentry_id
             ]
         }
+
+
+class PlnUsageRowsNumber(PlnBillingGroupEntity, NumberEntity):
+    """Berapa baris tabel pemakaian yang ditampilkan sekaligus.
+
+    Namanya sengaja dibedakan dari ``history_rows``, yang mengatur panjang
+    daftar riwayat **pengisian token** - dua hal berbeda yang sama-sama berupa
+    daftar, dan nama yang mirip akan tertukar cepat atau lambat.
+
+    Ini pagar, bukan selera: tabel markdown 365 baris tidak terbaca siapa pun,
+    dan atribut state yang lewat 16 KiB ditolak recorder.
+    """
+
+    _attr_native_min_value = 1
+    _attr_native_max_value = MAX_ROWS_LIMIT
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Buat isian jumlah baris tabel pemakaian."""
+        super().__init__(group, "usage_rows")
+
+    @property
+    def native_value(self) -> float:
+        """Jumlah baris yang sedang dipilih."""
+        return self._group.inputs.get(self._key, DEFAULT_MAX_ROWS)
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Simpan pilihannya, lalu susun ulang tabelnya."""
+        self._group.async_set_usage_control(self._key, value)

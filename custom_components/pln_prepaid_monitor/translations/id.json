@@ -354,6 +354,9 @@
       },
       "topup_rp": {
         "name": "Nominal pembelian"
+      },
+      "usage_rows": {
+        "name": "Maksimal baris tabel pemakaian"
       }
     },
     "select": {
@@ -361,6 +364,37 @@
         "name": "Template pengisian",
         "state": {
           "no_template": "Belum ada template"
+        }
+      },
+      "usage_scope": {
+        "name": "Tabel pemakaian: jenis waktu",
+        "state": {
+          "day": "Hari",
+          "month": "Bulan",
+          "year": "Tahun"
+        }
+      },
+      "usage_view": {
+        "name": "Tabel pemakaian: tampilkan per",
+        "state": {
+          "day": "Hari",
+          "month": "Bulan",
+          "year": "Tahun"
+        }
+      },
+      "usage_sort": {
+        "name": "Tabel pemakaian: urutkan",
+        "state": {
+          "time": "Waktu",
+          "kwh": "Pemakaian",
+          "cost": "Biaya"
+        }
+      },
+      "usage_direction": {
+        "name": "Tabel pemakaian: arah",
+        "state": {
+          "asc": "Naik - kecil ke besar",
+          "desc": "Turun - besar ke kecil"
         }
       }
     },
@@ -444,11 +478,22 @@
           "hold": "Ditahan",
           "unknown": "Belum diketahui"
         }
+      },
+      "usage_table": {
+        "name": "Tabel pemakaian"
       }
     },
     "text": {
       "template_name": {
         "name": "Nama template"
+      }
+    },
+    "date": {
+      "usage_from": {
+        "name": "Tabel pemakaian: dari tanggal"
+      },
+      "usage_to": {
+        "name": "Tabel pemakaian: sampai tanggal"
       }
     }
   },
