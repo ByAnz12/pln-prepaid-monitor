@@ -105,7 +105,7 @@ uv pip install --python .venv/bin/python -r requirements_test.txt
 .venv/bin/python -m pytest
 ```
 
-485 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
+495 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
 
 ### Test bukan satu-satunya gerbang: ada hassfest
 
@@ -132,7 +132,7 @@ pesan berguna.
 
 ### Catat keputusan, jangan menyimpang diam-diam
 
-`docs/decisions.md` — 54 keputusan, D-001 sampai D-054. Setiap penyimpangan dari
+`docs/decisions.md` — 55 keputusan, D-001 sampai D-055. Setiap penyimpangan dari
 blueprint awal, setiap keputusan yang bisa dipertanyakan orang lain nanti,
 ditulis beserta **alasannya**. Tambahkan entri baru di atas yang terakhir.
 

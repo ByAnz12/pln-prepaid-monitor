@@ -1113,6 +1113,8 @@ class BillingGroupRuntime:
         from .engines.period_summary import (  # noqa: PLC0415
             DAYS_TO_FETCH,
             MONTHS_TO_FETCH,
+            past_day_keys,
+            past_month_keys,
             summarise,
         )
         from .statistics_helper import (  # noqa: PLC0415
@@ -1120,23 +1122,45 @@ class BillingGroupRuntime:
         )
 
         now = dt_util.now()
+        fetched: dict[str, tuple[list, list]] = {}
         for family, statistic_id in (
             ("energy", self.energy_total_statistic_id),
             ("cost", self.cost_total_statistic_id),
         ):
             if statistic_id is None:
                 continue
-            self.summaries[family] = summarise(
-                daily=await async_fetch_period_changes(
+            fetched[family] = (
+                await async_fetch_period_changes(
                     self.hass, statistic_id, "day", now - timedelta(days=DAYS_TO_FETCH)
                 ),
-                monthly=await async_fetch_period_changes(
+                await async_fetch_period_changes(
                     self.hass,
                     statistic_id,
                     "month",
                     now - timedelta(days=31 * MONTHS_TO_FETCH),
                 ),
+            )
+
+        # Rata-rata kWh dan rata-rata Rupiah harus dibagi jumlah periode yang
+        # sama, kalau tidak Rp/kWh-nya tidak akan pernah cocok dengan tarif mana
+        # pun. Statistik biaya biasanya lebih pendek - ia baru mulai tercatat
+        # sejak tarif dipasang - jadi yang dipakai adalah irisan keduanya.
+        only_days = only_months = None
+        if len(fetched) > 1:
+            only_days = set.intersection(
+                *(past_day_keys(daily, now) for daily, _ in fetched.values())
+            )
+            only_months = set.intersection(
+                *(past_month_keys(monthly, now) for _, monthly in fetched.values())
+            )
+
+        for family, (daily, monthly) in fetched.items():
+            self.summaries[family] = summarise(
+                daily=daily,
+                monthly=monthly,
                 now=now,
+                only_days=only_days,
+                only_months=only_months,
             )
 
     def summary_for(self, family: str) -> dict[str, Any]:
