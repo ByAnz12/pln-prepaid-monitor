@@ -9,6 +9,121 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-053 · hassfest ikut jadi gerbang rilis, dan aturannya disalin ke pytest
+
+**Tanggal**: 6 September 2026 · **Keputusan implementasi**
+
+Workflow **Validate** merah di `main` sejak commit `985644e` - empat commit
+berturut-turut, termasuk `chore: versi 0.3.0` yang menerbitkan rilis. Tidak ada
+yang sadar, karena D-052 hanya memasang pytest sebagai gerbang rilis, dan pytest
+memang hijau sepanjang waktu itu.
+
+Yang gagal adalah **hassfest**, milik tim Home Assistant. `hacs/action` lulus.
+
+### Kenapa tidak ada yang melihatnya
+
+Keempat kesalahannya **tidak berbentuk error saat integrasinya dipakai**:
+
+| Yang salah | Wujudnya bagi pengguna |
+|---|---|
+| Filter perangkat pada `target` di 12 layanan | Pemilih di UI menawarkan area, padahal kodenya hanya baca `device_id` |
+| `description` pada 8 entity | Teksnya tidak pernah tampil - Home Assistant memang tidak membacanya |
+| Kunci state `-` pada pemilih template | Seluruh `strings.json` ditolak hassfest, diam-diam |
+| Placeholder di dalam petik tunggal (4 exception + 1 issue) | Tidak ada |
+
+Semuanya terlihat baik-baik saja dari dalam Home Assistant. Itu sebabnya
+gerbangnya yang harus diperbaiki, bukan cuma berkasnya.
+
+### Yang diubah
+
+**1. `target: device:` diganti field `device_id` dengan device selector.**
+hassfest menolaknya lewat `raise_on_target_device_filter`
+(`script/hassfest/services.py`) dan menyuruh memakai device selector.
+
+Ini bukan sekadar menyenangkan hassfest. Pemilih `target` di UI juga menawarkan
+**area** dan **entity**, sementara seluruh layanan di sini hanya membaca
+`device_id` - memilih area menghasilkan penolakan skema yang tidak menjelaskan
+apa pun. Device selector menawarkan persis yang diterima kode.
+
+Otomasi lama tetap jalan: `core.py` menggabungkan `target` ke dalam
+`service_data` di tingkat `async_call`, tanpa melihat `services.yaml` sama
+sekali (VERIFIED - `homeassistant/core.py`, `if target: service_data.update(target)`).
+`services.yaml` hanya keterangan untuk UI dan untuk hassfest.
+
+`purge_old_data` tetap boleh dipanggil tanpa memilih apa pun, jadi field-nya
+`required: false`.
+
+**2. Delapan `description` pada entity dihapus.** Skema `entity` di
+`script/hassfest/translations.py` hanya mengenal `name`, `state`,
+`state_attributes`, dan `unit_of_measurement` - dan `helpers/entity.py` memang
+hanya mencari `.name` (VERIFIED, keduanya dibaca langsung dari source yang
+terpasang). Teks itu tidak pernah sampai ke layar siapa pun.
+
+Penjelasan awam untuk isian yang sama tetap hidup di tempat yang benar-benar
+dibaca: `data_description` di config flow, dan README.
+
+**3. Nilai kosong pemilih template `-` jadi `no_template`.** Kunci terjemahan
+harus `[a-z0-9-_]+` dan tidak boleh diawali atau diakhiri tanda hubung. Yang
+dilihat pengguna tidak berubah - tetap kalimat dari terjemahan. Tidak perlu
+migrasi: `current_option` sudah mengembalikan nilai kosong untuk apa pun yang
+tidak ada di daftar.
+
+**4. Petik tunggal di sekitar placeholder jadi petik ganda**, mengikuti HA core
+(36 berkas `strings.json` bawaan memakai bentuk yang sama).
+
+### Dua gerbang baru, supaya ini tidak terulang
+
+**`release.yml` sekarang `needs: hassfest`.** Alasannya sama persis dengan
+alasan D-052 menaruh pytest di dalam workflow rilis: gerbang yang diandalkan
+dari workflow lain bukan gerbang.
+
+`hacs/action` sengaja **tidak** ikut. Sebagian yang diperiksanya ada di luar
+commit - deskripsi dan topik repositori - jadi ia bisa memerahkan rilis karena
+hal yang tidak bisa diperbaiki oleh kenaikan versi.
+
+**`tests/test_hassfest.py`** menyalin aturannya ke pytest, jadi kesalahan yang
+sama gagal lebih awal, di mesin siapa pun, tanpa perlu menunggu CI. Selector
+divalidasi lewat `homeassistant.helpers.selector` yang asli, bukan daftar
+salinan.
+
+Satu test di situ bukan milik hassfest: `id.json` dan `en.json` harus punya
+kunci yang persis sama. hassfest hanya melihat `strings.json` dan `en.json`,
+jadi kunci yang tertinggal di `id.json` lolos dan muncul sebagai teks Inggris
+di tengah antarmuka berbahasa Indonesia.
+
+### Tombol dashboard ikut menyesuaikan
+
+Lima `tap_action` di `dashboard.py` mengirim `device_id` lewat `target`. Itu
+tetap sampai ke kodenya - `core.py` menggabungkan `target` ke dalam
+`service_data` sebelum skema dijalankan - tapi editor aksi di frontend membaca
+`services.yaml` untuk tahu bentuk yang benar, dan itu JavaScript yang tidak
+bisa diverifikasi dari sini (batasan yang sama seperti kartu HACS). Jadi
+kartunya dibuat sebentuk dengan yang dideklarasikan layanannya: `device_id`
+masuk ke `data`.
+
+### Yang masih perlu diakui apa adanya
+
+**`docs/dashboard-example.yaml` tidak punya skrip pembangkit di repo.** Aturan
+proyek menyuruh membangkitkannya ulang lewat kode aslinya, tapi yang ada cuma
+berkas hasilnya - skenario yang dipakai untuk membuatnya (dua kelompok tagihan
+"PLN RUMAH" dan "PLN TOKO", beserta template dan ambangnya) tidak tersimpan di
+mana pun. Untuk perubahan ini, ke-14 blok `target` dipindahkan secara mekanis
+dengan transformasi yang sama persis dengan yang dilakukan `dashboard.py`, dan
+hasilnya diperiksa masih YAML yang sah.
+
+Itu bukan pembangkitan ulang, dan sebaiknya tidak jadi kebiasaan. Yang
+seharusnya ada: skenario contohnya ditulis sebagai fixture, lalu sebuah test
+memastikan berkas yang ter-commit sama dengan keluaran kode. Selama itu belum
+ada, berkas ini bisa menyimpang dari kodenya tanpa ada yang tahu - persis
+kelas kesalahan yang jadi pokok D-053 ini.
+
+`tests/test_hassfest.py` adalah **salinan** aturan, bukan hassfest itu sendiri.
+Kalau tim Home Assistant menambah aturan baru, test ini tidak ikut tahu - yang
+tahu tetap workflow Validate. Test ini mempercepat umpan balik; ia tidak
+menggantikan gerbangnya.
+
+---
+
 ## D-052 · Rilis dibuat otomatis, tapi hanya kalau seluruh test lulus
 
 **Tanggal**: 5 September 2026 · **Atas permintaan user**

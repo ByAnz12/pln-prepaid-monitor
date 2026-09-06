@@ -86,7 +86,7 @@ uv pip install --python .venv/bin/python -r requirements_test.txt
 .venv/bin/python -m pytest
 ```
 
-430 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
+474 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
 
 ### Test bukan satu-satunya gerbang: ada hassfest
 
@@ -113,7 +113,7 @@ pesan berguna.
 
 ### Catat keputusan, jangan menyimpang diam-diam
 
-`docs/decisions.md` — 52 keputusan, D-001 sampai D-052. Setiap penyimpangan dari
+`docs/decisions.md` — 53 keputusan, D-001 sampai D-053. Setiap penyimpangan dari
 blueprint awal, setiap keputusan yang bisa dipertanyakan orang lain nanti,
 ditulis beserta **alasannya**. Tambahkan entri baru di atas yang terakhir.
 
@@ -145,7 +145,8 @@ menghapus branch, rewrite history. Itu bukan push rutin.
 ### Menaikkan versi = perintah menerbitkan
 
 `.github/workflows/release.yml` membuat rilis GitHub **sendiri** ketika angka
-`version` di `manifest.json` berubah — sesudah seluruh test lulus.
+`version` di `manifest.json` berubah — sesudah seluruh test lulus **dan**
+hassfest hijau (D-053).
 
 Jadi menaikkan versi bukan perubahan biasa. Kalau ada pekerjaan yang belum
 pantas dirilis, jangan sentuh `version`.
@@ -194,3 +195,13 @@ Test jangan mencocokkan potongan nama entity — cocokkan lewat perannya.
 **Menulis konfigurasi memuat ulang entry.** `async_update_subentry` memicu
 reload, dan objek runtime yang lama ikut mati. Kosongkan isian *sebelum*
 menulis konfigurasi, bukan sesudahnya.
+
+**15 test recorder bisa gagal di mesin sendiri, bukan karena kodenya.** Pada
+sebagian build Python 3.14, `create_autospec` mengevaluasi anotasi yang namanya
+cuma ada di blok `TYPE_CHECKING` (PEP 649), jadi fixture `recorder_mock` mati
+dengan `NameError: name 'Recorder' is not defined`. Di GitHub Actions ini tidak
+terjadi. Kalau muncul: pakai plugin pytest sekali pakai yang membuat
+`unittest.mock._get_signature_object` jatuh ke
+`annotationlib.Format.FORWARDREF` saat `NameError` — **jangan** dimasukkan ke
+repo, dan jangan pula disangka `test_retention.py` atau `test_statistics.py`
+yang rusak.

@@ -778,8 +778,7 @@ def _rate_button(
         "tap_action": {
             "action": "perform-action",
             "perform_action": f"{DOMAIN}.resolve_rate_change",
-            "target": {"device_id": view.device_id},
-            "data": {"apply": apply},
+            "data": {"device_id": view.device_id, "apply": apply},
             "confirmation": {"text": f"{name}?"},
         },
     }
@@ -817,7 +816,7 @@ def _fix_cards(view: GroupView, texts: dict[str, str]) -> list[dict[str, Any]]:
                 "tap_action": {
                     "action": "perform-action",
                     "perform_action": f"{DOMAIN}.reset_token_ledger",
-                    "target": {"device_id": view.device_id},
+                    "data": {"device_id": view.device_id},
                     "confirmation": {"text": f"{texts['reset_button']}?"},
                 },
             }
@@ -868,8 +867,7 @@ def _topup_button(view: GroupView, preset: Any) -> dict[str, Any]:
         "tap_action": {
             "action": "perform-action",
             "perform_action": f"{DOMAIN}.add_token_topup",
-            "target": {"device_id": view.device_id},
-            "data": data,
+            "data": {"device_id": view.device_id, **data},
             # Nama template tidak memberi tahu berapa yang akan tercatat, jadi
             # dialog konfirmasinya selalu menyebutkan angkanya juga.
             "confirmation": {
@@ -893,8 +891,7 @@ def _hold_button(view: GroupView, name: str, action: str, icon: str) -> dict[str
         "tap_action": {
             "action": "perform-action",
             "perform_action": f"{DOMAIN}.resolve_ledger_hold",
-            "target": {"device_id": view.device_id},
-            "data": {"action": action},
+            "data": {"device_id": view.device_id, "action": action},
             "confirmation": {"text": f"{name}?"},
         },
     }
@@ -1084,7 +1081,7 @@ def _maintenance_cards(
                 "tap_action": {
                     "action": "perform-action",
                     "perform_action": f"{DOMAIN}.purge_old_data",
-                    "target": {"device_id": view.device_id},
+                    "data": {"device_id": view.device_id},
                     "confirmation": {"text": f"{texts['maint_button']}?"},
                 },
             }

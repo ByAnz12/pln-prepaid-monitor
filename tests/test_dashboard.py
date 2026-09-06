@@ -262,7 +262,9 @@ async def test_every_button_asks_for_confirmation(hass: HomeAssistant) -> None:
     for button in buttons:
         action = button["tap_action"]
         assert "confirmation" in action, button["name"]
-        assert action["target"]["device_id"], button["name"]
+        # Kelompok tagihan dikirim lewat `data`, sebentuk dengan yang
+        # dideklarasikan services.yaml sesudah D-053.
+        assert action["data"]["device_id"], button["name"]
         # Hanya layanan milik integrasi ini yang boleh dipanggil dari dashboard.
         assert action["perform_action"].startswith(f"{DOMAIN}.")
 

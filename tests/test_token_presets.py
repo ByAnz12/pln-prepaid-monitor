@@ -319,7 +319,11 @@ async def test_presets_become_dashboard_buttons(hass: HomeAssistant) -> None:
     assert len(buttons) == 1
     button = buttons[0]
     assert button["name"] == "Rp 1.000.000 (826,50 kWh)"
-    assert button["tap_action"]["data"] == {
+    data = button["tap_action"]["data"]
+    # device_id ikut di dalam data sejak D-053 - kelompok tagihannya tidak lagi
+    # dikirim lewat `target`.
+    assert data["device_id"]
+    assert {key: data[key] for key in ("kwh_credited", "nominal_rp")} == {
         "kwh_credited": STRUK_KWH,
         "nominal_rp": STRUK_NOMINAL,
     }

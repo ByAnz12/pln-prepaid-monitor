@@ -335,39 +335,32 @@
     },
     "number": {
       "topup_kwh": {
-        "name": "Top-up amount",
-        "description": "Enter how many kWh went in according to the receipt or the meter display, then press Record top-up. Nothing is recorded until you press the button."
+        "name": "Top-up amount"
       },
       "meter_reading_kwh": {
-        "name": "Remaining token on the meter",
-        "description": "Enter the remaining token shown on the physical meter, then press Match the meter reading. Use this when the system's figure has drifted from the meter."
+        "name": "Remaining token on the meter"
       },
       "warning_threshold_days": {
-        "name": "Warning threshold",
-        "description": "Token status becomes Warning below this many days remaining. Must be larger than the Critical threshold."
+        "name": "Warning threshold"
       },
       "critical_threshold_days": {
-        "name": "Critical threshold",
-        "description": "Token status becomes Critical below this many days. Must sit between Warning and Very critical."
+        "name": "Critical threshold"
       },
       "very_critical_threshold_days": {
-        "name": "Very critical threshold",
-        "description": "Token status becomes Very critical below this many days. Must be smaller than the Critical threshold."
+        "name": "Very critical threshold"
       },
       "rate_rp_per_kwh": {
-        "name": "Rate per kWh",
-        "description": "Price of electricity per kWh. Changing it creates a new rate version - costs already recorded keep the rate that applied when that usage happened, so the past is never rewritten."
+        "name": "Rate per kWh"
       },
       "topup_rp": {
-        "name": "Purchase amount",
-        "description": "How much you paid. You can fill in just this - the kWh figure is worked out from the tariff - or fill it in alongside the kWh box, which is the most accurate since both are printed on the receipt. Note: converting from the amount is only an estimate, because a real token purchase also carries admin fees, tax and stamp duty."
+        "name": "Purchase amount"
       }
     },
     "select": {
       "topup_template": {
         "name": "Top-up template",
         "state": {
-          "-": "No template yet"
+          "no_template": "No template yet"
         }
       }
     },
@@ -455,8 +448,7 @@
     },
     "text": {
       "template_name": {
-        "name": "Template name",
-        "description": "Give it a name you will recognise, for example \"Big purchase\". Optional - an unnamed template uses its own figures as the label."
+        "name": "Template name"
       }
     }
   },
@@ -571,6 +563,10 @@
       "name": "Record token top-up",
       "description": "Record electricity token you have just bought. The amount is added to what is left, not replacing it.",
       "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        },
         "kwh_credited": {
           "name": "kWh added",
           "description": "How many kWh actually went into the meter, as shown on the receipt or the meter display. May be left empty if you fill in the purchase amount below and that amount has a ready-made value."
@@ -601,6 +597,10 @@
       "name": "Match the meter reading",
       "description": "Bring the system's figure in line with the remaining kWh shown on your physical meter. Use this when the two start to drift apart.",
       "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        },
         "actual_remaining_kwh": {
           "name": "Remaining kWh on the meter",
           "description": "The number you can actually see on the meter right now. From that moment on, the system counts down from that figure."
@@ -615,6 +615,10 @@
       "name": "Correct a top-up record",
       "description": "Fix a mistyped top-up entry. The remaining token is recalculated from the whole history immediately.",
       "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        },
         "topup_id": {
           "name": "Entry ID",
           "description": "The id of the entry to fix. You can find it in the history attribute on the remaining-token sensor."
@@ -641,6 +645,10 @@
       "name": "Delete a top-up record",
       "description": "Remove a top-up entry that should not be there, for example one recorded twice.",
       "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        },
         "topup_id": {
           "name": "Entry ID",
           "description": "The id of the entry to delete. You can find it in the history attribute on the remaining-token sensor."
@@ -651,6 +659,10 @@
       "name": "Start token tracking from zero",
       "description": "Clear the remaining-token calculation and start again from zero. Use this when your physical meter has been replaced. The old history is kept as a record.",
       "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        },
         "note": {
           "name": "Note",
           "description": "Why you reset, for example 'meter replaced on 3 September'."
@@ -661,6 +673,10 @@
       "name": "Decide on a token hold",
       "description": "Release the frozen remaining-token figure after the system detected a large meter reset.",
       "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        },
         "action": {
           "name": "Decision",
           "description": "Pick 'Treat as real usage' if that much electricity really was used; 'Ignore' if the meter was replaced or the number went wrong for reasons other than usage; 'Calibrate' if you want to enter the remaining figure shown on the meter."
@@ -689,6 +705,10 @@
       "name": "Purge old data",
       "description": "Deletes this integration's long-term history older than the retention limit. PERMANENT and cannot be undone. Your other entities and data are not touched.",
       "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group to clean up. Leave it empty to clean up every billing group at once."
+        },
         "keep_years": {
           "name": "Keep history for",
           "description": "One-off override of the retention setting. Leave empty to use the saved setting."
@@ -699,6 +719,10 @@
       "name": "Decide on the rate proposal",
       "description": "Accept or reject the effective price per kWh worked out from the last top-up. The price never changes on its own - the decision is always yours.",
       "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        },
         "apply": {
           "name": "Apply",
           "description": "Turn on to use the new price, off to keep the old one."
@@ -708,22 +732,42 @@
     "save_topup_template": {
       "name": "Save top-up template",
       "description": "Saves what is currently in the kWh and purchase amount boxes as a template, so the next purchase is a single click.",
-      "fields": {}
+      "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        }
+      }
     },
     "update_topup_template": {
       "name": "Update top-up template",
       "description": "Replaces the selected template with whatever is currently in the kWh and purchase amount boxes.",
-      "fields": {}
+      "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        }
+      }
     },
     "delete_topup_template": {
       "name": "Delete top-up template",
       "description": "Deletes the selected template. Does not touch the token record at all.",
-      "fields": {}
+      "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        }
+      }
     },
     "test_notification": {
       "name": "Test notification",
       "description": "Sends one test message through the notification targets you configured, using exactly the same delivery path as real token messages. Quiet hours and cooldown are skipped.",
-      "fields": {}
+      "fields": {
+        "device_id": {
+          "name": "Billing group",
+          "description": "Which billing group this applies to. Every billing group shows up as its own device, so you just pick it from the list."
+        }
+      }
     }
   },
   "exceptions": {
@@ -731,13 +775,13 @@
       "message": "No billing group selected. Pick a billing group device as the target of this action."
     },
     "token_not_enabled": {
-      "message": "Token tracking is not enabled for '{group}'. Turn it on via Reconfigure billing group, PLN token tracking step."
+      "message": "Token tracking is not enabled for \"{group}\". Turn it on via Reconfigure billing group, PLN token tracking step."
     },
     "topup_not_found": {
-      "message": "There is no top-up entry with id '{topup_id}'. Check the history attribute on the remaining-token sensor."
+      "message": "There is no top-up entry with id \"{topup_id}\". Check the history attribute on the remaining-token sensor."
     },
     "ledger_not_on_hold": {
-      "message": "Token tracking for '{group}' is not on hold, so there is nothing to decide."
+      "message": "Token tracking for \"{group}\" is not on hold, so there is nothing to decide."
     },
     "calibration_needs_reading": {
       "message": "The 'Calibrate' option needs the remaining kWh shown on the meter."
@@ -770,7 +814,7 @@
       "message": "This group has no tariff, so a purchase amount cannot be converted into kWh. Fill in the kWh box instead, or link this group to a tariff first."
     },
     "no_rate_proposal": {
-      "message": "There is no rate proposal waiting for a decision on '{group}'."
+      "message": "There is no rate proposal waiting for a decision on \"{group}\"."
     },
     "template_needs_both": {
       "message": "A template needs both figures. Fill in the kWh box and the purchase amount box first, then save."
@@ -788,7 +832,7 @@
   "issues": {
     "ledger_hold": {
       "title": "Token tracking for {group} is on hold",
-      "description": "Meter '{source}' jumped to {reset_to} kWh after its counter reset, so the remaining token for {group} has been frozen to avoid writing it off by mistake.\n\nPlease decide via the **Decide on a token hold** action:\n\n- **Treat as real usage** - if that much electricity really was used.\n- **Ignore** - if the meter was replaced, or the number went wrong for reasons other than usage.\n- **Calibrate** - if you want to enter the remaining kWh shown on the meter."
+      "description": "Meter \"{source}\" jumped to {reset_to} kWh after its counter reset, so the remaining token for {group} has been frozen to avoid writing it off by mistake.\n\nPlease decide via the **Decide on a token hold** action:\n\n- **Treat as real usage** - if that much electricity really was used.\n- **Ignore** - if the meter was replaced, or the number went wrong for reasons other than usage.\n- **Calibrate** - if you want to enter the remaining kWh shown on the meter."
     }
   },
   "options": {
