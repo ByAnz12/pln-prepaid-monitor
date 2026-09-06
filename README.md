@@ -1360,12 +1360,13 @@ sesudahnya, atas permintaan pemilik selama pemakaian nyata:
 | Tata letak sections, masonry, dan varian HACS | **Selesai** |
 | Ikon integrasi sendiri | **Selesai** |
 | Rilis otomatis saat versi naik | **Selesai** |
+| Tabel pemakaian yang bisa disaring dan diurutkan | **Selesai** |
 
 Semua tarif, ambang batas, dan periode selalu bisa diatur dari antarmuka -
 tidak ada satu pun yang dikunci di dalam kode.
 
 Catatan keputusan implementasi ada di [docs/decisions.md](docs/decisions.md) —
-55 keputusan, masing-masing beserta alasannya, termasuk beberapa koreksi
+56 keputusan, masing-masing beserta alasannya, termasuk beberapa koreksi
 terhadap blueprint awal yang ditemukan lewat verifikasi langsung ke source code
 Home Assistant.
 

@@ -34,11 +34,15 @@ def test_platform_list_is_locked() -> None:
     """Daftar platform dikunci, jadi penambahan berikutnya harus disengaja.
 
     ``number`` dan ``button`` masuk sejak D-039 supaya pencatatan token bisa
-    dilakukan dari dashboard. Keduanya hanya menyentuh catatan token dan
-    konfigurasi integrasi ini sendiri - dibuktikan oleh
+    dilakukan dari dashboard. ``date`` menyusul di D-056 untuk batas rentang
+    tabel pemakaian. Ketiganya hanya menyentuh catatan dan konfigurasi
+    integrasi ini sendiri - dibuktikan oleh
     ``test_pressing_every_button_leaves_relays_untouched`` di bawah, yang
     menekan seluruh tombol dan mengubah seluruh isian lalu memastikan tidak
     ada entity relay yang bergerak.
+
+    Daftar ini bukan jaminannya, melainkan pagar prosedur: mengubahnya membuat
+    test ini merah, jadi platform baru tidak pernah bisa masuk diam-diam.
     """
     assert set(PLATFORMS) == {
         Platform.SENSOR,
@@ -47,6 +51,7 @@ def test_platform_list_is_locked() -> None:
         Platform.BUTTON,
         Platform.SELECT,
         Platform.TEXT,
+        Platform.DATE,
     }
 
 
@@ -230,8 +235,13 @@ async def test_pressing_every_button_leaves_relays_untouched(
 
     Ini pengganti larangan platform yang dulu: alih-alih melarang berdasarkan
     nama platform, sekarang dibuktikan berdasarkan perilaku. Seluruh isian
-    diubah dan seluruh tombol ditekan; tidak satu pun entity relay/breaker
-    milik user boleh bergerak.
+    diubah, seluruh tanggal digeser, seluruh pilihan dicoba satu per satu, dan
+    seluruh tombol ditekan; tidak satu pun entity relay/breaker milik user
+    boleh bergerak.
+
+    Setiap platform baru **wajib** ikut digerakkan di sini. Menambahkannya ke
+    ``PLATFORMS`` saja tidak membuktikan apa pun - dan justru daftar itulah
+    yang dulu diandalkan sebagai jaminan (D-039, D-047).
     """
     from custom_components.pln_prepaid_monitor.const import (
         CONF_CYCLE_PERIODS,
@@ -286,8 +296,10 @@ async def test_pressing_every_button_leaves_relays_untouched(
     buttons = [state.entity_id for state in hass.states.async_all("button")]
     selects = [state.entity_id for state in hass.states.async_all("select")]
     texts = [state.entity_id for state in hass.states.async_all("text")]
+    dates = [state.entity_id for state in hass.states.async_all("date")]
     assert numbers and buttons, "platform baru harus benar-benar membuat entity"
     assert selects and texts, "select dan text juga harus benar-benar dibuat"
+    assert dates, "date juga harus benar-benar dibuat, bukan cuma didaftarkan"
 
     # Sebagian nilai memang akan ditolak - misalnya menyamakan ketiga ambang
     # jadi 1.0 melanggar urutan wajibnya. Yang diuji di sini bukan apakah
@@ -313,6 +325,18 @@ async def test_pressing_every_button_leaves_relays_untouched(
                 "text",
                 "set_value",
                 {"entity_id": entity_id, "value": "uji"},
+                blocking=True,
+            )
+        except HomeAssistantError:
+            pass
+        await hass.async_block_till_done()
+
+    for entity_id in dates:
+        try:
+            await hass.services.async_call(
+                "date",
+                "set_value",
+                {"entity_id": entity_id, "date": "2026-01-15"},
                 blocking=True,
             )
         except HomeAssistantError:

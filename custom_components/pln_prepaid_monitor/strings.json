@@ -354,6 +354,9 @@
       },
       "topup_rp": {
         "name": "Purchase amount"
+      },
+      "usage_rows": {
+        "name": "Usage table maximum rows"
       }
     },
     "select": {
@@ -361,6 +364,37 @@
         "name": "Top-up template",
         "state": {
           "no_template": "No template yet"
+        }
+      },
+      "usage_scope": {
+        "name": "Usage table: time unit",
+        "state": {
+          "day": "Day",
+          "month": "Month",
+          "year": "Year"
+        }
+      },
+      "usage_view": {
+        "name": "Usage table: show per",
+        "state": {
+          "day": "Day",
+          "month": "Month",
+          "year": "Year"
+        }
+      },
+      "usage_sort": {
+        "name": "Usage table: sort by",
+        "state": {
+          "time": "Time",
+          "kwh": "Usage",
+          "cost": "Cost"
+        }
+      },
+      "usage_direction": {
+        "name": "Usage table: direction",
+        "state": {
+          "asc": "Ascending - small to large",
+          "desc": "Descending - large to small"
         }
       }
     },
@@ -444,11 +478,22 @@
           "hold": "On hold",
           "unknown": "Unknown"
         }
+      },
+      "usage_table": {
+        "name": "Usage table"
       }
     },
     "text": {
       "template_name": {
         "name": "Template name"
+      }
+    },
+    "date": {
+      "usage_from": {
+        "name": "Usage table: from date"
+      },
+      "usage_to": {
+        "name": "Usage table: to date"
       }
     }
   },

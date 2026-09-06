@@ -488,3 +488,24 @@ def test_notification_text(
     """
     title, body = TEST_NOTIFICATION[language]
     return f"{prefix} {title}".strip(), body.format(group=group_name)
+
+
+# Nama bulan singkat untuk label tabel riwayat. Ditulis di sini, bukan diambil
+# dari ``locale`` sistem: locale server Home Assistant sering tidak sama dengan
+# bahasa yang dipilih user di antarmuka, dan tabel yang setengah Indonesia
+# setengah Inggris lebih membingungkan daripada tabel yang seluruhnya asing.
+MONTH_NAMES: dict[str, tuple[str, ...]] = {
+    LANG_ID: (
+        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun",
+        "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+    ),
+    LANG_EN: (
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ),
+}
+
+
+def month_names(language: str) -> tuple[str, ...]:
+    """Dua belas nama bulan singkat untuk bahasa itu."""
+    return MONTH_NAMES.get(language, MONTH_NAMES[LANG_EN])

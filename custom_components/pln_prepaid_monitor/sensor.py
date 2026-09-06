@@ -138,6 +138,7 @@ async def async_setup_entry(
         group_entities: list[SensorEntity] = [
             PlnGroupEnergyTotalSensor(group),
             PlnGroupPowerSensor(group),
+            PlnUsageTableSensor(group),
         ]
         group_entities.extend(
             PlnGroupPeriodEnergySensor(group, period) for period in group.periods
@@ -712,6 +713,47 @@ class PlnGroupTokenStatusSensor(PlnBillingGroupEntity, SensorEntity):
                 "very_critical_threshold_days": thresholds.very_critical_days,
                 "token_low_kwh_threshold": thresholds.low_kwh,
                 ATTR_CONFIDENCE: self._group.prediction.confidence,
+            }
+        )
+        return attributes
+
+
+class PlnUsageTableSensor(PlnBillingGroupEntity, SensorEntity):
+    """Tabel pemakaian yang bisa disaring dan diurutkan.
+
+    State-nya jumlah periode pada rentang yang dipilih; isinya ada di atribut
+    ``rows``, yang dibaca kartu markdown di dashboard.
+
+    ``rows`` sengaja tidak direkam recorder. Tanpa itu, atribut yang lewat
+    16 KiB dibuang seluruhnya oleh recorder dan setiap perubahan tabel
+    meninggalkan peringatan di log (``recorder/db_schema.py``). Riwayat atribut
+    ini pun tidak ada gunanya: yang berharga adalah statistik aslinya, bukan
+    potret tabel yang kebetulan sedang tampil.
+    """
+
+    _attr_state_class = None
+    _unrecorded_attributes = frozenset({"rows"})
+
+    def __init__(self, group: BillingGroupRuntime) -> None:
+        """Siapkan sensor tabel pemakaian."""
+        super().__init__(group, "usage_table")
+
+    @property
+    def native_value(self) -> int:
+        """Berapa periode yang tercakup rentang saat ini."""
+        return self._group.usage_table.period_count
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Isi tabel, plus totalnya untuk seluruh rentang."""
+        table = self._group.usage_table
+        attributes = super().extra_state_attributes
+        attributes.update(
+            {
+                "rows": table.rows,
+                "total_kwh": table.total_kwh,
+                "total_cost_rp": table.total_cost_rp,
+                "hidden_count": table.hidden_count,
             }
         )
         return attributes

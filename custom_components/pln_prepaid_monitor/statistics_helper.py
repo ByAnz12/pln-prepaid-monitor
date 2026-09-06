@@ -173,3 +173,52 @@ async def async_fetch_period_changes(
             (dt_util.as_local(dt_util.utc_from_timestamp(row["start"])), float(change))
         )
     return out
+
+
+async def async_fetch_range(
+    hass: HomeAssistant,
+    statistic_id: str,
+    period: str,
+    start: datetime,
+    end: datetime,
+) -> list[tuple[datetime, float]]:
+    """Konsumsi per periode pada rentang tertutup ``[start, end)``.
+
+    Dipakai tabel riwayat, yang rentangnya ditentukan user - berbeda dari
+    ``async_fetch_period_changes`` yang selalu bertumpu pada "sekarang".
+
+    Sama seperti pembacaan lain di modul ini: memakai tipe ``change``, dan awal
+    bucket diselaraskan ke waktu lokal sebelum diserahkan ke engine.
+    """
+    if not _recorder_available(hass):
+        return []
+
+    from homeassistant.components.recorder import get_instance  # noqa: PLC0415
+    from homeassistant.components.recorder.statistics import (  # noqa: PLC0415
+        statistics_during_period,
+    )
+
+    try:
+        rows: dict[str, list[dict[str, Any]]] = await get_instance(
+            hass
+        ).async_add_executor_job(
+            statistics_during_period,
+            hass,
+            start,
+            end,
+            {statistic_id},
+            period,
+            None,
+            {"change"},
+        )
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception(
+            "Gagal membaca statistik %s untuk rentang riwayat", statistic_id
+        )
+        return []
+
+    return [
+        (dt_util.as_local(dt_util.utc_from_timestamp(row["start"])), float(change))
+        for row in rows.get(statistic_id, [])
+        if (change := row.get("change")) is not None and float(change) >= 0
+    ]

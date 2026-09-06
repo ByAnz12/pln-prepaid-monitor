@@ -9,6 +9,101 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-056 · Tabel pemakaian: kendalinya entity, bukan tabel yang bisa diklik
+
+**Tanggal**: 6 September 2026 · **Atas permintaan user**
+
+Pemilik meminta kartu tabel yang bisa disaring dan diurutkan: jenis waktu
+(hari/bulan/tahun), rentang tanggal bebas, satuan tiap baris, pengurutan naik
+atau turun berdasarkan waktu / pemakaian / biaya, plus kolom nomor dan batang
+perbandingan.
+
+### Yang tidak bisa dilakukan, dan disampaikan di muka
+
+Home Assistant **tidak punya kartu tabel yang judul kolomnya bisa diklik untuk
+mengurutkan.** Kartu bawaan tidak menjalankan kode di peramban. Jadi tabel
+interaktif sungguhan hanya mungkin dengan kartu HACS, dan itu melanggar prinsip
+spec J yang sudah dikunci test.
+
+Pemilik menawarkan HACS boleh dipakai. Ternyata tidak perlu: yang dikhawatirkan
+adalah salah ketik tanggal, dan platform `date` bawaan sudah menampilkan
+pemilih tanggal sungguhan. Jadi seluruh permintaannya terpenuhi tanpa satu pun
+dependency HACS.
+
+Bentuknya: **kendali sebagai entity**, tabel dirender kartu `markdown` dari
+atribut sensor. Konsekuensinya jujur - tiap perubahan pilihan dihitung ulang di
+server, jadi ada jeda sekitar satu detik. Itu harga yang dibayar untuk berjalan
+tanpa HACS.
+
+### Platform `date` ditambahkan
+
+Ini platform pertama yang masuk sejak D-039, dan aturannya jelas: tanyakan dulu,
+lalu **perluas test perilakunya** - jangan cukup menambah nama ke daftar.
+
+Keduanya dilakukan. `tests/test_readonly_guarantee.py` sekarang juga menggeser
+seluruh entity `date`, dan test itu tetap memastikan tidak ada relay yang
+bergerak. Daftar `PLATFORMS` bukan jaminannya; ia cuma pagar prosedur yang
+membuat penambahan berikutnya tidak bisa lewat diam-diam.
+
+### Empat keputusan bentuk
+
+**1. Tampilan tidak pernah lebih kasar dari jenis waktu.** Rentang dalam satuan
+hari dengan tampilan tahun hanya menghasilkan satu baris gabungan yang tidak
+menjawab apa pun. Pilihan pada `select` tampilan menyusut sendiri mengikuti
+jenis waktunya.
+
+**2. Atribut `rows` tidak direkam recorder.** Ditandai
+`_unrecorded_attributes`. Tanpa itu, atribut yang lewat 16 KiB dibuang
+seluruhnya dan setiap perubahan tabel meninggalkan peringatan di log (VERIFIED -
+`recorder/db_schema.py:592`). Riwayat atribut ini pun tidak berguna: yang
+berharga adalah statistik aslinya, bukan potret tabel yang kebetulan tampil.
+
+**3. Selalu dibaca dari statistik harian, lalu dikelompokkan ulang di engine.**
+`statistics_during_period` sebenarnya menerima `month` dan `year` (VERIFIED -
+`recorder/statistics.py:2097`), jadi membacanya langsung bisa. Tapi dua sumber
+angka untuk hal yang sama adalah dua tempat yang bisa berbeda, dan bedanya
+tidak akan kelihatan. Satu sumber, satu jalur.
+
+**4. Nama internalnya `usage_*`, bukan `history_*`.** Sudah ada `history_rows`
+yang mengatur panjang daftar riwayat **pengisian token** - hal yang sama sekali
+berbeda dan sama-sama berupa daftar. Nama yang mirip akan tertukar cepat atau
+lambat.
+
+### Dua bug lama yang ikut ketemu
+
+**`_resolve` di `dashboard.py` punya daftar platform yang ditulis tangan**, dan
+ia ketinggalan saat `date` ditambahkan. Akibatnya persis yang diperingatkan
+docstring-nya sendiri: barisnya hilang dari dashboard tanpa satu pun pesan
+error. Sekarang daftarnya diturunkan dari `PLATFORMS`, jadi tidak bisa
+ketinggalan lagi.
+
+**`our_statistic_ids` mengembalikan semua entity**, termasuk `number`, `select`,
+`text`, `button`, dan sekarang `date` - padahal tidak satu pun bisa punya
+long-term statistics. Pembersihan data jadi mencari sesuatu yang tidak ada, dan
+nama fungsinya berbohong. Sekarang disaring ke domain yang memang bisa punya
+statistik. Test `test_statistic_ids_only_ever_contain_our_entities` yang
+menangkapnya - ia sudah menuliskan maksud itu sejak awal, cuma belum pernah
+tertagih karena kelompok tanpa token tidak membuat entity kendali sama sekali.
+
+### Yang menjaganya
+
+* `tests/test_usage_table.py` - 24 test murni: pengelompokan, pemasangan per
+  penanda (warisan D-055), pengurutan, pagar panjang tabel, batang
+  perbandingan, dan rentang yang dilebarkan ke batas satuannya.
+* `tests/test_usage_table_card.py` - 4 test yang **benar-benar merender**
+  template Jinja-nya di dalam Home Assistant, termasuk saat tabelnya masih
+  kosong. Template yang salah hanya tampil sebagai kotak merah tanpa pesan.
+
+### Biayanya, apa adanya
+
+Tujuh entity baru per kelompok tagihan. Itu tidak murah bagi user yang tidak
+memakai kartunya, dan sengaja tidak dipasang di balik saklar aktif/nonaktif
+supaya kartunya langsung bisa dipakai tanpa mengatur apa pun lebih dulu. Kalau
+ternyata terlalu ramai, memasang saklar itu belakangan mudah - yang sulit
+adalah sebaliknya.
+
+---
+
 ## D-055 · Baris rincian dipasangkan per tanggal, bukan per posisi
 
 **Tanggal**: 6 September 2026 · **Dilaporkan pemilik**

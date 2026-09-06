@@ -11,7 +11,7 @@ memilihnya dari daftar - tidak perlu tahu id internal apa pun.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 import voluptuous as vol
 
@@ -236,6 +236,11 @@ def _resolve_kwh(group: BillingGroupRuntime, call: ServiceCall) -> float:
     return float(kwh)
 
 
+# Domain yang bisa punya long-term statistics. Sisanya adalah kendali, dan
+# kendali tidak pernah menghasilkan baris statistik.
+STATISTIC_DOMAINS: Final[frozenset[str]] = frozenset({"sensor", "binary_sensor"})
+
+
 def our_statistic_ids(
     hass: HomeAssistant, subentry_ids: set[str] | None = None
 ) -> list[str]:
@@ -245,12 +250,19 @@ def our_statistic_ids(
     atau data recorder milik user yang lain (spec N.3). Daftarnya dibangun dari
     entity registry, bukan dari pola nama, sehingga tidak ada cara entity asing
     ikut terjaring.
+
+    Hanya domain yang benar-benar bisa punya long-term statistics yang ikut.
+    Kendali seperti ``number``, ``select``, ``text``, ``button``, dan ``date``
+    tidak pernah menghasilkan satu baris statistik pun, jadi memasukkannya
+    hanya membuat pembersihan mencari sesuatu yang tidak ada - dan membuat
+    nama fungsi ini berbohong.
     """
     registry = er.async_get(hass)
     return sorted(
         entry.entity_id
         for entry in registry.entities.values()
         if entry.platform == DOMAIN
+        and entry.domain in STATISTIC_DOMAINS
         and (subentry_ids is None or entry.config_subentry_id in subentry_ids)
     )
 

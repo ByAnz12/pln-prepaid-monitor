@@ -15,23 +15,31 @@
       }
     },
     "button": {
-      "record_topup": {
-        "default": "mdi:cash-plus"
-      },
       "calibrate_token": {
         "default": "mdi:auto-fix"
-      },
-      "save_template": {
-        "default": "mdi:content-save-plus"
-      },
-      "update_template": {
-        "default": "mdi:content-save-edit"
       },
       "delete_template": {
         "default": "mdi:delete-outline"
       },
+      "record_topup": {
+        "default": "mdi:cash-plus"
+      },
+      "save_template": {
+        "default": "mdi:content-save-plus"
+      },
       "test_notification": {
         "default": "mdi:bell-ring-outline"
+      },
+      "update_template": {
+        "default": "mdi:content-save-edit"
+      }
+    },
+    "date": {
+      "usage_from": {
+        "default": "mdi:calendar-start"
+      },
+      "usage_to": {
+        "default": "mdi:calendar-end"
       }
     },
     "number": {
@@ -50,6 +58,9 @@
       "topup_rp": {
         "default": "mdi:cash"
       },
+      "usage_rows": {
+        "default": "mdi:format-list-numbered"
+      },
       "very_critical_threshold_days": {
         "default": "mdi:alert-octagon"
       },
@@ -60,32 +71,44 @@
     "select": {
       "topup_template": {
         "default": "mdi:playlist-check"
+      },
+      "usage_direction": {
+        "default": "mdi:swap-vertical"
+      },
+      "usage_scope": {
+        "default": "mdi:calendar-range"
+      },
+      "usage_sort": {
+        "default": "mdi:sort"
+      },
+      "usage_view": {
+        "default": "mdi:view-list"
       }
     },
     "sensor": {
-      "energy": {
-        "default": "mdi:meter-electric-outline"
-      },
-      "energy_total": {
-        "default": "mdi:counter"
+      "avg_daily_usage": {
+        "default": "mdi:chart-line"
       },
       "cost_total": {
         "default": "mdi:cash-multiple"
-      },
-      "token_remaining": {
-        "default": "mdi:gauge"
-      },
-      "token_consumed": {
-        "default": "mdi:lightning-bolt"
-      },
-      "avg_daily_usage": {
-        "default": "mdi:chart-line"
       },
       "days_remaining": {
         "default": "mdi:calendar-clock"
       },
       "empty_date": {
         "default": "mdi:calendar-alert"
+      },
+      "energy": {
+        "default": "mdi:meter-electric-outline"
+      },
+      "energy_total": {
+        "default": "mdi:counter"
+      },
+      "token_consumed": {
+        "default": "mdi:lightning-bolt"
+      },
+      "token_remaining": {
+        "default": "mdi:gauge"
       },
       "token_status": {
         "default": "mdi:help-circle-outline",
@@ -97,6 +120,9 @@
           "hold": "mdi:pause-circle",
           "unknown": "mdi:help-circle-outline"
         }
+      },
+      "usage_table": {
+        "default": "mdi:table-large"
       }
     },
     "text": {
