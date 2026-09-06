@@ -13,10 +13,42 @@ import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
-from .engines.prediction_engine import WINDOW_SPECS, PredictionConfig
+from .engines.prediction_engine import WINDOW_SPECS, PredictionConfig, WindowSpec
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def window_bounds(spec: WindowSpec, now: datetime) -> tuple[datetime, datetime]:
+    """Batas rentang yang **hanya** berisi periode yang sudah selesai.
+
+    Ini bukan kerapian, melainkan koreksi angka. Sebelumnya rentangnya dihitung
+    ``now - span`` tanpa batas akhir, jadi hari yang sedang berjalan ikut masuk
+    sebagai kalau-kalau hari penuh. Pukul sembilan pagi, "hari ini" baru terisi
+    seperempatnya - dan potongan itu menyeret rata-rata turun, yang membuat
+    perkiraan token habis terlihat jauh lebih panjang daripada kenyataannya.
+
+    Arah kesalahannya berbahaya: perkiraan jadi terlalu optimistis, dan user
+    kehabisan token lebih cepat dari yang dijanjikan layar.
+
+    ``engines/period_summary.py`` sudah membuang periode berjalan sejak awal.
+    Prediksi ketinggalan, dan itulah sebabnya "Rata-rata harian" di kartu Token
+    pernah menunjukkan angka berbeda dari tabel Pemakaian & biaya.
+
+    Batas akhirnya eksklusif di sisi recorder (``start_ts < end_time_ts``,
+    ``recorder/statistics.py``), jadi bucket yang mulai tepat di ``end`` -
+    yaitu periode yang sedang berjalan - memang tidak ikut terbawa.
+    """
+    # Selalu diselaraskan ke waktu lokal dulu: ``start_of_local_day`` membaca
+    # ``.date()`` apa adanya, jadi datetime UTC bisa jatuh ke tanggal yang salah
+    # bagi instalasi yang zonanya jauh dari UTC.
+    local = dt_util.as_local(now)
+    if spec.period == "hour":
+        end = local.replace(minute=0, second=0, microsecond=0)
+    else:
+        end = dt_util.start_of_local_day(local)
+    return end - spec.span, end
 
 
 def _recorder_available(hass: HomeAssistant) -> bool:
@@ -49,14 +81,14 @@ async def async_fetch_window_samples(
     instance = get_instance(hass)
 
     for window, spec in WINDOW_SPECS.items():
-        start = now - spec.span
+        start, end = window_bounds(spec, now)
         try:
             rows: dict[str, list[dict[str, Any]]] = (
                 await instance.async_add_executor_job(
                     statistics_during_period,
                     hass,
                     start,
-                    None,
+                    end,
                     {statistic_id},
                     spec.period,
                     None,

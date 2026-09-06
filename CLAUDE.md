@@ -49,6 +49,25 @@ tapi harus bisa diubah dari antarmuka.
 
 ## Cara kerja yang diminta pemilik
 
+### Rencana dulu, kerjakan sesudah disetujui
+
+Permintaan pemilik, berlaku untuk **setiap** tugas:
+
+> Setiap saya beri tugas selalu buat perencanaan terlebih dahulu, jika sudah
+> saya approve baru lanjut untuk mengerjakan.
+
+Jadi urutannya: baca kode secukupnya untuk mengerti masalahnya → sampaikan
+rencana → **berhenti dan tunggu** → baru kerjakan.
+
+Menyelidiki, membaca berkas, dan menjalankan test **boleh** dilakukan sebelum
+persetujuan — rencana yang disusun tanpa membaca kode hanya tebakan, dan
+pemilik sudah menegaskan tidak mau ditebak-tebak. Yang harus menunggu adalah
+**perubahan**: mengedit berkas, commit, push, menaikkan versi.
+
+Kalau ada bagian perintah yang ambigu, jangan diam-diam memilih tafsiran
+sendiri. Sebutkan ambiguitasnya, beri rekomendasi beserta alasannya, dan
+biarkan pemilik yang memutuskan.
+
 ### Verifikasi ke source, jangan mengandalkan ingatan
 
 Setiap API Home Assistant **diperiksa langsung ke source code yang terpasang**
@@ -86,7 +105,7 @@ uv pip install --python .venv/bin/python -r requirements_test.txt
 .venv/bin/python -m pytest
 ```
 
-478 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
+485 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
 
 ### Test bukan satu-satunya gerbang: ada hassfest
 
@@ -113,7 +132,7 @@ pesan berguna.
 
 ### Catat keputusan, jangan menyimpang diam-diam
 
-`docs/decisions.md` — 53 keputusan, D-001 sampai D-053. Setiap penyimpangan dari
+`docs/decisions.md` — 54 keputusan, D-001 sampai D-054. Setiap penyimpangan dari
 blueprint awal, setiap keputusan yang bisa dipertanyakan orang lain nanti,
 ditulis beserta **alasannya**. Tambahkan entri baru di atas yang terakhir.
 
