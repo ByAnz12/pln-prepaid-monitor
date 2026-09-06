@@ -115,7 +115,7 @@ from .engines.usage_table import (
     range_bounds,
 )
 from .statistics_helper import async_fetch_range, async_fetch_window_samples
-from .engines.period import ALL_PERIODS, CycleConfig, next_cycle_start
+from .engines.period import ALL_PERIODS, CycleConfig, cycle_start, next_cycle_start
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -667,6 +667,18 @@ class BillingGroupRuntime:
             return None
         return counter.cycle_start_at
 
+    def period_covers_full_cycle(self, period: str) -> bool:
+        """Apakah penghitung ini sudah mencakup siklusnya dari awal.
+
+        False pada siklus pertama sesudah pemasangan: angkanya nyata, tapi
+        rentangnya lebih pendek daripada yang disiratkan namanya, jadi tidak
+        adil dibandingkan dengan siklus berikutnya.
+        """
+        counter = self.counters.get(period)
+        if counter is None:
+            return False
+        return counter.covers_full_cycle(dt_util.now())
+
     # ------------------------------------------------------------------
     # biaya
     # ------------------------------------------------------------------
@@ -708,8 +720,16 @@ class BillingGroupRuntime:
         counter = self.cost_counters.get(period)
         if counter is None:
             return 0.0
+        # Sengaja memakai batas siklus SEBENARNYA, bukan titik mulai
+        # penghitungnya. Keduanya berbeda pada siklus pertama sesudah
+        # pemasangan, dan yang benar di sini adalah batas siklus: PLN menagih
+        # biaya beban untuk sebulan penuh, tidak peduli kapan integrasi ini
+        # dipasang. Menghitungnya sejak pemasangan akan menagih terlalu
+        # sedikit di bulan pertama, lalu terlihat "normal" bulan berikutnya -
+        # selisih yang tidak akan pernah ada yang menyadarinya.
+        now = dt_util.now()
         return fixed_charge_accrued(
-            self.tariff, counter.cycle_start_at, dt_util.now()
+            self.tariff, cycle_start(period, now, self.cycle_config), now
         )
 
     def cost_period_total(self, period: str) -> float | None:
