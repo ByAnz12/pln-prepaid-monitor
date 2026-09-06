@@ -1369,5 +1369,7 @@ Catatan keputusan implementasi ada di [docs/decisions.md](docs/decisions.md) —
 terhadap blueprint awal yang ditemukan lewat verifikasi langsung ke source code
 Home Assistant.
 
-Aturan kerja proyek ini — termasuk yang tidak boleh dilanggar — ada di
-[CLAUDE.md](CLAUDE.md).
+Aturan yang tidak boleh dilanggar — sistem ini tidak boleh bisa memutus atau
+menyalakan listrik, tidak ada logika khusus merek perangkat, dan tarif/ambang/
+periode selalu bisa diatur dari antarmuka — dijaga oleh test di
+`tests/test_readonly_guarantee.py` dan tercatat di D-039 serta D-047.

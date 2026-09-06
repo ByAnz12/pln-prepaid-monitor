@@ -12,3 +12,6 @@ venv/
 # Paket siap pasang - dibangun ulang dari sumber, jangan ikut dilacak.
 *.zip
 
+# Petunjuk kerja pribadi untuk asisten. Tetap ada di disk dan tetap
+# dibaca tiap sesi, hanya tidak ikut dipublikasikan.
+CLAUDE.md
