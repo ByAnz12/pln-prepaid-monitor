@@ -1373,3 +1373,7 @@ Aturan yang tidak boleh dilanggar — sistem ini tidak boleh bisa memutus atau
 menyalakan listrik, tidak ada logika khusus merek perangkat, dan tarif/ambang/
 periode selalu bisa diatur dari antarmuka — dijaga oleh test di
 `tests/test_readonly_guarantee.py` dan tercatat di D-039 serta D-047.
+
+Aturan kerja selengkapnya, termasuk cara menyiapkan venv untuk menjalankan
+test dan jebakan yang sudah pernah menjatuhkan pekerjaan di sini, ada di
+[CLAUDE.md](CLAUDE.md).
