@@ -9,6 +9,106 @@ Label kepercayaan mengikuti konvensi yang sama dengan `spec.md`
 
 ---
 
+## D-055 · Baris rincian dipasangkan per tanggal, bukan per posisi
+
+**Tanggal**: 6 September 2026 · **Dilaporkan pemilik**
+
+Pemilik melapor kolom Rupiah tidak konsisten dengan kolom kWh. Tarifnya 1212,
+tapi ada baris yang menunjukkan 521 dan 754 Rp/kWh. Beberapa baris lain cocok
+sempurna.
+
+Polanya yang menunjuk penyebabnya: baris yang **cocok** semuanya datang dari
+penghitung siklus (jam ini, hari ini, minggu/bulan/tahun ini). Baris yang
+**meleset** semuanya datang dari `summarise()`.
+
+Ternyata ada **dua** kesalahan di sana, dua-duanya jenis yang angkanya tetap
+masuk akal.
+
+### 1. Baris dicocokkan berdasarkan posisi, bukan tanggal
+
+```python
+summary[f"prev_day_{offset}"] = past_days[-offset][1]   # posisi ke-N dari ujung
+```
+
+`summarise()` dipanggil **dua kali** - sekali untuk statistik energi, sekali
+untuk statistik biaya - lalu hasilnya disandingkan di satu tabel seolah periode
+yang sama. Kedua daftar itu tidak selalu sama panjang: biaya baru tercatat
+sejak tarif dipasang, dan sehari bisa hilang kalau Home Assistant sempat mati.
+
+Satu hari yang hilang di tengah daftar biaya menggeser seluruh baris
+sesudahnya. kWh dan Rupiah pada satu baris jadi berasal dari **hari yang
+berbeda** - dan tidak ada satu pun angka yang terlihat mustahil.
+
+Direproduksi dengan kode aslinya, memakai data yang setiap rupiahnya persis
+`1212 x kWh` (jadi tidak ada salah hitung sama sekali): baris "3 hari lalu"
+keluar sebagai 3.111 Rp/kWh.
+
+Rata-ratanya kena lebih parah, karena pembaginya beda: rata-rata Rupiah dibagi
+jumlah hari yang ada di statistik biaya, rata-rata kWh dibagi jumlah hari di
+statistik energi. Pada contoh yang sama, rasionya 1.788 - meleset 47%.
+
+### 2. Tanggal UTC dibandingkan dengan `now` lokal
+
+`async_fetch_period_changes` mengembalikan awal bucket sebagai **UTC**;
+`summarise` membandingkannya dengan `now` **lokal**:
+
+```python
+past_days = [... if start.date() < now.date()]
+```
+
+Bucket harian dimulai tengah malam **lokal**. Di Jakarta (UTC+7) itu tersimpan
+sebagai pukul 17:00 UTC **hari sebelumnya**. Jadi bucket "hari ini" bertanggal
+UTC kemarin, lolos saringan, dan:
+
+* hari berjalan tetap ikut rata-rata - persis yang seharusnya dicegah;
+* **setiap baris bergeser sehari**. "Hari kemarin" sebenarnya menampilkan hari
+  ini, diambil dari statistik yang tertinggal sejam. Itulah kenapa di layar
+  pemilik "Hari kemarin 13,97" mirip tapi tak sama dengan "Hari ini 14,78".
+
+Instalasi di UTC tidak pernah melihat ini. Seluruh test yang ada ditulis dalam
+UTC, jadi bug ini lolos sejak awal.
+
+### Yang diubah
+
+**Konversi ke waktu lokal dilakukan di `async_fetch_period_changes`**, bukan di
+engine. Engine-nya sengaja tetap *pure Python* - ia cukup menuntut waktu lokal
+sebagai kontrak, dan lapisan yang memang bicara dengan Home Assistant yang
+memenuhinya.
+
+**`prev_day_N` dan `prev_month_N` dicari berdasarkan tanggalnya.** Kalau satu
+sisi tidak punya data untuk tanggal itu, sisi itu **kosong** - bukan diisi
+angka hari lain. Kosong itu jujur; angka yang salah pasangan tidak.
+
+**Rata-rata dibatasi ke irisan kedua statistik** lewat `only_days` dan
+`only_months`, yang dihitung coordinator. Dengan begitu pembaginya sama, dan
+Rp/kWh selalu cocok dengan tarif.
+
+Aritmetika bulan memakai `_month_before()` berbasis indeks bulan absolut, jadi
+Januari menemukan Desember tahun sebelumnya tanpa cabang khusus.
+
+### Yang menjaganya
+
+`tests/test_period_alignment.py` - sepuluh test. Ukurannya satu dan tidak bisa
+ditawar: **Rupiah dibagi kWh harus sama dengan tarif**, di setiap baris dan di
+rata-rata. Kalau tidak, ada dua periode yang sedang disandingkan.
+
+Seluruhnya ditulis dalam zona **Asia/Jakarta**, bukan UTC. Itu disengaja: di
+UTC bug pergeseran tanggalnya tidak pernah muncul, dan justru itu yang membuat
+ia lolos selama ini.
+
+Diperiksa merah lebih dulu: empat gagal saat penomoran posisi dikembalikan,
+satu gagal saat konversi waktu lokal dicabut.
+
+### Yang tidak diubah, dan alasannya
+
+"Minggu ini" yang terlihat lebih kecil dari jumlah tiga hari terakhir **bukan**
+bagian dari bug ini. Baris itu datang dari penghitung siklus, bukan dari daftar
+berpasangan. Dugaan terkuat: siklus minggu/bulan/tahun dimulai saat integrasi
+dipasang, bukan di awal periode sebenarnya - jadi pemasangan baru memang wajar
+terlihat kecil sampai satu siklus penuh terlewati. Belum dipastikan.
+
+---
+
 ## D-054 · Prediksi membuang periode yang sedang berjalan
 
 **Tanggal**: 6 September 2026 · **Dilaporkan pemilik**

@@ -154,12 +154,22 @@ async def async_fetch_period_changes(
         )
         return []
 
-    from homeassistant.util import dt as dt_util  # noqa: PLC0415
-
     out: list[tuple[datetime, float]] = []
     for row in rows.get(statistic_id, []):
         change = row.get("change")
         if change is None or float(change) < 0:
             continue
-        out.append((dt_util.utc_from_timestamp(row["start"]), float(change)))
+        # Diselaraskan ke waktu lokal di sini, bukan di engine: bucket harian
+        # dimulai tengah malam **lokal**, tapi recorder menyimpannya sebagai UTC.
+        #
+        # Tanpa konversi ini, di Jakarta (UTC+7) bucket "hari ini" bertanggal
+        # UTC kemarin. Saringan periode berjalan di period_summary jadi
+        # meloloskannya, dan setiap baris "N hari lalu" bergeser sehari - "hari
+        # kemarin" sebenarnya menampilkan hari ini. Tidak ada satu pun angka
+        # yang terlihat mustahil, jadi tidak ada yang curiga.
+        #
+        # Engine-nya sengaja dibiarkan murni: ia cukup menerima waktu lokal.
+        out.append(
+            (dt_util.as_local(dt_util.utc_from_timestamp(row["start"])), float(change))
+        )
     return out
