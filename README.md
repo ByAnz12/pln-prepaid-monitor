@@ -60,9 +60,15 @@ Integrasi ini dibangun bertahap. Yang **sudah selesai dan bisa dipakai**:
 - **Dashboard yang dibuatkan otomatis**, dengan entity_id yang sudah benar dan
   hanya memakai kartu bawaan Home Assistant.
 - **Perawatan data**: batasi berapa lama riwayat disimpan, manual atau otomatis.
+- **Seluruh urusan token dari dashboard**: isi token, template, penyamaan, dan
+  reset — tanpa membuka Developer Tools sama sekali.
+- **Harga per kWh mengoreksi diri** dari struk pembelian, selalu setelah Anda
+  setujui dulu.
+- **Grafik analisa** untuk melihat pola pemakaian: profil daya sehari, per jam,
+  dan perbandingan bulanan.
 
-Seluruh tahap yang direncanakan sudah selesai — lihat
-[Rencana pengembangan](#rencana-pengembangan).
+Seluruh tahap yang direncanakan sudah selesai, plus tambahan yang muncul dari
+pemakaian nyata — lihat [Rencana pengembangan](#rencana-pengembangan).
 
 ---
 
@@ -1340,8 +1346,28 @@ buatan PLN dan tidak berafiliasi dengan PLN.
 | 7 | Dashboard | **Selesai** |
 | 8 | Pembersihan data lama | **Selesai** |
 
+Delapan tahap yang direncanakan di blueprint awal sudah selesai. Yang menyusul
+sesudahnya, atas permintaan pemilik selama pemakaian nyata:
+
+| Tambahan | Status |
+|---|---|
+| Seluruh urusan token dari dashboard (isian, tombol, tanpa Developer Tools) | **Selesai** |
+| Template pengisian: tambah, beri nama, ubah, hapus | **Selesai** |
+| Usulan harga per kWh dari struk, selalu menunggu persetujuan | **Selesai** |
+| Rincian per periode dengan checklist baris | **Selesai** |
+| Grafik analisa: profil daya, per jam, per bulan | **Selesai** |
+| Uji notifikasi | **Selesai** |
+| Tata letak sections, masonry, dan varian HACS | **Selesai** |
+| Ikon integrasi sendiri | **Selesai** |
+| Rilis otomatis saat versi naik | **Selesai** |
+
 Semua tarif, ambang batas, dan periode selalu bisa diatur dari antarmuka -
 tidak ada satu pun yang dikunci di dalam kode.
 
-Catatan keputusan implementasi, termasuk beberapa koreksi terhadap blueprint
-awal, ada di [docs/decisions.md](docs/decisions.md).
+Catatan keputusan implementasi ada di [docs/decisions.md](docs/decisions.md) —
+52 keputusan, masing-masing beserta alasannya, termasuk beberapa koreksi
+terhadap blueprint awal yang ditemukan lewat verifikasi langsung ke source code
+Home Assistant.
+
+Aturan kerja proyek ini — termasuk yang tidak boleh dilanggar — ada di
+[CLAUDE.md](CLAUDE.md).
