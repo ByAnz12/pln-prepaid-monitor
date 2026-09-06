@@ -117,21 +117,32 @@ bisa diverifikasi dari sini (batasan yang sama seperti kartu HACS). Jadi
 kartunya dibuat sebentuk dengan yang dideklarasikan layanannya: `device_id`
 masuk ke `data`.
 
+### `docs/dashboard-example.yaml` akhirnya bisa dibangkitkan ulang
+
+Aturan proyek menyuruh membangkitkan berkas itu lewat kode aslinya, tapi yang
+ada di repo cuma hasilnya - skenario pembuatnya tidak tersimpan di mana pun.
+Jadi selama ini berkas itu tidak bisa dibangkitkan ulang oleh siapa pun, dan
+tidak ada yang tahu kalau ia sudah menyimpang dari kode. Kelas kesalahan yang
+sama dengan pokok D-053 ini: salah, tapi tidak terlihat salah.
+
+`tests/test_dashboard_example.py` sekarang memuat skenarionya - dua kelompok
+tagihan, keduanya mencatat token, satu punya template dan satu belum - lalu
+membandingkan berkas yang ter-commit dengan keluaran `build_dashboard`.
+Memperbaruinya:
+
+```bash
+PLN_WRITE_EXAMPLE=1 .venv/bin/python -m pytest tests/test_dashboard_example.py
+```
+
+Skenario itu bukan tebakan: hasilnya **identik baris per baris** dengan berkas
+yang sudah ter-commit. Itu sekaligus membuktikan pemindahan ke-14 blok `target`
+di berkas contoh memang sama persis dengan yang dihasilkan `dashboard.py`.
+
+device_id diganti penanda `ganti-dengan-id-perangkat-kelompok-tagihan-anda`:
+nilainya diacak ulang tiap test jalan dan berbeda di tiap instalasi, jadi tidak
+boleh ikut ter-commit.
+
 ### Yang masih perlu diakui apa adanya
-
-**`docs/dashboard-example.yaml` tidak punya skrip pembangkit di repo.** Aturan
-proyek menyuruh membangkitkannya ulang lewat kode aslinya, tapi yang ada cuma
-berkas hasilnya - skenario yang dipakai untuk membuatnya (dua kelompok tagihan
-"PLN RUMAH" dan "PLN TOKO", beserta template dan ambangnya) tidak tersimpan di
-mana pun. Untuk perubahan ini, ke-14 blok `target` dipindahkan secara mekanis
-dengan transformasi yang sama persis dengan yang dilakukan `dashboard.py`, dan
-hasilnya diperiksa masih YAML yang sah.
-
-Itu bukan pembangkitan ulang, dan sebaiknya tidak jadi kebiasaan. Yang
-seharusnya ada: skenario contohnya ditulis sebagai fixture, lalu sebuah test
-memastikan berkas yang ter-commit sama dengan keluaran kode. Selama itu belum
-ada, berkas ini bisa menyimpang dari kodenya tanpa ada yang tahu - persis
-kelas kesalahan yang jadi pokok D-053 ini.
 
 `tests/test_hassfest.py` adalah **salinan** aturan, bukan hassfest itu sendiri.
 Kalau tim Home Assistant menambah aturan baru, test ini tidak ikut tahu - yang

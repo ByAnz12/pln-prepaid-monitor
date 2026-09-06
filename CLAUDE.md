@@ -86,7 +86,7 @@ uv pip install --python .venv/bin/python -r requirements_test.txt
 .venv/bin/python -m pytest
 ```
 
-476 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
+478 test saat ini. Jangan menambah fitur tanpa test yang menjaganya.
 
 ### Test bukan satu-satunya gerbang: ada hassfest
 
@@ -170,8 +170,15 @@ Ringkasan → Token → Pemakaian & biaya → Grafik → Analisa → Pengaturan.
 mengubahnya tanpa diminta; kalau berubah, pemilik harus menata ulang dari awal
 dan tidak akan tahu kenapa.
 
-Sesudah mengubah dashboard, bangkitkan ulang `docs/dashboard-example.yaml`
-lewat kode aslinya — jangan mengeditnya dengan tangan.
+Sesudah mengubah dashboard, bangkitkan ulang `docs/dashboard-example.yaml` —
+jangan mengeditnya dengan tangan:
+
+```bash
+PLN_WRITE_EXAMPLE=1 .venv/bin/python -m pytest tests/test_dashboard_example.py
+```
+
+Skenarionya ada di `tests/test_dashboard_example.py`, dan test yang sama gagal
+kalau berkas itu tidak lagi sama dengan keluaran kode (D-053).
 
 ---
 

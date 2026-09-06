@@ -13,6 +13,9 @@
 #   -> Raw configuration editor -> tempelkan seluruh isi di bawah ini.
 #
 # Semua kartu di sini bawaan Home Assistant. Tidak perlu HACS.
+#
+# Berkas ini dibangkitkan oleh tests/test_dashboard_example.py - jangan diedit
+# dengan tangan. Cara memperbaruinya ada di docstring test itu.
 
 views:
 - title: PLN RUMAH
