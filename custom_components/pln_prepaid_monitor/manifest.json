@@ -1,6 +1,9 @@
 {
   "domain": "pln_prepaid_monitor",
   "name": "PLN Prepaid Energy & Cost Monitor",
+  "after_dependencies": [
+    "recorder"
+  ],
   "codeowners": [
     "@ByAnz12"
   ],

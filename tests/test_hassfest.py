@@ -15,6 +15,7 @@ area yang skemanya sendiri tolak. Semuanya terlihat baik-baik saja.
 Aturannya disalin dari sumbernya, bukan dikarang:
 
 * `script/hassfest/services.py` - `raise_on_target_device_filter`
+* `script/hassfest/dependencies.py` - `calc_allowed_references`
 * `script/hassfest/translations.py` - skema `entity`, `translation_key_validator`,
   `RE_PLACEHOLDER_IN_SINGLE_QUOTES`
 * `homeassistant/helpers/selector.py` - dipakai langsung, bukan disalin
@@ -36,12 +37,16 @@ from typing import Any
 import pytest
 import yaml
 
+from homeassistant.const import Platform
 from homeassistant.helpers import selector
 
 from custom_components.pln_prepaid_monitor.select import NONE_OPTION
 
 COMPONENT = pathlib.Path("custom_components/pln_prepaid_monitor")
 
+MANIFEST: dict[str, Any] = json.loads(
+    (COMPONENT / "manifest.json").read_text(encoding="utf-8")
+)
 SERVICES: dict[str, Any] = yaml.safe_load(
     (COMPONENT / "services.yaml").read_text(encoding="utf-8")
 )
@@ -204,3 +209,45 @@ def test_both_languages_have_the_same_keys(language: str) -> None:
     extra = _key_paths(TRANSLATIONS[language]) - _key_paths(STRINGS)
     assert not missing, f"{language}.json kurang: {sorted(missing)[:5]}"
     assert not extra, f"{language}.json kelebihan: {sorted(extra)[:5]}"
+
+
+# --- manifest.json ----------------------------------------------------------
+
+# script/hassfest/dependencies.py. Platform yang dipakai integrasi ini tidak
+# perlu didaftarkan; komponen lain wajib.
+CORE_INTEGRATIONS = {"homeassistant", "persistent_notification"}
+RE_USED_COMPONENT = re.compile(r"homeassistant\.components\.([a-z_]+)")
+
+
+def test_every_component_used_is_declared() -> None:
+    """Komponen yang dipakai tapi tidak didaftarkan ditolak hassfest.
+
+    Bukan sekadar formalitas: tanpa `after_dependencies`, Home Assistant boleh
+    menyiapkan integrasi ini **sebelum** recorder selesai. Yang terjadi lalu
+    bukan error, melainkan angka - grafik dan prediksi yang diam-diam kosong
+    di awal, lalu terisi sendiri belakangan.
+
+    `recorder` sengaja `after_dependencies`, bukan `dependencies`: kodenya
+    sudah memeriksa `"recorder" in hass.config.components` dan berjalan tanpa
+    recorder, cuma tanpa statistik jangka panjang. `dependencies` akan memaksa
+    recorder menyala di instalasi yang sengaja mematikannya.
+    """
+    declared = (
+        set(MANIFEST.get("dependencies", []))
+        | set(MANIFEST.get("after_dependencies", []))
+        | {platform.value for platform in Platform}
+        | CORE_INTEGRATIONS
+    )
+
+    used: set[str] = set()
+    for path in COMPONENT.rglob("*.py"):
+        used |= set(RE_USED_COMPONENT.findall(path.read_text(encoding="utf-8")))
+
+    assert used - declared == set(), f"belum didaftarkan: {sorted(used - declared)}"
+
+
+def test_manifest_keys_are_sorted() -> None:
+    """hassfest menuntut: domain, name, lalu urut abjad."""
+    keys = list(MANIFEST)
+    assert keys[:2] == ["domain", "name"]
+    assert keys[2:] == sorted(keys[2:])

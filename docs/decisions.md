@@ -81,6 +81,22 @@ dari workflow lain bukan gerbang.
 commit - deskripsi dan topik repositori - jadi ia bisa memerahkan rilis karena
 hal yang tidak bisa diperbaiki oleh kenaikan versi.
 
+**5. `recorder` didaftarkan sebagai `after_dependencies`.** Ini baru muncul
+sesudah keempat kesalahan di atas dibereskan - hassfest melaporkan yang pertama
+saja lebih dulu. `statistics_helper.py` dan `retention.py` memakai
+`homeassistant.components.recorder`, tapi manifest tidak menyebutnya.
+
+Wujudnya juga bukan error: tanpa pendaftaran itu, Home Assistant boleh
+menyiapkan integrasi ini **sebelum** recorder selesai, dan yang terjadi adalah
+grafik serta prediksi yang diam-diam kosong di awal lalu terisi sendiri
+belakangan.
+
+`after_dependencies`, bukan `dependencies`: kodenya sudah memeriksa
+`"recorder" in hass.config.components` dan tetap berjalan tanpa recorder, cuma
+tanpa statistik jangka panjang. `dependencies` akan memaksa recorder menyala di
+instalasi yang sengaja mematikannya (VERIFIED - `homeassistant/setup.py`
+menunggu `after_dependencies` hanya kalau komponennya memang akan dimuat).
+
 **`tests/test_hassfest.py`** menyalin aturannya ke pytest, jadi kesalahan yang
 sama gagal lebih awal, di mesin siapa pun, tanpa perlu menunggu CI. Selector
 divalidasi lewat `homeassistant.helpers.selector` yang asli, bukan daftar
