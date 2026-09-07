@@ -423,6 +423,19 @@ ELSE:
                                 "low" jika window=30d dengan data_points < 30
 ```
 
+> **Pembaruan ketentuan (0.3.2, D-054).** Spec ini mewajibkan prediksi eksplisit
+> soal window yang dipakai (lihat poin 3 di Bagian riset), tapi tidak pernah
+> menyebut di mana window itu **berakhir**. Implementasi pertama memakai
+> `now - span` tanpa batas akhir, jadi periode yang sedang berjalan ikut jadi
+> sampel seolah-olah periode penuh — dan karena rumusnya membagi sisa kWh dengan
+> rata-rata, rata-rata yang terlalu kecil menghasilkan perkiraan yang terlalu
+> **panjang**. Arah kesalahan yang berbahaya: listrik padam pada hari yang layar
+> bilang masih aman.
+>
+> Ketentuannya sekarang: **window berakhir di awal periode yang sedang
+> berjalan**, bukan di `now`. Batas itu diserahkan ke recorder lewat `end_time`,
+> bukan disaring sesudah data terbaca. Rinciannya di D-054.
+
 - **Window selection**: coba `preferred_window` (default 7d) dulu; kalau data historis Billing Group ini belum cukup (baru dipasang < 7 hari), turun ke `fallback_order` berikutnya (24h), dengan `confidence` diturunkan sesuai.
 - **Anomaly handling**: `outlier_filter: median` memakai median harian alih-alih mean supaya satu hari dengan lonjakan konsumsi ekstrem (tamu menginap, AC nyala terus) tidak mendistorsi prediksi secara tidak proporsional.
 - **Jangan pernah menampilkan angka prediksi presisi saat data belum cukup** — tampilkan state `unknown`/"data belum cukup" di dashboard, bukan menebak dengan default value tersembunyi. Ini eksplisit dari permintaan Anda dan prinsip transparansi.

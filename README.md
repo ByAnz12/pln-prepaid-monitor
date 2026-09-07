@@ -26,12 +26,13 @@ kapan token habis, dan mengingatkan Anda sebelum listrik padam.
 9. [Memperkirakan kapan token habis](#memperkirakan-kapan-token-habis)
 10. [Notifikasi token](#notifikasi-token)
 11. [Dashboard](#dashboard)
-12. [Perawatan data](#perawatan-data)
-13. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
-14. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
-15. [Troubleshooting](#troubleshooting)
-16. [Untuk pengembang](#untuk-pengembang)
-17. [Rencana pengembangan](#rencana-pengembangan)
+12. [Tabel pemakaian](#tabel-pemakaian)
+13. [Perawatan data](#perawatan-data)
+14. [Kenapa angkanya beda dengan aplikasi meteran?](#kenapa-angkanya-beda-dengan-aplikasi-meteran)
+15. [Menambah sumber kedua, ketiga, dst](#menambah-sumber-kedua-ketiga-dst)
+16. [Troubleshooting](#troubleshooting)
+17. [Untuk pengembang](#untuk-pengembang)
+18. [Rencana pengembangan](#rencana-pengembangan)
 
 ---
 
@@ -66,6 +67,9 @@ Integrasi ini dibangun bertahap. Yang **sudah selesai dan bisa dipakai**:
   setujui dulu.
 - **Grafik analisa** untuk melihat pola pemakaian: profil daya sehari, per jam,
   dan perbandingan bulanan.
+- **Tabel pemakaian** yang bisa disaring per rentang tanggal dan diurutkan
+  menurut waktu, pemakaian, atau biaya - dengan pemilih tanggal sungguhan, dan
+  tetap tanpa kartu HACS.
 
 Seluruh tahap yang direncanakan sudah selesai, plus tambahan yang muncul dari
 pemakaian nyata — lihat [Rencana pengembangan](#rencana-pengembangan).
@@ -280,11 +284,24 @@ Untuk kelompok bernama "PLN Rumah":
 | `sensor.pln_rumah_energy_this_week` | Pemakaian minggu ini |
 | `sensor.pln_rumah_energy_this_month` | Pemakaian bulan ini |
 | `sensor.pln_rumah_energy_this_year` | Pemakaian tahun ini |
+| `sensor.pln_rumah_usage_table` | Isi [Tabel pemakaian](#tabel-pemakaian) - baris-barisnya ada di atribut `rows` |
+
+Kelompok tagihan juga mendapat **tujuh entity kendali** untuk mengatur tabel
+pemakaian (`select`, `date`, dan `number`). Semuanya dijelaskan di
+[Tabel pemakaian](#tabel-pemakaian).
 
 Tiap penghitung periode membawa atribut `cycle_start` (kapan siklus ini dimulai)
 dan `next_cycle_start` (kapan akan di-reset), plus `member_sources` dan
 `members_unavailable` supaya Anda tahu kalau salah satu meteran sedang mati -
 karena selama meteran itu mati, pemakaiannya memang tidak terhitung.
+
+Ada satu atribut lagi yang hanya penting di hari-hari pertama:
+`covers_full_cycle`. Nilainya `false` selama penghitung itu **belum sempat
+melewati satu siklus penuh** - misalnya "Bulan ini" pada instalasi yang baru
+dipasang tanggal 5. Angkanya tetap nyata, hanya rentangnya lebih pendek
+daripada namanya. Begitu satu batas siklus sungguhan terlewati, nilainya
+berubah jadi `true` dengan sendirinya dan tidak perlu Anda urus lagi. Lihat
+[Kenapa "Minggu ini" lebih kecil daripada jumlah harian?](#kenapa-minggu-ini-lebih-kecil-daripada-jumlah-harian)
 
 > **Kenapa tidak ada sensor tegangan/arus gabungan?** Karena menjumlahkan
 > tegangan dua meteran di rangkaian berbeda tidak berarti apa-apa secara fisika.
@@ -1065,6 +1082,75 @@ jadi grafiknya terisi setelah beberapa jam.
 
 ---
 
+## Tabel pemakaian
+
+Kartu **Tabel pemakaian** ada di bagian *Pemakaian & biaya* pada dashboard yang
+dibuatkan sistem. Isinya riwayat pemakaian dan biaya yang bisa Anda saring dan
+urutkan sendiri - tanpa memasang kartu HACS apa pun.
+
+### Kolomnya
+
+| Kolom | Isinya |
+|---|---|
+| `#` | Nomor urut baris, mengikuti urutan yang sedang dipilih |
+| **Periode** | Tanggal, bulan, atau tahun baris itu |
+| **kWh** | Pemakaian pada periode itu |
+| **Biaya** | Rupiah pada periode itu |
+| **Banding** | Batang perbandingan, panjangnya maksimal 10 karakter |
+
+Batang **Banding** diukur terhadap baris terbesar **yang sedang tampil**, bukan
+terhadap seluruh riwayat. Jadi kalau Anda mempersempit rentangnya, batangnya
+ikut menyesuaikan diri - dan baris terpanjang selalu ada di setiap tampilan.
+
+Di bawah tabel ada baris **Total**, berisi jumlah kWh dan Rupiah dari baris yang
+sedang tampil beserta jumlah periodenya.
+
+### Tujuh kendali
+
+Semuanya entity biasa, jadi bisa juga Anda pakai di dashboard sendiri atau
+diubah lewat otomasi.
+
+| Kendali | Bawaan | Artinya |
+|---|---|---|
+| **Jenis waktu** | Bulan | Satuan waktu yang jadi dasar penyaringan |
+| **Dari** | 30 hari lalu | Awal rentang. Berupa **pemilih tanggal**, bukan ketikan - jadi tidak ada salah ketik |
+| **Sampai** | Hari ini | Akhir rentang |
+| **Tampilkan per** | Hari | Satu baris mewakili satu hari, bulan, atau tahun |
+| **Urutkan** | Waktu | Waktu, Pemakaian, atau Biaya |
+| **Arah** | Turun - besar ke kecil | Naik atau turun |
+| **Maksimal baris** | 12 | Berapa baris paling banyak ditampilkan (batas atas 60) |
+
+### Hal yang perlu Anda ketahui
+
+- **Ada jeda sekitar satu detik** setiap kali Anda mengubah pilihan. Tabelnya
+  dihitung ulang di server, bukan di peramban - itu harga yang dibayar supaya
+  fitur ini tidak butuh kartu HACS.
+
+- **"Tampilkan per" tidak pernah lebih kasar daripada "Jenis waktu".** Kalau
+  jenis waktunya Hari, pilihan Bulan dan Tahun hilang sendiri dari daftar.
+  Alasannya sederhana: rentang beberapa hari yang ditampilkan per tahun hanya
+  menghasilkan satu baris gabungan yang tidak memberi tahu apa pun.
+
+- **Baris yang tidak muat tidak disembunyikan diam-diam.** Kalau hasilnya lebih
+  banyak daripada Maksimal baris, ada keterangan di bawah tabel yang menyuruh
+  Anda menaikkan angkanya.
+
+- **Mengurutkan berdasarkan Biaya menaruh baris tanpa biaya di paling bawah**,
+  baik urutan naik maupun turun. Baris tanpa biaya artinya tarif belum diatur
+  untuk periode itu - bukan berarti biayanya nol.
+
+- **Isi tabelnya tidak ikut disimpan ke riwayat Home Assistant.** Ini disengaja:
+  atribut sebesar itu akan membanjiri database recorder dan justru dibuang lagi
+  karena melewati batas ukurannya. Angkanya selalu dihitung dari statistik
+  jangka panjang, yang memang tidak pernah dihapus otomatis.
+
+- **Tabel kosong belum tentu rusak.** Dua sebab yang wajar: pemasangan baru
+  memang belum punya riwayat sejauh itu, dan statistik yang lebih tua daripada
+  [batas retensi](#perawatan-data) Anda sudah dihapus permanen. Kartunya
+  menjelaskan ini sendiri saat kosong.
+
+---
+
 ## Perawatan data
 
 Riwayat jangka panjang Home Assistant **tidak pernah dihapus otomatis**. Untuk
@@ -1215,6 +1301,41 @@ kalau Home Assistant sempat mati melewati tengah malam, siklus yang terlewat
 langsung ditutup begitu ia hidup lagi - pemakaian kemarin tidak akan menumpuk
 di penghitung hari ini.
 
+### Kenapa "Minggu ini" lebih kecil daripada jumlah harian?
+
+Ini normal pada **hari-hari pertama sesudah pemasangan**, dan hilang sendiri.
+
+Misalnya Anda memasang integrasi ini Sabtu siang. Minggu pagi, "Minggu ini"
+menunjukkan angka yang lebih kecil daripada jumlah tiga baris harian terakhir di
+tabel yang sama. Sekilas itu mustahil - minggu jelas lebih panjang daripada tiga
+hari.
+
+Sebabnya dua angka itu datang dari dua tempat yang berbeda:
+
+- **Baris harian** diambil dari statistik jangka panjang Home Assistant, yang
+  sudah mencatat hari-hari sungguhan.
+- **"Minggu ini"** adalah penghitung milik integrasi ini, dan ia hanya bisa
+  menghitung sejak detik ia dipasang. Sabtu siang, bukan Senin dini hari.
+
+Cara memastikannya: buka **Developer Tools -> States**, cari entity
+`..._energy_this_week`, lalu lihat dua atributnya:
+
+- `cycle_start` - menyebut saat pengukuran benar-benar dimulai, bukan batas
+  siklus resmi. Jadi kalau tertulis Sabtu siang, itu memang benar.
+- `covers_full_cycle` - bernilai `false` selama siklus itu belum penuh.
+
+Begitu batas siklus sungguhan terlewati - Senin dini hari untuk mingguan,
+tanggal 1 untuk bulanan - penghitungnya reset seperti biasa dan angkanya kembali
+berarti penuh. Penghitung harian pulih paling cepat, yaitu tengah malam
+berikutnya.
+
+> Sebelum versi 0.4.0, atribut `cycle_start` justru menyebut batas siklus resmi
+> - Senin, atau tanggal 1 - padahal angkanya belum mencakup hari-hari itu.
+> Selain menyesatkan pembaca, tanggal yang mengada-ada itu juga dipakai Home
+> Assistant untuk menafsirkan penurunan nilai sensor, jadi bisa mengganggu
+> statistik jangka panjangnya sendiri. Ini sudah diperbaiki; riwayat yang
+> terlanjur tercatat dengan tanggal lama tidak ikut diperbaiki.
+
 ### Sensor biaya tidak muncul
 
 Kelompok tagihan itu belum dihubungkan ke tarif. Buka **Ubah kelompok tagihan**
@@ -1360,7 +1481,7 @@ sesudahnya, atas permintaan pemilik selama pemakaian nyata:
 | Tata letak sections, masonry, dan varian HACS | **Selesai** |
 | Ikon integrasi sendiri | **Selesai** |
 | Rilis otomatis saat versi naik | **Selesai** |
-| Tabel pemakaian yang bisa disaring dan diurutkan | **Selesai** |
+| Tabel pemakaian yang bisa disaring dan diurutkan | **Selesai** - lihat [Tabel pemakaian](#tabel-pemakaian) |
 
 Semua tarif, ambang batas, dan periode selalu bisa diatur dari antarmuka -
 tidak ada satu pun yang dikunci di dalam kode.
