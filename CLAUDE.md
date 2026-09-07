@@ -6,6 +6,23 @@ biaya, sisa token, prediksi habis, dan notifikasi.
 
 Repo: <https://github.com/ByAnz12/pln-prepaid-monitor>
 
+### Keadaan saat ini
+
+Versi **0.4.0**, 534 test, keputusan terakhir **D-057**. Seluruh tahap yang
+direncanakan sudah selesai; pekerjaan sekarang berupa perbaikan dan penambahan
+yang muncul dari pemakaian nyata.
+
+Angka-angka di berkas ini bisa basi. Sumber kebenarannya, kalau ragu:
+
+```bash
+grep '"version"' custom_components/pln_prepaid_monitor/manifest.json
+grep -c "^## D-" docs/decisions.md      # jumlah keputusan
+git log --oneline -10                    # apa yang terakhir dikerjakan
+```
+
+Pemilik memasang integrasi ini di rumahnya sendiri sejak 5 September 2026, jadi
+setiap kekeliruan angka berakibat nyata — bukan sekadar test yang merah.
+
 ---
 
 ## Aturan yang tidak boleh dilanggar
@@ -153,6 +170,26 @@ Bukan sekadar nama. Pemilik meminta ini sejak awal, dan itu alasan
 
 ## Git dan rilis
 
+### Lokal adalah tempat kerja utama; GitHub satu-satunya jalur sinkron
+
+Tidak ada mekanisme sinkronisasi lain di proyek ini. Git satu-satunya jalur, dan
+sesi Claude Code di web **tidak pernah menyentuh mesin pemilik** — ia clone dari
+GitHub, bekerja, push ke GitHub, lalu container-nya dibuang.
+
+Akibatnya yang harus diingat sebelum membuka sesi web: **push dulu pekerjaan
+lokal.** Sesi web hanya melihat apa yang sudah ada di GitHub. Sebaliknya,
+sesudah sesi web selesai, mesin lokal perlu `git pull origin main` — kalau tidak,
+pekerjaan berikutnya dimulai di atas kode yang sudah ketinggalan.
+
+`CLAUDE.md` sendiri **sudah ter-commit** sejak 0.3.1. Dulu ia ada di
+`.gitignore`, dan akibatnya sesi web berjalan tanpa satu pun aturan di berkas ini
+sampai seseorang menyadarinya. Jangan pernah mengembalikannya ke `.gitignore`.
+
+Menjalankan test di sesi web berarti membangun venv Python 3.14.2 dari nol tiap
+kali — mahal. Untuk perubahan yang **tidak menyentuh kode** (dokumentasi saja),
+melewatinya adalah pilihan yang sah; CI di GitHub tetap jadi jaringan pengaman.
+Untuk perubahan kode, tidak ada alasan melewatinya.
+
 ### Push otomatis, tanpa bertanya
 
 Setelah revisi selesai dan test lulus: `git add` → `commit` → `push` langsung.
@@ -183,6 +220,13 @@ statis. Tiga tata letak: `sections` (bawaan, bisa drag & drop), `sections_hacs`
 
 **Hanya kartu bawaan Home Assistant** pada dua tata letak pertama — tidak ada
 dependency HACS. Itu prinsip spec J dan sudah dikunci test.
+
+Bagian *Pemakaian & biaya* memuat **Tabel pemakaian** (D-056): kendalinya entity
+sungguhan (`select`, `date`, `number`), tabelnya kartu markdown yang membaca
+atribut `rows` milik `sensor.<kelompok>_usage_table`. Engine murninya di
+`engines/usage_table.py`. Konsekuensi bentuk ini: tiap perubahan pilihan
+dihitung ulang di server, jadi ada jeda sekitar satu detik — itu memang harganya
+supaya tidak butuh kartu HACS.
 
 Urutan bagiannya **dikunci test** ke susunan yang pemilik rapikan sendiri:
 Ringkasan → Token → Pemakaian & biaya → Grafik → Analisa → Pengaturan. Jangan
